@@ -72,7 +72,7 @@ export default async function AuditLogsPage({
                 </tr>
               </thead>
               <tbody>
-                {logs.map((log) => (
+                {logs.map((log: any) => (
                   <tr key={log.id}>
                     <td style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
                       {formatDate(log.createdAt)}

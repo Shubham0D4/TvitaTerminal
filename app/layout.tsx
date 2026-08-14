@@ -9,6 +9,11 @@ export const metadata: Metadata = {
   },
   description: 'Professional agency management platform for clients, teams, and projects.',
   keywords: ['agency management', 'project management', 'client portal', 'team collaboration'],
+  icons: {
+    icon: '/favicon.webp',
+    shortcut: '/favicon.webp',
+    apple: '/favicon.webp',
+  },
 }
 
 export default function RootLayout({

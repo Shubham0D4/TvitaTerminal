@@ -87,7 +87,7 @@ export default function Sidebar({ role }: SidebarProps) {
     >
       {/* Logo */}
       <div className="sidebar__logo">
-        <div className="sidebar__logo-mark">T</div>
+        <img src="/logo.png" alt="Tvita Logo" style={{ height: '32px', width: 'auto', objectFit: 'contain' }} />
         {!collapsed && <span className="sidebar__logo-name">Tvita</span>}
       </div>
 

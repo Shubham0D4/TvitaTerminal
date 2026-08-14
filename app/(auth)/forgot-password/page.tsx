@@ -36,7 +36,7 @@ export default function ForgotPasswordPage() {
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-logo">
-          <div className="auth-logo__mark">T</div>
+          <img src="/logo.png" alt="Tvita Logo" style={{ height: '40px', width: 'auto', objectFit: 'contain' }} />
           <span className="auth-logo__name">Tvita</span>
         </div>
 

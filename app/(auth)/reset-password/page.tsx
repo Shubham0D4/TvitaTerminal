@@ -109,7 +109,7 @@ function ResetPasswordForm() {
       <div className="auth-page">
         <div className="auth-card" style={{ textAlign: 'center', padding: '40px 20px' }}>
           <div className="auth-logo" style={{ justifyContent: 'center' }}>
-            <div className="auth-logo__mark">T</div>
+            <img src="/logo.png" alt="Tvita Logo" style={{ height: '40px', width: 'auto', objectFit: 'contain' }} />
             <span className="auth-logo__name">Tvita</span>
           </div>
           <p className="auth-subtitle" style={{ marginTop: '16px' }}>Verifying security token...</p>
@@ -142,7 +142,7 @@ function ResetPasswordForm() {
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-logo">
-          <div className="auth-logo__mark">T</div>
+          <img src="/logo.png" alt="Tvita Logo" style={{ height: '40px', width: 'auto', objectFit: 'contain' }} />
           <span className="auth-logo__name">Tvita</span>
         </div>
 

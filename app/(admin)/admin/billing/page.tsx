@@ -58,8 +58,8 @@ export default async function AdminBillingPage({
   const params = await searchParams
   const invoices = await getInvoices(params.search, params.status)
 
-  const totalCollected = invoices.filter((i) => i.status === 'PAID').reduce((a, i) => a + Number(i.amount), 0)
-  const totalPending = invoices.filter((i) => i.status === 'PENDING').reduce((a, i) => a + Number(i.amount), 0)
+  const totalCollected = invoices.filter((i: any) => i.status === 'PAID').reduce((a: number, i: any) => a + Number(i.amount), 0)
+  const totalPending = invoices.filter((i: any) => i.status === 'PENDING').reduce((a: number, i: any) => a + Number(i.amount), 0)
 
   return (
     <div>
@@ -164,7 +164,7 @@ export default async function AdminBillingPage({
                 </tr>
               </thead>
               <tbody>
-                {invoices.map((inv) => (
+                {invoices.map((inv: any) => (
                   <tr key={inv.id}>
                     <td>
                       <Link

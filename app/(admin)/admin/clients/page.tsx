@@ -49,8 +49,8 @@ export default async function AdminClientsPage({
 }) {
   const params = await searchParams
   const clients = await getClients(params.search, params.status)
-  const totalActive = clients.filter((c) => c.status === 'ACTIVE').length
-  const totalInactive = clients.filter((c) => c.status === 'INACTIVE').length
+  const totalActive = clients.filter((c: any) => c.status === 'ACTIVE').length
+  const totalInactive = clients.filter((c: any) => c.status === 'INACTIVE').length
 
   return (
     <div>
@@ -115,7 +115,7 @@ export default async function AdminClientsPage({
         </div>
       ) : (
         <div className="grid grid-cols-3 gap-4">
-          {clients.map((client) => {
+          {clients.map((client: any) => {
             const activePlan = client.subscriptions[0]?.plan
             const avatarColor = stringToHue(client.name)
             return (

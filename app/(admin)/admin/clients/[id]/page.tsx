@@ -81,11 +81,11 @@ export default async function ClientDetailPage({ params }: PageProps) {
 
   if (!client) notFound()
 
-  const activeSub = client.subscriptions.find((s) => s.status === 'ACTIVE')
-  const totalBilled = client.invoices.reduce((acc, inv) => acc + Number(inv.amount), 0)
+  const activeSub = client.subscriptions.find((s: any) => s.status === 'ACTIVE')
+  const totalBilled = client.invoices.reduce((acc: number, inv: any) => acc + Number(inv.amount), 0)
   const pendingAmount = client.invoices
-    .filter((i) => i.status === 'PENDING' || i.status === 'OVERDUE')
-    .reduce((acc, inv) => acc + Number(inv.amount), 0)
+    .filter((i: any) => i.status === 'PENDING' || i.status === 'OVERDUE')
+    .reduce((acc: number, inv: any) => acc + Number(inv.amount), 0)
 
   return (
     <div>
@@ -140,7 +140,7 @@ export default async function ClientDetailPage({ params }: PageProps) {
         {[
           { label: 'Total Invoiced', value: formatCurrency(totalBilled, client.currency), icon: <CreditCard size={18} /> },
           { label: 'Outstanding', value: formatCurrency(pendingAmount, client.currency), icon: <Clock size={18} />, warn: pendingAmount > 0 },
-          { label: 'Active Projects', value: String(client.projects.filter(p => p.status === 'IN_PROGRESS').length), icon: <FolderKanban size={18} /> },
+          { label: 'Active Projects', value: String(client.projects.filter((p: any) => p.status === 'IN_PROGRESS').length), icon: <FolderKanban size={18} /> },
           { label: 'Total Projects', value: String(client.projects.length), icon: <Layers size={18} /> },
         ].map((stat) => (
           <div key={stat.label} className="card" style={{ textAlign: 'center', padding: 'var(--space-4)' }}>
@@ -294,7 +294,7 @@ export default async function ClientDetailPage({ params }: PageProps) {
                 <div>
                   <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 6 }}>Tags</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                    {client.internalTags.map((tag) => (
+                    {client.internalTags.map((tag: string) => (
                       <span key={tag} className="badge" style={{ background: 'var(--bg-overlay)', color: 'var(--text-muted)', fontSize: 10 }}>
                         {tag}
                       </span>
@@ -424,7 +424,7 @@ export default async function ClientDetailPage({ params }: PageProps) {
                     </tr>
                   </thead>
                   <tbody>
-                    {client.projects.map((project) => (
+                    {client.projects.map((project: any) => (
                       <tr key={project.id}>
                         <td>
                           <Link href={`/admin/projects/${project.id}`}
@@ -476,7 +476,7 @@ export default async function ClientDetailPage({ params }: PageProps) {
                     <tr><th>Invoice #</th><th>Amount</th><th>Status</th><th>Due Date</th></tr>
                   </thead>
                   <tbody>
-                    {client.invoices.map((invoice) => (
+                    {client.invoices.map((invoice: any) => (
                       <tr key={invoice.id}>
                         <td>
                           <Link href={`/admin/billing/${invoice.id}`}

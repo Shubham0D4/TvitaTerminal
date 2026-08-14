@@ -60,7 +60,7 @@ export default async function AdminProjectDetailPage({ params }: PageProps) {
     }),
   ])
 
-  const completedMilestones = project.milestones.filter((m) => m.status === 'COMPLETED').length
+  const completedMilestones = project.milestones.filter((m: any) => m.status === 'COMPLETED').length
   const totalMilestones = project.milestones.length
 
   return (
@@ -158,7 +158,7 @@ export default async function AdminProjectDetailPage({ params }: PageProps) {
                 </h2>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                {project.updates.map((u) => (
+                {project.updates.map((u: any) => (
                   <div key={u.id} style={{ padding: 'var(--space-3)', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
                     <div className="flex items-center justify-between">
                       <span style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>{u.title}</span>
@@ -198,7 +198,7 @@ export default async function AdminProjectDetailPage({ params }: PageProps) {
               <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>No invoices linked yet.</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                {project.invoices.map((inv) => (
+                {project.invoices.map((inv: any) => (
                   <Link key={inv.id} href={`/admin/billing/${inv.id}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-2) 0', textDecoration: 'none' }}>
                     <div>
                       <div style={{ fontSize: 'var(--text-sm)', color: 'var(--accent-primary)', fontWeight: 'var(--font-medium)' }}>{inv.invoiceNo}</div>
