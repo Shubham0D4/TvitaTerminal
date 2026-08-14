@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { getServerUser } from '@/lib/auth/server'
+import { getClientSubTeamContext, getServerUser } from '@/lib/auth/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Sparkles, Clock } from 'lucide-react'
@@ -16,8 +16,18 @@ export default async function ClientProjectDetailPage({ params }: { params: Prom
   const user = await getServerUser()
   if (!user) redirect('/login')
 
+  const subTeamCtx = await getClientSubTeamContext(user.id)
+  if (subTeamCtx) {
+    if (!subTeamCtx.policy.projects) redirect('/client/dashboard')
+    if (subTeamCtx.allowedProjectIds.length > 0 && !subTeamCtx.allowedProjectIds.includes(id)) {
+      redirect('/client/projects')
+    }
+  }
+
   const client = await prisma.client.findFirst({
-    where: { OR: [{ profileId: user.id }, { email: user.email }] },
+    where: subTeamCtx
+      ? { id: subTeamCtx.clientId }
+      : { OR: [{ profileId: user.id }, { email: user.email }] },
   })
   if (!client) redirect('/client/dashboard')
 

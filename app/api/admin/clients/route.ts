@@ -5,6 +5,7 @@ import { sendClientInvite } from '@/lib/email'
 import { createNotification } from '@/lib/notifications'
 import { prisma } from '@/lib/prisma'
 import { createSupabaseAdminClient } from '@/lib/supabase/server'
+import { getAppBaseUrl } from '@/lib/url'
 import { NextRequest } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -76,7 +77,7 @@ export async function POST(request: NextRequest) {
 
     if (loginEmail) {
       const supabaseAdmin = createSupabaseAdminClient()
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+      const appUrl = getAppBaseUrl(request)
 
       let { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
         type: 'invite',

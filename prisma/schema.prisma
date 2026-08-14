@@ -187,6 +187,7 @@ model Profile {
   milestonesCreated    Milestone[]    @relation("MilestoneCreatedBy")
   approvalsCreated     ClientApproval[] @relation("ApprovalCreatedBy")
   clientSubTeam        ClientSubTeam? // If this profile is a sub-team login
+  subTeamMember        ClientSubTeamMember? @relation("SubTeamMemberProfile")
 
   @@map("profiles")
 }
@@ -290,27 +291,65 @@ model Client {
 }
 
 // ─────────────────────────────────────────────
-// CLIENT SUB-TEAMS (client-owned internal teams)
+// CLIENT SUB-TEAMS (client-owned internal teams with project & role access)
 // ─────────────────────────────────────────────
 
 model ClientSubTeam {
+  id              String           @id @default(uuid()) @db.Uuid
+  clientId        String           @map("client_id") @db.Uuid
+  name            String           // Team display name
+  description     String?
+  email           String           @unique  // Login / contact email for this team
+  profileId       String?          @unique @map("profile_id") @db.Uuid // Supabase auth profile if primary team login
+  status          ClientTeamStatus @default(ACTIVE)
+  accessPolicy    Json             @default("{}") @map("access_policy")
+  allowedProjects Json             @default("[]") @map("allowed_projects") // Project IDs team has access to e.g. ["id1", "id2"]. Empty/["ALL"] = all client projects
+  revokedByAdmin  Boolean          @default(false) @map("revoked_by_admin") // Admin revoke flag
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  client  Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  profile Profile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  roles   ClientSubTeamRole[]
+  members ClientSubTeamMember[]
+
+  @@map("client_sub_teams")
+}
+
+model ClientSubTeamRole {
+  id          String   @id @default(uuid()) @db.Uuid
+  subTeamId   String   @map("sub_team_id") @db.Uuid
+  name        String   // Role Name e.g. "Reviewer", "Project Manager", "Billing Observer"
+  description String?
+  permissions Json     @default("{}") // Component access specifications
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  subTeam ClientSubTeam         @relation(fields: [subTeamId], references: [id], onDelete: Cascade)
+  members ClientSubTeamMember[]
+
+  @@map("client_sub_team_roles")
+}
+
+model ClientSubTeamMember {
   id           String           @id @default(uuid()) @db.Uuid
-  clientId     String           @map("client_id") @db.Uuid
-  name         String           // Team display name
-  email        String           @unique  // Login email for this sub-team
-  profileId    String           @unique @map("profile_id") @db.Uuid // Supabase auth profile
+  subTeamId    String           @map("sub_team_id") @db.Uuid
+  profileId    String?          @unique @map("profile_id") @db.Uuid
+  roleId       String?          @map("role_id") @db.Uuid
+  name         String
+  email        String           @unique
+  designation  String?
+  customPolicy Json?            @map("custom_policy") // Individual component-level access specification override
   status       ClientTeamStatus @default(ACTIVE)
-  // accessPolicy: JSON object controlling what pages/data this team can see
-  // Default: { projects: true, milestones: true, approvals: true, invoices: false, subscriptions: false, billing: false }
-  accessPolicy Json             @default("{}") @map("access_policy")
-  revokedByAdmin Boolean        @default(false) @map("revoked_by_admin") // Admin revoke flag
   createdAt    DateTime         @default(now()) @map("created_at")
   updatedAt    DateTime         @updatedAt @map("updated_at")
 
-  client  Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  subTeam ClientSubTeam      @relation(fields: [subTeamId], references: [id], onDelete: Cascade)
+  role    ClientSubTeamRole? @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  profile Profile?           @relation("SubTeamMemberProfile", fields: [profileId], references: [id], onDelete: SetNull)
 
-  @@map("client_sub_teams")
+  @@map("client_sub_team_members")
 }
 
 // ─────────────────────────────────────────────

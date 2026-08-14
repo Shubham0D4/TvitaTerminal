@@ -3,6 +3,7 @@ import { DEFAULT_SUBTEAM_POLICY, getServerUser, isAdmin } from '@/lib/auth/serve
 import { sendClientTeamInvite } from '@/lib/email'
 import { prisma } from '@/lib/prisma'
 import { createSupabaseAdminClient } from '@/lib/supabase/server'
+import { getAppBaseUrl } from '@/lib/url'
 import { NextRequest } from 'next/server'
 
 export async function POST(
@@ -30,7 +31,7 @@ export async function POST(
     }
 
     const supabaseAdmin = createSupabaseAdminClient()
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const appUrl = getAppBaseUrl(request)
 
     let { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'invite',

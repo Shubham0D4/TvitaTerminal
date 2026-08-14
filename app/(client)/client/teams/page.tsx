@@ -19,13 +19,34 @@ export default async function ClientTeamsPage() {
   const client = await prisma.client.findFirst({
     where: { profileId: user.id },
     include: {
+      projects: {
+        select: { id: true, name: true, status: true },
+        orderBy: { createdAt: 'desc' },
+      },
       subTeams: {
         orderBy: { createdAt: 'desc' },
+        include: {
+          roles: true,
+          members: {
+            include: {
+              role: true,
+              profile: { select: { email: true, name: true, isActive: true } },
+            },
+          },
+        },
       },
     },
   })
 
   if (!client) redirect('/client/dashboard')
 
-  return <ClientTeamsManager client={client} subTeams={client.subTeams} />
+  const serializedClient = JSON.parse(JSON.stringify(client))
+
+  return (
+    <ClientTeamsManager
+      client={serializedClient}
+      projects={serializedClient.projects}
+      initialSubTeams={serializedClient.subTeams}
+    />
+  )
 }

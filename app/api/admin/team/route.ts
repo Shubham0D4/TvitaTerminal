@@ -5,6 +5,7 @@ import { sendRoleAccountCreatedEmail } from '@/lib/email'
 import { createNotification } from '@/lib/notifications'
 import { prisma } from '@/lib/prisma'
 import { createSupabaseAdminClient } from '@/lib/supabase/server'
+import { getAppBaseUrl } from '@/lib/url'
 import { TeamRole } from '@prisma/client'
 import { NextRequest } from 'next/server'
 
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
       return Errors.CONFLICT('A profile with this email address already exists')
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const appUrl = getAppBaseUrl(request)
     let inviteLink = `${appUrl}/login`
     let userId = crypto.randomUUID()
     const supabaseAdmin = createSupabaseAdminClient()

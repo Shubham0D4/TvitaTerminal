@@ -112,15 +112,62 @@ export type SubTeamContext = {
   subTeamId: string
   clientId: string
   teamName: string
-  policy: AccessPolicy
+  memberId?: string
+  memberName?: string
+  roleName?: string
+  allowedProjectIds: string[] // Project-level access restriction (empty array means all projects allowed)
+  policy: AccessPolicy        // Component-level access specification
 }
 
 /**
- * If the logged-in CLIENT user is a sub-team member, returns their access policy.
- * Returns null if the user is the primary client (no restrictions).
+ * If the logged-in CLIENT user is a sub-team member or sub-team login, returns their project & component access context.
+ * Returns null if the user is the primary client organization (no restrictions).
  */
 export async function getClientSubTeamContext(userId: string): Promise<SubTeamContext | null> {
   try {
+    // 1. Check if user is an individual member of a sub-team
+    const member = await prisma.clientSubTeamMember.findUnique({
+      where: { profileId: userId },
+      include: {
+        subTeam: true,
+        role: true,
+      },
+    })
+
+    if (member) {
+      if (member.status !== 'ACTIVE' || member.subTeam.status !== 'ACTIVE' || member.subTeam.revokedByAdmin) {
+        return null
+      }
+
+      const rawTeamPolicy = (member.subTeam.accessPolicy || {}) as Partial<AccessPolicy>
+      const rawRolePolicy = (member.role?.permissions || {}) as Partial<AccessPolicy>
+      const rawMemberPolicy = (member.customPolicy || {}) as Partial<AccessPolicy>
+
+      const policy: AccessPolicy = {
+        ...DEFAULT_SUBTEAM_POLICY,
+        ...rawTeamPolicy,
+        ...rawRolePolicy,
+        ...rawMemberPolicy,
+      }
+
+      let allowedProjectIds: string[] = []
+      if (Array.isArray(member.subTeam.allowedProjects)) {
+        allowedProjectIds = (member.subTeam.allowedProjects as string[]).filter((p) => typeof p === 'string' && p !== 'ALL')
+      }
+
+      return {
+        subTeamId: member.subTeam.id,
+        clientId: member.subTeam.clientId,
+        teamName: member.subTeam.name,
+        memberId: member.id,
+        memberName: member.name,
+        roleName: member.role?.name,
+        allowedProjectIds,
+        policy,
+      }
+    }
+
+    // 2. Fallback check for direct sub-team profile logins
     const subTeam = await prisma.clientSubTeam.findUnique({
       where: { profileId: userId },
       select: {
@@ -130,21 +177,26 @@ export async function getClientSubTeamContext(userId: string): Promise<SubTeamCo
         status: true,
         revokedByAdmin: true,
         accessPolicy: true,
+        allowedProjects: true,
       },
     })
 
     if (!subTeam) return null
-
-    // If revoked by admin or suspended/inactive → treat as no access
     if (subTeam.revokedByAdmin || subTeam.status !== 'ACTIVE') return null
 
-    const rawPolicy = subTeam.accessPolicy as Partial<AccessPolicy>
+    const rawPolicy = (subTeam.accessPolicy || {}) as Partial<AccessPolicy>
     const policy: AccessPolicy = { ...DEFAULT_SUBTEAM_POLICY, ...rawPolicy }
+
+    let allowedProjectIds: string[] = []
+    if (Array.isArray(subTeam.allowedProjects)) {
+      allowedProjectIds = (subTeam.allowedProjects as string[]).filter((p) => typeof p === 'string' && p !== 'ALL')
+    }
 
     return {
       subTeamId: subTeam.id,
       clientId: subTeam.clientId,
       teamName: subTeam.name,
+      allowedProjectIds,
       policy,
     }
   } catch {

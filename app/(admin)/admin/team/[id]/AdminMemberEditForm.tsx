@@ -149,7 +149,7 @@ export default function AdminMemberEditForm({ member }: Props) {
               name="salary"
               type="number"
               min="0"
-              step="500"
+              step="any"
               className={fieldClass('salary')}
               defaultValue={member.salary ?? ''}
               placeholder="e.g. 65000"

@@ -20,10 +20,12 @@ export async function DELETE(
     const existing = await prisma.clientSubTeam.findUnique({ where: { id: subTeamId } })
     if (existing) {
       await prisma.clientSubTeam.delete({ where: { id: subTeamId } })
-      await prisma.profile.update({
-        where: { id: existing.profileId },
-        data: { isActive: false },
-      }).catch(() => {})
+      if (existing.profileId) {
+        await prisma.profile.update({
+          where: { id: existing.profileId },
+          data: { isActive: false },
+        }).catch(() => {})
+      }
     }
 
     return apiSuccess({ deleted: true })
@@ -71,14 +73,16 @@ export async function PATCH(
     })
 
     // Sync status to profile
-    await prisma.profile.update({
-      where: { id: existing.profileId },
-      data: { isActive: !isRevoked && newStatus === 'ACTIVE' },
-    }).catch(() => {})
+    if (existing.profileId) {
+      await prisma.profile.update({
+        where: { id: existing.profileId },
+        data: { isActive: !isRevoked && newStatus === 'ACTIVE' },
+      }).catch(() => {})
+    }
 
     // Trigger auto-email and in-app notification
     try {
-      const profile = await prisma.profile.findUnique({ where: { id: existing.profileId } })
+      const profile = existing.profileId ? await prisma.profile.findUnique({ where: { id: existing.profileId } }) : null
       if (profile?.email) {
         await sendAccountStatusChangedEmail({
           to: profile.email,

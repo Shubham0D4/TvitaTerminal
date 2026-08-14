@@ -146,7 +146,7 @@ export default function TeamMemberForm() {
 
             <div className="form-group">
               <label className="form-label" htmlFor="salary">Monthly Salary (₹)</label>
-              <input id="salary" name="salary" type="number" min="0" step="500" className={fieldClass('salary')} placeholder="e.g. 65000"
+              <input id="salary" name="salary" type="number" min="0" step="any" className={fieldClass('salary')} placeholder="e.g. 65000"
                 onChange={handleChange} onBlur={handleBlur} />
               {displayError('salary')}
               <p className="form-hint">Base monthly remuneration value (gross, in INR)</p>

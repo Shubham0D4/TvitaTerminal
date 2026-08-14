@@ -43,7 +43,12 @@ export default async function ClientProjectsPage() {
   }
 
   const projects = await prisma.project.findMany({
-    where: { clientId: client.id },
+    where: {
+      clientId: client.id,
+      ...(subTeamCtx && subTeamCtx.allowedProjectIds.length > 0
+        ? { id: { in: subTeamCtx.allowedProjectIds } }
+        : {}),
+    },
     include: {
       lead: { select: { name: true } },
       milestones: {

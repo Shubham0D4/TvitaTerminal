@@ -37,7 +37,7 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { name, email, status, policy } = body
+    const { name, email, description, status, policy, allowedProjects } = body
 
     let newPolicy = team.accessPolicy as object
     if (policy && typeof policy === 'object') {
@@ -51,11 +51,22 @@ export async function PUT(
       where: { id: subTeamId },
       data: {
         name: name ?? team.name,
+        description: description !== undefined ? description : team.description,
         email: email ?? team.email,
         status: status ?? team.status,
         accessPolicy: newPolicy,
+        ...(Array.isArray(allowedProjects) ? { allowedProjects } : {}),
       },
-      include: { profile: { select: { email: true, name: true, isActive: true } } },
+      include: {
+        profile: { select: { email: true, name: true, isActive: true } },
+        roles: true,
+        members: {
+          include: {
+            role: true,
+            profile: { select: { email: true, name: true, isActive: true } },
+          },
+        },
+      },
     })
 
     // Sync changes to Profile
@@ -64,7 +75,7 @@ export async function PUT(
     if (email && email !== team.email) profileUpdates.email = email
     if (status && status !== team.status) profileUpdates.isActive = status === 'ACTIVE'
 
-    if (Object.keys(profileUpdates).length > 0) {
+    if (team.profileId && Object.keys(profileUpdates).length > 0) {
       await prisma.profile.update({
         where: { id: team.profileId },
         data: profileUpdates,
@@ -114,9 +125,16 @@ export async function DELETE(
 
     if (!team) return Errors.NOT_FOUND('Sub-team')
 
-    const supabaseAdmin = createSupabaseAdminClient()
-    await supabaseAdmin.auth.admin.deleteUser(team.profileId)
-    await prisma.profile.delete({ where: { id: team.profileId } })
+    if (team.profileId) {
+      const supabaseAdmin = createSupabaseAdminClient()
+      try {
+        await supabaseAdmin.auth.admin.deleteUser(team.profileId)
+        await prisma.profile.delete({ where: { id: team.profileId } })
+      } catch {
+        // Profile cleanup fallback
+      }
+    }
+    await prisma.clientSubTeam.delete({ where: { id: subTeamId } })
 
     return apiSuccess({ deleted: true })
   } catch (error) {

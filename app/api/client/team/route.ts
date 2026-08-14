@@ -3,6 +3,7 @@ import { AccessPolicy, getClientSubTeamContext, getServerUser, isClient } from '
 import { sendClientTeamInvite } from '@/lib/email'
 import { prisma } from '@/lib/prisma'
 import { createSupabaseAdminClient } from '@/lib/supabase/server'
+import { getAppBaseUrl } from '@/lib/url'
 import { NextRequest } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -22,7 +23,16 @@ export async function GET(request: NextRequest) {
       include: {
         subTeams: {
           orderBy: { createdAt: 'desc' },
-          include: { profile: { select: { email: true, name: true, isActive: true } } },
+          include: {
+            profile: { select: { email: true, name: true, isActive: true } },
+            roles: true,
+            members: {
+              include: {
+                role: true,
+                profile: { select: { email: true, name: true, isActive: true } },
+              },
+            },
+          },
         },
       },
     })
@@ -59,20 +69,22 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, email, policy } = body
+    const { name, email, description, policy, allowedProjects } = body
 
-    if (!name || !email) {
-      return Errors.VALIDATION('Sub-team name and email are required')
+    if (!name) {
+      return Errors.VALIDATION('Sub-team name is required')
     }
 
-    const existingProfile = await prisma.profile.findUnique({ where: { email } })
+    const contactEmail = email && email.trim() !== '' ? email.trim() : `${name.toLowerCase().replace(/[^a-z0-9]/g, '')}-${Date.now()}@subteam.tvita`
+
+    const existingProfile = await prisma.profile.findUnique({ where: { email: contactEmail } })
     if (existingProfile) {
-      return Errors.CONFLICT(`Email ${email} is already registered on the platform`)
+      return Errors.CONFLICT(`Email ${contactEmail} is already registered on the platform`)
     }
 
-    const existingTeam = await prisma.clientSubTeam.findUnique({ where: { email } })
+    const existingTeam = await prisma.clientSubTeam.findUnique({ where: { email: contactEmail } })
     if (existingTeam) {
-      return Errors.CONFLICT(`A sub-team with email ${email} already exists`)
+      return Errors.CONFLICT(`A sub-team with email ${contactEmail} already exists`)
     }
 
     const mergedPolicy: AccessPolicy = {
@@ -86,11 +98,11 @@ export async function POST(request: NextRequest) {
     }
 
     const supabaseAdmin = createSupabaseAdminClient()
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const appUrl = getAppBaseUrl(request)
 
     let { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'invite',
-      email,
+      email: contactEmail,
       options: {
         redirectTo: `${appUrl}/auth/callback?next=/reset-password`,
         data: { role: 'CLIENT', name, clientTeam: true },
@@ -100,7 +112,7 @@ export async function POST(request: NextRequest) {
     if (linkError || !linkData?.user) {
       const fallback = await supabaseAdmin.auth.admin.generateLink({
         type: 'magiclink',
-        email,
+        email: contactEmail,
         options: {
           redirectTo: `${appUrl}/auth/callback?next=/reset-password`,
         },
@@ -119,7 +131,7 @@ export async function POST(request: NextRequest) {
     await prisma.profile.create({
       data: {
         id: authUserId,
-        email,
+        email: contactEmail,
         role: 'CLIENT',
         name,
         isActive: true,
@@ -130,12 +142,18 @@ export async function POST(request: NextRequest) {
       data: {
         clientId: client.id,
         name,
-        email,
+        description: description || null,
+        email: contactEmail,
         profileId: authUserId,
         status: 'ACTIVE',
         accessPolicy: mergedPolicy,
+        allowedProjects: Array.isArray(allowedProjects) ? allowedProjects : [],
       },
-      include: { profile: { select: { email: true, name: true, isActive: true } } },
+      include: {
+        profile: { select: { email: true, name: true, isActive: true } },
+        roles: true,
+        members: true,
+      },
     })
 
     await sendClientTeamInvite({

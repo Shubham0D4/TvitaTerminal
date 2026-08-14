@@ -19,19 +19,68 @@ import {
   FileText,
   CreditCard,
   Sparkles,
-  Lock,
   Edit3,
   UserPlus,
   ShieldAlert,
+  ChevronDown,
+  ChevronUp,
+  UserCheck,
+  Briefcase,
+  KeyRound,
+  Layers,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { apiClient } from '@/lib/api-client'
-import type { Client, ClientSubTeam } from '@prisma/client'
+import type { Client } from '@prisma/client'
 import type { AccessPolicy } from '@/lib/auth/server'
 
+type ProjectItem = {
+  id: string
+  name: string
+  status: string
+}
+
+type RoleItem = {
+  id: string
+  subTeamId: string
+  name: string
+  description?: string | null
+  permissions: AccessPolicy
+}
+
+type MemberItem = {
+  id: string
+  subTeamId: string
+  profileId?: string | null
+  roleId?: string | null
+  name: string
+  email: string
+  designation?: string | null
+  customPolicy?: AccessPolicy | null
+  status: 'ACTIVE' | 'INACTIVE'
+  createdAt: string
+  role?: RoleItem | null
+}
+
+type TeamItem = {
+  id: string
+  clientId: string
+  name: string
+  description?: string | null
+  email: string
+  status: 'ACTIVE' | 'INACTIVE'
+  revokedByAdmin: boolean
+  accessPolicy: AccessPolicy
+  allowedProjects: string[]
+  createdAt: string
+  roles?: RoleItem[]
+  members?: MemberItem[]
+}
+
 type Props = {
-  client: Client
-  subTeams: ClientSubTeam[]
+  client: any
+  projects: ProjectItem[]
+  initialSubTeams: any[]
 }
 
 type PolicyKey = keyof AccessPolicy
@@ -106,57 +155,6 @@ const DEFAULT_POLICY: AccessPolicy = {
   billing: false,
 }
 
-const ROLE_PRESETS = [
-  {
-    id: 'full',
-    title: 'Full Access',
-    subtitle: 'All projects & financial data',
-    policy: {
-      projects: true,
-      milestones: true,
-      approvals: true,
-      documents: true,
-      invoices: true,
-      subscriptions: true,
-      billing: true,
-    },
-  },
-  {
-    id: 'delivery',
-    title: 'Projects Only',
-    subtitle: 'Deliverables & milestones',
-    policy: {
-      projects: true,
-      milestones: true,
-      approvals: true,
-      documents: true,
-      invoices: false,
-      subscriptions: false,
-      billing: false,
-    },
-  },
-  {
-    id: 'finance',
-    title: 'Finance Only',
-    subtitle: 'Invoices & subscription plans',
-    policy: {
-      projects: false,
-      milestones: false,
-      approvals: false,
-      documents: false,
-      invoices: true,
-      subscriptions: true,
-      billing: true,
-    },
-  },
-  {
-    id: 'custom',
-    title: 'Custom Policy',
-    subtitle: 'Select specific permissions',
-    policy: null,
-  },
-]
-
 function getInitials(name: string): string {
   return name
     .split(' ')
@@ -171,153 +169,227 @@ function formatDate(date: Date | string | null): string {
   return new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(date))
 }
 
-export default function ClientTeamsManager({ client, subTeams: initialTeams }: Props) {
-  const [teams, setTeams] = useState<ClientSubTeam[]>(initialTeams)
+export default function ClientTeamsManager({ client, projects, initialSubTeams }: Props) {
+  const [teams, setTeams] = useState<TeamItem[]>(initialSubTeams as TeamItem[])
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE' | 'REVOKED'>('ALL')
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [expandedTeamId, setExpandedTeamId] = useState<string | null>(initialSubTeams[0]?.id || null)
 
-  // Modal State
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [editingTeam, setEditingTeam] = useState<ClientSubTeam | null>(null)
+  // Modals
+  const [showTeamModal, setShowTeamModal] = useState(false)
+  const [editingTeam, setEditingTeam] = useState<TeamItem | null>(null)
+
+  const [showRoleModal, setShowRoleModal] = useState(false)
+  const [roleTeamId, setRoleTeamId] = useState<string | null>(null)
+
+  const [showMemberModal, setShowMemberModal] = useState(false)
+  const [memberTeamId, setMemberTeamId] = useState<string | null>(null)
+
   const [isPending, startTransition] = useTransition()
 
-  // Form State
-  const [formName, setFormName] = useState('')
-  const [formEmail, setFormEmail] = useState('')
-  const [formPreset, setFormPreset] = useState<'full' | 'delivery' | 'finance' | 'custom'>('delivery')
-  const [formPolicy, setFormPolicy] = useState<AccessPolicy>(DEFAULT_POLICY)
+  // Team Form State
+  const [teamName, setTeamName] = useState('')
+  const [teamDesc, setTeamDesc] = useState('')
+  const [teamPolicy, setTeamPolicy] = useState<AccessPolicy>(DEFAULT_POLICY)
+  const [teamAllowedProjects, setTeamAllowedProjects] = useState<string[]>([]) // Empty = All
 
-  const openCreateModal = () => {
-    setFormName('')
-    setFormEmail('')
-    setFormPreset('delivery')
-    setFormPolicy({ ...DEFAULT_POLICY })
+  // Role Form State
+  const [roleName, setRoleName] = useState('')
+  const [roleDesc, setRoleDesc] = useState('')
+  const [rolePolicy, setRolePolicy] = useState<AccessPolicy>(DEFAULT_POLICY)
+
+  // Member Form State
+  const [memberName, setMemberName] = useState('')
+  const [memberEmail, setMemberEmail] = useState('')
+  const [memberDesignation, setMemberDesignation] = useState('')
+  const [memberRoleId, setMemberRoleId] = useState<string>('')
+  const [memberCustomPolicy, setMemberCustomPolicy] = useState<AccessPolicy>(DEFAULT_POLICY)
+  const [useCustomMemberPolicy, setUseCustomMemberPolicy] = useState(false)
+
+  // --- Team Handlers ---
+  const openCreateTeamModal = () => {
+    setTeamName('')
+    setTeamDesc('')
+    setTeamPolicy({ ...DEFAULT_POLICY })
+    setTeamAllowedProjects([])
     setEditingTeam(null)
-    setShowCreateModal(true)
+    setShowTeamModal(true)
   }
 
-  const openEditModal = (team: ClientSubTeam) => {
-    setFormName(team.name)
-    setFormEmail(team.email)
-    const existingPolicy = (team.accessPolicy as AccessPolicy) ?? DEFAULT_POLICY
-    setFormPolicy({ ...DEFAULT_POLICY, ...existingPolicy })
-    setFormPreset('custom')
-    setEditingTeam(team)
-    setShowCreateModal(true)
-  }
-
-  const closeModal = () => {
-    setShowCreateModal(false)
-    setEditingTeam(null)
-  }
-
-  const applyPreset = (presetId: 'full' | 'delivery' | 'finance' | 'custom') => {
-    setFormPreset(presetId)
-    const preset = ROLE_PRESETS.find((p) => p.id === presetId)
-    if (preset && preset.policy) {
-      setFormPolicy(preset.policy)
-    }
-  }
-
-  const togglePolicyKey = (key: PolicyKey) => {
-    setFormPreset('custom')
-    setFormPolicy((prev) => ({ ...prev, [key]: !prev[key] }))
+  const openEditTeamModal = (t: TeamItem) => {
+    setTeamName(t.name)
+    setTeamDesc(t.description || '')
+    setTeamPolicy({ ...DEFAULT_POLICY, ...(t.accessPolicy || {}) })
+    setTeamAllowedProjects(Array.isArray(t.allowedProjects) ? t.allowedProjects : [])
+    setEditingTeam(t)
+    setShowTeamModal(true)
   }
 
   const handleSaveTeam = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formName.trim() || !formEmail.trim()) {
-      toast.error('Please enter a team name and valid email address')
+    if (!teamName.trim()) {
+      toast.error('Team name is required')
       return
     }
 
     startTransition(async () => {
       try {
         if (editingTeam) {
-          // Update existing sub-team
-          const updated = await apiClient.put<ClientSubTeam>(`/api/client/team/${editingTeam.id}`, {
-            name: formName.trim(),
-            email: formEmail.trim(),
-            policy: formPolicy,
+          const updated = await apiClient.put<TeamItem>(`/api/client/team/${editingTeam.id}`, {
+            name: teamName.trim(),
+            description: teamDesc.trim(),
+            policy: teamPolicy,
+            allowedProjects: teamAllowedProjects,
           })
-
           setTeams((prev) => prev.map((t) => (t.id === editingTeam.id ? { ...t, ...updated } : t)))
-          toast.success(`Sub-team "${formName}" updated successfully`)
-          closeModal()
+          toast.success(`Team "${teamName}" updated successfully`)
         } else {
-          // Create new sub-team
-          const created = await apiClient.post<ClientSubTeam>('/api/client/team', {
-            name: formName.trim(),
-            email: formEmail.trim(),
-            policy: formPolicy,
+          const created = await apiClient.post<TeamItem>('/api/client/team', {
+            name: teamName.trim(),
+            description: teamDesc.trim(),
+            policy: teamPolicy,
+            allowedProjects: teamAllowedProjects,
           })
-
           setTeams((prev) => [created, ...prev])
-          toast.success(`Sub-team member "${formName}" created! Invitation sent.`)
-          closeModal()
+          setExpandedTeamId(created.id)
+          toast.success(`Team "${teamName}" created!`)
         }
+        setShowTeamModal(false)
       } catch (err: unknown) {
-        toast.error((err as Error)?.message || 'Failed to save sub-team')
+        toast.error((err as Error)?.message || 'Failed to save team')
       }
     })
   }
 
-    const handleStatusToggle = async (team: ClientSubTeam) => {
-      if (team.revokedByAdmin) {
-        toast.error('This team has been revoked by an administrator and cannot be modified.')
-        return
-      }
+  const handleDeleteTeam = async (team: TeamItem) => {
+    if (!confirm(`Are you sure you want to delete team "${team.name}"? This will revoke access for all members.`)) {
+      return
+    }
 
-      const newStatus = team.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
+    try {
+      await apiClient.delete<{ deleted: boolean }>(`/api/client/team/${team.id}`)
+      setTeams((prev) => prev.filter((t) => t.id !== team.id))
+      toast.success('Team deleted')
+    } catch (err: unknown) {
+      toast.error((err as Error)?.message || 'Failed to delete team')
+    }
+  }
 
+  // --- Role Handlers ---
+  const openCreateRoleModal = (teamId: string) => {
+    setRoleTeamId(teamId)
+    setRoleName('')
+    setRoleDesc('')
+    setRolePolicy({ ...DEFAULT_POLICY })
+    setShowRoleModal(true)
+  }
+
+  const handleSaveRole = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!roleName.trim() || !roleTeamId) {
+      toast.error('Role name is required')
+      return
+    }
+
+    startTransition(async () => {
       try {
-        const updated = await apiClient.put<ClientSubTeam>(`/api/client/team/${team.id}`, {
-          status: newStatus,
+        const created = await apiClient.post<RoleItem>(`/api/client/team/${roleTeamId}/roles`, {
+          name: roleName.trim(),
+          description: roleDesc.trim(),
+          permissions: rolePolicy,
         })
-        setTeams((prev) => prev.map((t) => (t.id === team.id ? { ...t, ...updated, status: newStatus } : t)))
-        toast.success(`Team account ${newStatus === 'ACTIVE' ? 'activated' : 'deactivated'}`)
+        setTeams((prev) =>
+          prev.map((t) => (t.id === roleTeamId ? { ...t, roles: [created, ...(t.roles || [])] } : t))
+        )
+        toast.success(`Custom role "${roleName}" added`)
+        setShowRoleModal(false)
       } catch (err: unknown) {
-        toast.error((err as Error)?.message || 'Failed to toggle team status')
+        toast.error((err as Error)?.message || 'Failed to create role')
       }
+    })
+  }
+
+  // --- Member Handlers ---
+  const openCreateMemberModal = (teamId: string) => {
+    setMemberTeamId(teamId)
+    setMemberName('')
+    setMemberEmail('')
+    setMemberDesignation('')
+    setMemberRoleId('')
+    setMemberCustomPolicy({ ...DEFAULT_POLICY })
+    setUseCustomMemberPolicy(false)
+    setShowMemberModal(true)
+  }
+
+  const handleSaveMember = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!memberName.trim() || !memberEmail.trim() || !memberTeamId) {
+      toast.error('Name and valid email are required')
+      return
     }
 
-    const handleDeleteTeam = async (team: ClientSubTeam) => {
-      if (!confirm(`Are you sure you want to remove sub-team member "${team.name}"? This action cannot be undone.`)) {
-        return
-      }
-
+    startTransition(async () => {
       try {
-        await apiClient.delete<{ deleted: boolean }>(`/api/client/team/${team.id}`)
-        setTeams((prev) => prev.filter((t) => t.id !== team.id))
-        toast.success('Sub-team member removed successfully')
-      } catch (err: unknown) {
-        toast.error((err as Error)?.message || 'Failed to remove sub-team')
-      }
-    }
+        const created = await apiClient.post<MemberItem>(`/api/client/team/${memberTeamId}/members`, {
+          name: memberName.trim(),
+          email: memberEmail.trim(),
+          designation: memberDesignation.trim(),
+          roleId: memberRoleId || null,
+          customPolicy: useCustomMemberPolicy ? memberCustomPolicy : null,
+        })
 
-  const copyLoginLink = (team: ClientSubTeam) => {
-    const url = `${window.location.origin}/login?email=${encodeURIComponent(team.email)}`
+        setTeams((prev) =>
+          prev.map((t) => (t.id === memberTeamId ? { ...t, members: [created, ...(t.members || [])] } : t))
+        )
+        toast.success(`Member "${memberName}" invited! Magic link sent to ${memberEmail}.`)
+        setShowMemberModal(false)
+      } catch (err: unknown) {
+        toast.error((err as Error)?.message || 'Failed to invite member')
+      }
+    })
+  }
+
+  const handleDeleteMember = async (teamId: string, member: MemberItem) => {
+    if (!confirm(`Remove member "${member.name}" from team?`)) return
+    try {
+      await apiClient.delete<{ deleted: boolean }>(`/api/client/team/${teamId}/members/${member.id}`)
+      setTeams((prev) =>
+        prev.map((t) =>
+          t.id === teamId ? { ...t, members: (t.members || []).filter((m) => m.id !== member.id) } : t
+        )
+      )
+      toast.success('Team member removed')
+    } catch (err: unknown) {
+      toast.error((err as Error)?.message || 'Failed to remove member')
+    }
+  }
+
+  const copyMagicLink = (email: string, id: string) => {
+    const url = `${window.location.origin}/login?email=${encodeURIComponent(email)}`
     navigator.clipboard.writeText(url)
-    setCopiedId(team.id)
-    toast.success('Login link copied to clipboard!')
+    setCopiedId(id)
+    toast.success('Magic login link copied to clipboard!')
     setTimeout(() => setCopiedId(null), 3000)
   }
 
-  // Filtered list
-  const filteredTeams = teams.filter((team) => {
-    const matchesSearch =
-      team.name.toLowerCase().includes(search.toLowerCase()) ||
-      team.email.toLowerCase().includes(search.toLowerCase())
+  const toggleProjectAccess = (projId: string) => {
+    setTeamAllowedProjects((prev) => {
+      if (prev.includes(projId)) {
+        return prev.filter((p) => p !== projId)
+      }
+      return [...prev, projId]
+    })
+  }
 
-    if (statusFilter === 'ACTIVE') return matchesSearch && team.status === 'ACTIVE' && !team.revokedByAdmin
-    if (statusFilter === 'INACTIVE') return matchesSearch && team.status === 'INACTIVE' && !team.revokedByAdmin
-    if (statusFilter === 'REVOKED') return matchesSearch && team.revokedByAdmin
-    return matchesSearch
-  })
+  // Filtered teams
+  const filteredTeams = teams.filter(
+    (t) =>
+      t.name.toLowerCase().includes(search.toLowerCase()) ||
+      (t.description && t.description.toLowerCase().includes(search.toLowerCase())) ||
+      (t.members && t.members.some((m) => m.name.toLowerCase().includes(search.toLowerCase()) || m.email.toLowerCase().includes(search.toLowerCase())))
+  )
 
-  const activeCount = teams.filter((t) => t.status === 'ACTIVE' && !t.revokedByAdmin).length
-  const revokedCount = teams.filter((t) => t.revokedByAdmin).length
+  const totalMembersCount = teams.reduce((acc, t) => acc + (t.members?.length || 0), 0)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
@@ -325,673 +397,568 @@ export default function ClientTeamsManager({ client, subTeams: initialTeams }: P
       <div className="page-header flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="page-header__title">Client Team Management</h1>
+            <h1 className="page-header__title">Client Teams &amp; Access Control</h1>
             <span className="badge" style={{ background: 'rgba(99, 102, 241, 0.15)', color: 'var(--accent-primary)', fontWeight: 600 }}>
-              {teams.length} Members
+              {teams.length} Teams · {totalMembersCount} Members
             </span>
           </div>
           <p className="page-header__subtitle">
-            Share portal access with your colleagues and customize access to projects, milestones, or billing details for {client.name}.
+            Create internal teams for {client.name}, assign project-level access boundaries, and define granular roles and component permissions for members.
           </p>
         </div>
 
-        <button type="button" onClick={openCreateModal} className="btn btn--primary" style={{ gap: 6, flexShrink: 0 }}>
-          <UserPlus size={16} /> Add Team Member
+        <button type="button" onClick={openCreateTeamModal} className="btn btn--primary" style={{ gap: 6, flexShrink: 0 }}>
+          <Plus size={16} /> Create Client Team
         </button>
       </div>
 
-      {/* Info Sovereignty Banner */}
-      <div
-        className="card"
-        style={{
-          background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(168, 85, 247, 0.04) 100%)',
-          border: '1px solid rgba(99, 102, 241, 0.25)',
-          padding: 'var(--space-4) var(--space-5)',
-          borderRadius: 'var(--radius-lg)',
-        }}
-      >
-        <div className="flex items-start gap-3">
-          <div
-            style={{
-              padding: 8,
-              borderRadius: 'var(--radius-md)',
-              background: 'rgba(99, 102, 241, 0.15)',
-              color: 'var(--accent-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Sparkles size={20} />
-          </div>
-          <div>
-            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)', marginBottom: 2 }}>
-              Full Granular Policy Sovereignty
-            </div>
-            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
-              As the primary account holder, you decide what your sub-teams can see. You can grant access to projects, milestones, approvals, or financial invoices with a single click.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats & Filters Row */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="card" style={{ padding: 'var(--space-3) var(--space-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Total Sub-Teams</div>
-            <div style={{ fontSize: 'var(--text-xl)', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)' }}>{teams.length}</div>
-          </div>
-          <Users size={24} style={{ color: 'var(--accent-primary)', opacity: 0.8 }} />
-        </div>
-
-        <div className="card" style={{ padding: 'var(--space-3) var(--space-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Active Members</div>
-            <div style={{ fontSize: 'var(--text-xl)', fontWeight: 'var(--font-bold)', color: 'var(--color-success)' }}>{activeCount}</div>
-          </div>
-          <CheckCircle2 size={24} style={{ color: 'var(--color-success)', opacity: 0.8 }} />
-        </div>
-
-        <div className="card" style={{ padding: 'var(--space-3) var(--space-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Custom Policies</div>
-            <div style={{ fontSize: 'var(--text-xl)', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)' }}>{teams.length}</div>
-          </div>
-          <Settings2 size={24} style={{ color: 'var(--text-muted)', opacity: 0.8 }} />
-        </div>
-
-        <div className="card" style={{ padding: 'var(--space-3) var(--space-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Revoked By Admin</div>
-            <div style={{ fontSize: 'var(--text-xl)', fontWeight: 'var(--font-bold)', color: revokedCount > 0 ? 'var(--color-danger)' : 'var(--text-muted)' }}>
-              {revokedCount}
-            </div>
-          </div>
-          <ShieldOff size={24} style={{ color: revokedCount > 0 ? 'var(--color-danger)' : 'var(--text-muted)', opacity: 0.8 }} />
-        </div>
-      </div>
-
-      {/* Roster Controls: Search & Tabs */}
+      {/* Roster Search Bar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        {/* Search */}
-        <div style={{ position: 'relative', width: '100%', maxWidth: 360 }}>
+        <div style={{ position: 'relative', width: '100%', maxWidth: 420 }}>
           <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input
             type="text"
-            placeholder="Search sub-team members..."
+            placeholder="Search teams, roles, or members..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="form-input"
             style={{
               paddingLeft: 36,
               fontSize: 'var(--text-xs)',
-              background: '#ffffff', // solid white
+              background: '#ffffff',
               border: '1px solid var(--border-default)',
               color: '#0f172a',
             }}
           />
         </div>
-
-        {/* Status Filter Tabs */}
-        <div style={{ display: 'flex', gap: 4, background: 'var(--bg-overlay)', padding: 3, borderRadius: 'var(--radius-md)' }}>
-          {(['ALL', 'ACTIVE', 'INACTIVE', 'REVOKED'] as const).map((st) => (
-            <button
-              key={st}
-              type="button"
-              onClick={() => setStatusFilter(st)}
-              style={{
-                border: 'none',
-                background: statusFilter === st ? 'var(--bg-card)' : 'transparent',
-                color: statusFilter === st ? 'var(--accent-primary)' : 'var(--text-muted)',
-                fontWeight: statusFilter === st ? 'var(--font-bold)' : 'var(--font-medium)',
-                padding: '4px 12px',
-                borderRadius: 'var(--radius-sm)',
-                fontSize: 'var(--text-xs)',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              {st.charAt(0) + st.slice(1).toLowerCase()}
-            </button>
-          ))}
-        </div>
       </div>
 
-      {/* Sub-Team Roster Grid */}
+      {/* Teams List Accordion */}
       {filteredTeams.length === 0 ? (
         <div className="card" style={{ padding: 'var(--space-8)' }}>
           <div className="empty-state">
             <Users size={32} style={{ color: 'var(--text-muted)' }} />
-            <div className="empty-state__title">No Sub-Teams Found</div>
+            <div className="empty-state__title">No Teams Configured</div>
             <div className="empty-state__desc">
-              {search ? 'No team members matched your search query.' : 'You have not added any sub-team members yet.'}
+              {search ? 'No teams or members match your search criteria.' : 'Create your first internal sub-team to manage project access.'}
             </div>
             {!search && (
-              <button type="button" onClick={openCreateModal} className="btn btn--primary mt-4">
-                <Plus size={15} /> Add First Team Member
+              <button type="button" onClick={openCreateTeamModal} className="btn btn--primary mt-4">
+                <Plus size={15} /> Create First Team
               </button>
             )}
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           {filteredTeams.map((team) => {
-            const policy = (team.accessPolicy as Partial<AccessPolicy>) ?? {}
-            const activePolicyKeys = POLICY_DEFINITIONS.filter((d) => Boolean(policy[d.key]))
+            const isExpanded = expandedTeamId === team.id
+            const members = team.members || []
+            const roles = team.roles || []
 
             return (
               <div
                 key={team.id}
-                className="card hover-lift"
+                className="card"
                 style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  gap: 'var(--space-4)',
-                  border: team.revokedByAdmin
-                    ? '1px solid rgba(239, 68, 68, 0.3)'
-                    : team.status === 'ACTIVE'
-                    ? '1px solid var(--border-subtle)'
-                    : '1px dashed var(--border-subtle)',
-                  opacity: team.status === 'INACTIVE' && !team.revokedByAdmin ? 0.75 : 1,
+                  padding: 0,
+                  overflow: 'hidden',
+                  border: team.revokedByAdmin ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid var(--border-subtle)',
                 }}
               >
-                <div>
-                  {/* Card Header */}
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="flex items-center gap-3">
-                      <div
-                        style={{
-                          width: 42,
-                          height: 42,
-                          borderRadius: '50%',
-                          background: 'linear-gradient(135deg, var(--accent-primary) 0%, #8b5cf6 100%)',
-                          color: '#fff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: 'var(--font-bold)',
-                          fontSize: 'var(--text-sm)',
-                          boxShadow: '0 2px 8px rgba(99, 102, 241, 0.25)',
-                        }}
-                      >
-                        {getInitials(team.name)}
-                      </div>
-                      <div>
+                {/* Team Header Bar */}
+                <div
+                  style={{
+                    padding: 'var(--space-4) var(--space-6)',
+                    background: isExpanded ? 'var(--bg-elevated)' : '#ffffff',
+                    borderBottom: isExpanded ? '1px solid var(--border-subtle)' : 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => setExpandedTeamId(isExpanded ? null : team.id)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 'var(--radius-md)',
+                        background: 'linear-gradient(135deg, var(--accent-primary) 0%, #8b5cf6 100%)',
+                        color: '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 'var(--font-bold)',
+                        fontSize: 'var(--text-sm)',
+                      }}
+                    >
+                      {getInitials(team.name)}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
                         <h3 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)', margin: 0 }}>
                           {team.name}
                         </h3>
-                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{team.email}</div>
+                        {team.revokedByAdmin ? (
+                          <span className="badge badge--danger" style={{ fontSize: 10 }}>Revoked</span>
+                        ) : (
+                          <span className={`badge badge--${team.status === 'ACTIVE' ? 'active' : 'inactive'}`} style={{ fontSize: 10 }}>
+                            {team.status}
+                          </span>
+                        )}
+                      </div>
+                      <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
+                        {team.description || 'Internal sub-team'} · Created {formatDate(team.createdAt)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    {/* Project access pills */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <Briefcase size={12} /> Project Access:
+                      </span>
+                      {team.allowedProjects && team.allowedProjects.length > 0 ? (
+                        <span className="badge" style={{ background: 'rgba(99, 102, 241, 0.15)', color: 'var(--accent-primary)', fontSize: 10 }}>
+                          {team.allowedProjects.length} Specific Project{team.allowedProjects.length !== 1 ? 's' : ''}
+                        </span>
+                      ) : (
+                        <span className="badge badge--active" style={{ fontSize: 10 }}>
+                          All Projects
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', fontWeight: 'var(--font-semibold)' }}>
+                      {members.length} member{members.length !== 1 ? 's' : ''}
+                    </div>
+
+                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={() => openEditTeamModal(team)}
+                        className="btn btn--ghost btn--xs"
+                        title="Edit Team & Project Access"
+                      >
+                        <Edit3 size={14} /> Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteTeam(team)}
+                        className="btn btn--ghost btn--xs text-danger"
+                        title="Delete Team"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+
+                    <div style={{ color: 'var(--text-muted)' }}>
+                      {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Team Details Panel (Expanded) */}
+                {isExpanded && (
+                  <div style={{ padding: 'var(--space-6)', background: '#ffffff', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+                    
+                    {/* Sub-Team Actions Toolbar */}
+                    <div className="flex items-center justify-between pb-3" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                      <div className="flex items-center gap-2">
+                        <Layers size={16} style={{ color: 'var(--accent-primary)' }} />
+                        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)' }}>
+                          Team Roster &amp; Custom Roles
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button type="button" onClick={() => openCreateRoleModal(team.id)} className="btn btn--secondary btn--sm" style={{ gap: 4 }}>
+                          <KeyRound size={14} /> Add Custom Role
+                        </button>
+                        <button type="button" onClick={() => openCreateMemberModal(team.id)} className="btn btn--primary btn--sm" style={{ gap: 4 }}>
+                          <UserPlus size={14} /> Invite Team Member
+                        </button>
                       </div>
                     </div>
 
-                    <div>
-                      {team.revokedByAdmin ? (
-                        <span className="badge badge--danger" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                          <ShieldAlert size={12} /> Revoked by Admin
-                        </span>
-                      ) : (
-                        <span className={`badge badge--${team.status === 'ACTIVE' ? 'active' : 'inactive'}`}>
-                          {team.status}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Access Policy Chips */}
-                  <div style={{ marginTop: 'var(--space-3)' }}>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-2)', fontWeight: 'var(--font-medium)' }}>
-                      Granted Permissions ({activePolicyKeys.length}/{POLICY_DEFINITIONS.length}):
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                      {activePolicyKeys.map((p) => {
-                        const Icon = p.icon
-                        return (
-                          <span
-                            key={p.key}
-                            className="badge"
-                            style={{
-                              background: p.category === 'commercial' ? 'rgba(168, 85, 247, 0.15)' : 'rgba(99, 102, 241, 0.15)',
-                              color: p.category === 'commercial' ? '#c084fc' : '#818cf8',
-                              fontSize: 10,
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 4,
-                              padding: '2px 8px',
-                            }}
-                          >
-                            <Icon size={11} /> {p.label}
-                          </span>
-                        )
-                      })}
-                      {activePolicyKeys.length === 0 && (
-                        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                          No permissions granted
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Footer Actions */}
-                <div
-                  className="flex items-center justify-between pt-3"
-                  style={{ borderTop: '1px solid var(--border-subtle)', fontSize: 'var(--text-xs)' }}
-                >
-                  <span style={{ color: 'var(--text-muted)' }}>Added {formatDate(team.createdAt)}</span>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => copyLoginLink(team)}
-                      className="btn btn--ghost btn--xs"
-                      title="Copy Magic Login Link"
-                    >
-                      {copiedId === team.id ? <Check size={13} className="text-success" /> : <Copy size={13} />}
-                    </button>
-
-                    {!team.revokedByAdmin && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => openEditModal(team)}
-                          className="btn btn--ghost btn--xs"
-                          title="Edit Permissions"
-                        >
-                          <Edit3 size={13} /> Edit
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleStatusToggle(team)}
-                          className={`btn btn--ghost btn--xs ${team.status === 'ACTIVE' ? 'text-warning' : 'text-success'}`}
-                          title={team.status === 'ACTIVE' ? 'Deactivate Member' : 'Activate Member'}
-                        >
-                          {team.status === 'ACTIVE' ? <PowerOff size={13} /> : <Power size={13} />}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteTeam(team)}
-                          className="btn btn--ghost btn--xs text-danger"
-                          title="Delete Member"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </>
+                    {/* Roles Grid (if any) */}
+                    {roles.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 'var(--space-3)' }}>
+                          Custom Roles Defined ({roles.length}):
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          {roles.map((r) => {
+                            const perms = (r.permissions || {}) as AccessPolicy
+                            const activePerms = POLICY_DEFINITIONS.filter((p) => Boolean(perms[p.key]))
+                            return (
+                              <div
+                                key={r.id}
+                                style={{
+                                  background: 'var(--bg-elevated)',
+                                  border: '1px solid var(--border-subtle)',
+                                  borderRadius: 'var(--radius-md)',
+                                  padding: 'var(--space-3) var(--space-4)',
+                                }}
+                              >
+                                <div style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)' }}>
+                                  {r.name}
+                                </div>
+                                {r.description && (
+                                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{r.description}</div>
+                                )}
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
+                                  {activePerms.map((p) => (
+                                    <span key={p.key} className="badge" style={{ fontSize: 9, padding: '1px 6px', background: 'rgba(99,102,241,0.12)', color: 'var(--accent-primary)' }}>
+                                      {p.label}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
                     )}
+
+                    {/* Members List Table */}
+                    <div>
+                      <div style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 'var(--space-3)' }}>
+                        Team Members ({members.length}):
+                      </div>
+
+                      {members.length === 0 ? (
+                        <div className="empty-state" style={{ padding: 'var(--space-6)', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)' }}>
+                          <UserCheck size={24} style={{ color: 'var(--text-muted)' }} />
+                          <div className="empty-state__title" style={{ fontSize: 'var(--text-sm)' }}>No members in this team yet</div>
+                          <div className="empty-state__desc">Invite colleagues to grant them access to this team's assigned projects.</div>
+                        </div>
+                      ) : (
+                        <div className="table-responsive">
+                          <table className="table">
+                            <thead>
+                              <tr>
+                                <th>Member Name &amp; Email</th>
+                                <th>Designation</th>
+                                <th>Assigned Role</th>
+                                <th>Component Access</th>
+                                <th>Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {members.map((m) => {
+                                return (
+                                  <tr key={m.id}>
+                                    <td>
+                                      <div className="flex items-center gap-2">
+                                        <div
+                                          style={{
+                                            width: 28,
+                                            height: 28,
+                                            borderRadius: '50%',
+                                            background: 'var(--accent-primary)',
+                                            color: '#fff',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                          }}
+                                        >
+                                          {getInitials(m.name)}
+                                        </div>
+                                        <div>
+                                          <div style={{ fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>{m.name}</div>
+                                          <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{m.email}</div>
+                                        </div>
+                                      </div>
+                                    </td>
+                                    <td style={{ color: 'var(--text-secondary)' }}>{m.designation || 'Member'}</td>
+                                    <td>
+                                      {m.role ? (
+                                        <span className="badge" style={{ background: 'rgba(99, 102, 241, 0.15)', color: 'var(--accent-primary)' }}>
+                                          {m.role.name}
+                                        </span>
+                                      ) : (
+                                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Default Team Role</span>
+                                      )}
+                                    </td>
+                                    <td>
+                                      {m.customPolicy ? (
+                                        <span className="badge" style={{ background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc', fontSize: 10 }}>
+                                          Custom Override
+                                        </span>
+                                      ) : (
+                                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Inherited from Role</span>
+                                      )}
+                                    </td>
+                                    <td>
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => copyMagicLink(m.email, m.id)}
+                                          className="btn btn--ghost btn--xs"
+                                          title="Copy Magic Login Link"
+                                        >
+                                          {copiedId === m.id ? <Check size={13} className="text-success" /> : <Copy size={13} />}
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteMember(team.id, m)}
+                                          className="btn btn--ghost btn--xs text-danger"
+                                          title="Remove Member"
+                                        >
+                                          <Trash2 size={13} />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             )
           })}
         </div>
       )}
 
-      {/* Create / Edit Modal - Guaranteed Horizontal 2-Column & Scrollable Layout */}
-      {showCreateModal && (
-        <div
-          className="modal-backdrop"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.75)', // solid, darker backdrop
-            backdropFilter: 'blur(8px)',
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
-          }}
-        >
-          <div
-            className="modal-content"
-            style={{
-              maxWidth: 960,
-              width: '95%',
-              maxHeight: '90vh',
-              display: 'flex',
-              flexDirection: 'column',
-              background: '#ffffff', // solid, non-transparent background
-              border: '1px solid var(--border-strong)',
-              borderRadius: 'var(--radius-xl)',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
-              overflow: 'hidden',
-            }}
-          >
-            {/* Modal Header */}
-            <div
-              className="modal-header"
-              style={{
-                flexShrink: 0,
-                background: '#f8fafc', // solid, light grey background
-                borderBottom: '1px solid var(--border-subtle)',
-                padding: 'var(--space-4) var(--space-6)',
-              }}
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 'var(--radius-md)',
-                    background: 'var(--accent-primary)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#fff',
-                  }}
-                >
-                  {editingTeam ? <Edit3 size={18} /> : <UserPlus size={18} />}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="modal-title" style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-bold)', color: '#0f172a' }}>
-                      {editingTeam ? 'Edit Sub-Team Permissions' : 'Invite New Team Member'}
-                    </h2>
-                    <span className="badge" style={{ background: 'rgba(99, 102, 241, 0.12)', color: 'var(--accent-primary)', fontSize: 11 }}>
-                      {Object.values(formPolicy).filter(Boolean).length} / {POLICY_DEFINITIONS.length} Permissions
-                    </span>
-                  </div>
-                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 2 }}>
-                    Configure member credentials on the left and grant portal permissions on the right.
-                  </p>
-                </div>
-              </div>
-              <button type="button" onClick={closeModal} className="btn btn--ghost btn--icon">
-                <X size={18} />
-              </button>
+      {/* --- MODAL 1: Create / Edit Team (with Project-Level Access) --- */}
+      {showTeamModal && (
+        <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(8px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div className="modal-content" style={{ maxWidth: 700, width: '95%', background: '#ffffff', borderRadius: 'var(--radius-xl)', overflow: 'hidden' }}>
+            <div className="modal-header" style={{ background: '#f8fafc', padding: 'var(--space-4) var(--space-6)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-bold)', color: '#0f172a' }}>
+                {editingTeam ? 'Edit Team & Project Access' : 'Create New Client Sub-Team'}
+              </h2>
+              <button type="button" onClick={() => setShowTeamModal(false)} className="btn btn--ghost btn--icon"><X size={18} /></button>
             </div>
 
-            <form onSubmit={handleSaveTeam} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              {/* Horizontal Two-Column Body Grid (Strict Side-by-Side with Vertical Scroll) */}
-              <div
-                style={{
-                  flex: 1,
-                  overflowY: 'auto',
-                  display: 'grid',
-                  gridTemplateColumns: 'minmax(300px, 1fr) minmax(340px, 1.2fr)',
-                  gap: 'var(--space-6)',
-                  padding: 'var(--space-6)',
-                  background: '#ffffff', // solid, non-transparent background
-                }}
-              >
-                {/* Left Column: Credentials & Role Presets */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
-                  {/* Credentials Group */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                    <div style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)', color: 'var(--accent-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      1. Member Credentials
-                    </div>
+            <form onSubmit={handleSaveTeam} style={{ padding: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 600, color: '#334155' }}>Team Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. QA &amp; Marketing Reviewers"
+                  value={teamName}
+                  onChange={(e) => setTeamName(e.target.value)}
+                  className="form-input"
+                  style={{ background: '#f8fafc', border: '1px solid var(--border-default)', color: '#0f172a' }}
+                />
+              </div>
 
-                    <div className="form-group">
-                      <label className="form-label" style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-semibold)', color: '#334155' }}>
-                        Full Name *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. Sarah Jenkins"
-                        value={formName}
-                        onChange={(e) => setFormName(e.target.value)}
-                        className="form-input"
-                        style={{
-                          background: '#f8fafc', // solid non-transparent background
-                          border: '1px solid var(--border-default)',
-                          color: '#0f172a',
-                          borderRadius: 'var(--radius-md)',
-                          fontSize: 'var(--text-sm)',
-                        }}
-                      />
-                    </div>
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 600, color: '#334155' }}>Description (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Internal QA department for mobile apps"
+                  value={teamDesc}
+                  onChange={(e) => setTeamDesc(e.target.value)}
+                  className="form-input"
+                  style={{ background: '#f8fafc', border: '1px solid var(--border-default)', color: '#0f172a' }}
+                />
+              </div>
 
-                    <div className="form-group">
-                      <label className="form-label" style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-semibold)', color: '#334155' }}>
-                        Email Address *
-                      </label>
-                      <input
-                        type="email"
-                        required
-                        placeholder="e.g. sarah@company.com"
-                        value={formEmail}
-                        onChange={(e) => setFormEmail(e.target.value)}
-                        className="form-input"
-                        style={{
-                          background: '#f8fafc', // solid non-transparent background
-                          border: '1px solid var(--border-default)',
-                          color: '#0f172a',
-                          borderRadius: 'var(--radius-md)',
-                          fontSize: 'var(--text-sm)',
-                        }}
-                        disabled={Boolean(editingTeam)}
-                      />
-                    </div>
-                  </div>
+              {/* Project-Level Access Selection */}
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 600, color: '#334155', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Briefcase size={15} style={{ color: 'var(--accent-primary)' }} />
+                  Project-Level Access Restriction
+                </label>
+                <p className="form-hint" style={{ marginTop: 0, marginBottom: 8 }}>
+                  Select which projects members of this team can see. If none selected, team members can view all client projects.
+                </p>
 
-                  {/* Role Presets Group */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                    <div style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)', color: 'var(--accent-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      2. Role Access Preset
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
-                      {ROLE_PRESETS.map((preset) => {
-                        const isSelected = formPreset === preset.id
-                        return (
-                          <button
-                            key={preset.id}
-                            type="button"
-                            onClick={() => applyPreset(preset.id as any)}
-                            style={{
-                              border: isSelected ? '2px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
-                              background: isSelected ? 'rgba(99, 102, 241, 0.1)' : 'var(--bg-overlay)',
-                              padding: 'var(--space-3)',
-                              borderRadius: 'var(--radius-md)',
-                              textAlign: 'left',
-                              cursor: 'pointer',
-                              transition: 'all 0.15s ease',
-                            }}
-                          >
-                            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)', color: isSelected ? 'var(--accent-primary)' : 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                              {preset.title}
-                            </div>
-                            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
-                              {preset.subtitle}
-                            </div>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Live Scope Summary Box */}
-                  <div
-                    style={{
-                      background: 'var(--bg-overlay)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: 'var(--radius-md)',
-                      padding: 'var(--space-3) var(--space-4)',
-                    }}
-                  >
-                    <div style={{ fontSize: 11, fontWeight: 'var(--font-semibold)', color: 'var(--text-secondary)', marginBottom: 6 }}>
-                      Active Granted Portals:
-                    </div>
-                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                      {POLICY_DEFINITIONS.filter((d) => formPolicy[d.key]).map((d) => (
-                        <span
-                          key={d.key}
-                          className="badge"
-                          style={{
-                            fontSize: 9,
-                            padding: '1px 6px',
-                            background: d.category === 'commercial' ? 'rgba(168, 85, 247, 0.15)' : 'rgba(99, 102, 241, 0.15)',
-                            color: d.category === 'commercial' ? '#c084fc' : 'var(--accent-primary)',
-                          }}
-                        >
-                          {d.label}
-                        </span>
-                      ))}
-                      {Object.values(formPolicy).filter(Boolean).length === 0 && (
-                        <span style={{ fontSize: 10, color: 'var(--color-danger)' }}>No access granted</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Column: Fine-Grained Policy Rules */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-                  <div style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)', color: 'var(--accent-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    3. Custom Permissions
-                  </div>
-
-                  {/* Execution Policies */}
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 'var(--font-semibold)', color: 'var(--text-secondary)', marginBottom: 8 }}>
-                      Workspace &amp; Delivery
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {POLICY_DEFINITIONS.filter((d) => d.category === 'execution').map((def) => {
-                        const isEnabled = Boolean(formPolicy[def.key])
-                        const Icon = def.icon
-                        return (
-                          <div
-                            key={def.key}
-                            onClick={() => togglePolicyKey(def.key)}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              padding: '8px 12px',
-                              borderRadius: 'var(--radius-md)',
-                              border: isEnabled ? '1px solid rgba(99, 102, 241, 0.4)' : '1px solid var(--border-subtle)',
-                              background: isEnabled ? 'rgba(99, 102, 241, 0.06)' : 'var(--bg-overlay)',
-                              cursor: 'pointer',
-                              userSelect: 'none',
-                            }}
-                          >
-                            <div className="flex items-center gap-2">
-                              <Icon size={14} style={{ color: isEnabled ? 'var(--accent-primary)' : 'var(--text-muted)' }} />
-                              <div>
-                                <div style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
-                                  {def.label}
-                                </div>
-                                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{def.description}</div>
-                              </div>
-                            </div>
-
-                            <div
-                              style={{
-                                width: 34,
-                                height: 18,
-                                borderRadius: 9,
-                                background: isEnabled ? 'var(--accent-primary)' : 'rgba(255,255,255,0.15)',
-                                position: 'relative',
-                                transition: 'background 0.15s ease',
-                                flexShrink: 0,
-                              }}
-                            >
-                              <div
-                                style={{
-                                  width: 14,
-                                  height: 14,
-                                  borderRadius: '50%',
-                                  background: '#fff',
-                                  position: 'absolute',
-                                  top: 2,
-                                  left: isEnabled ? 18 : 2,
-                                  transition: 'left 0.15s ease',
-                                }}
-                              />
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Commercial Policies */}
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 'var(--font-semibold)', color: 'var(--text-secondary)', marginBottom: 8 }}>
-                      Financial &amp; Billing
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {POLICY_DEFINITIONS.filter((d) => d.category === 'commercial').map((def) => {
-                        const isEnabled = Boolean(formPolicy[def.key])
-                        const Icon = def.icon
-                        return (
-                          <div
-                            key={def.key}
-                            onClick={() => togglePolicyKey(def.key)}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              padding: '8px 12px',
-                              borderRadius: 'var(--radius-md)',
-                              border: isEnabled ? '1px solid rgba(168, 85, 247, 0.4)' : '1px solid var(--border-subtle)',
-                              background: isEnabled ? 'rgba(168, 85, 247, 0.06)' : 'var(--bg-overlay)',
-                              cursor: 'pointer',
-                              userSelect: 'none',
-                            }}
-                          >
-                            <div className="flex items-center gap-2">
-                              <Icon size={14} style={{ color: isEnabled ? '#c084fc' : 'var(--text-muted)' }} />
-                              <div>
-                                <div style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
-                                  {def.label}
-                                </div>
-                                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{def.description}</div>
-                              </div>
-                            </div>
-
-                            <div
-                              style={{
-                                width: 34,
-                                height: 18,
-                                borderRadius: 9,
-                                background: isEnabled ? '#c084fc' : 'rgba(255,255,255,0.15)',
-                                position: 'relative',
-                                transition: 'background 0.15s ease',
-                                flexShrink: 0,
-                              }}
-                            >
-                              <div
-                                style={{
-                                  width: 14,
-                                  height: 14,
-                                  borderRadius: '50%',
-                                  background: '#fff',
-                                  position: 'absolute',
-                                  top: 2,
-                                  left: isEnabled ? 18 : 2,
-                                  transition: 'left 0.15s ease',
-                                }}
-                              />
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 180, overflowY: 'auto', background: 'var(--bg-elevated)', padding: 'var(--space-3)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+                  {projects.length === 0 ? (
+                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>No projects created yet for your client account.</div>
+                  ) : (
+                    projects.map((p) => {
+                      const isChecked = teamAllowedProjects.includes(p.id)
+                      return (
+                        <label key={p.id} className="flex items-center gap-2" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-primary)', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => toggleProjectAccess(p.id)}
+                            style={{ accentColor: 'var(--accent-primary)' }}
+                          />
+                          <span style={{ fontWeight: 600 }}>{p.name}</span>
+                          <span className="badge" style={{ fontSize: 9 }}>{p.status}</span>
+                        </label>
+                      )
+                    })
+                  )}
                 </div>
               </div>
 
-              {/* Modal Footer */}
-              <div
-                className="modal-footer"
-                style={{
-                  flexShrink: 0,
-                  padding: 'var(--space-4) var(--space-6)',
-                  borderTop: '1px solid var(--border-subtle)',
-                  background: 'var(--bg-overlay)',
-                }}
-              >
-                <button type="button" onClick={closeModal} className="btn btn--secondary">
-                  Cancel
-                </button>
+              <div className="modal-footer" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 'var(--space-4)', marginTop: 'var(--space-2)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                <button type="button" onClick={() => setShowTeamModal(false)} className="btn btn--secondary">Cancel</button>
                 <button type="submit" disabled={isPending} className="btn btn--primary">
-                  {isPending ? 'Saving Member...' : editingTeam ? 'Update Sub-Team Member' : 'Invite Sub-Team Member'}
+                  {isPending ? 'Saving...' : editingTeam ? 'Update Team' : 'Create Team'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL 2: Create Custom Team Role --- */}
+      {showRoleModal && (
+        <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(8px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div className="modal-content" style={{ maxWidth: 650, width: '95%', background: '#ffffff', borderRadius: 'var(--radius-xl)', overflow: 'hidden' }}>
+            <div className="modal-header" style={{ background: '#f8fafc', padding: 'var(--space-4) var(--space-6)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-bold)', color: '#0f172a' }}>Add Custom Role to Team</h2>
+              <button type="button" onClick={() => setShowRoleModal(false)} className="btn btn--ghost btn--icon"><X size={18} /></button>
+            </div>
+
+            <form onSubmit={handleSaveRole} style={{ padding: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 600, color: '#334155' }}>Role Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Milestone Approver"
+                  value={roleName}
+                  onChange={(e) => setRoleName(e.target.value)}
+                  className="form-input"
+                  style={{ background: '#f8fafc', border: '1px solid var(--border-default)', color: '#0f172a' }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 600, color: '#334155' }}>Role Description</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Can review and approve project milestones"
+                  value={roleDesc}
+                  onChange={(e) => setRoleDesc(e.target.value)}
+                  className="form-input"
+                  style={{ background: '#f8fafc', border: '1px solid var(--border-default)', color: '#0f172a' }}
+                />
+              </div>
+
+              {/* Permissions switches */}
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 600, color: '#334155' }}>Component Access Permissions</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
+                  {POLICY_DEFINITIONS.map((def) => {
+                    const isEnabled = Boolean(rolePolicy[def.key])
+                    return (
+                      <div
+                        key={def.key}
+                        onClick={() => setRolePolicy((prev) => ({ ...prev, [def.key]: !prev[def.key] }))}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '6px 12px',
+                          borderRadius: 'var(--radius-md)',
+                          border: isEnabled ? '1px solid rgba(99, 102, 241, 0.4)' : '1px solid var(--border-subtle)',
+                          background: isEnabled ? 'rgba(99, 102, 241, 0.06)' : 'var(--bg-overlay)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600 }}>{def.label}</span>
+                        <input type="checkbox" checked={isEnabled} readOnly style={{ accentColor: 'var(--accent-primary)' }} />
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="modal-footer" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 'var(--space-4)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                <button type="button" onClick={() => setShowRoleModal(false)} className="btn btn--secondary">Cancel</button>
+                <button type="submit" disabled={isPending} className="btn btn--primary">
+                  {isPending ? 'Saving...' : 'Save Custom Role'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL 3: Invite Team Member --- */}
+      {showMemberModal && (
+        <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(8px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div className="modal-content" style={{ maxWidth: 650, width: '95%', background: '#ffffff', borderRadius: 'var(--radius-xl)', overflow: 'hidden' }}>
+            <div className="modal-header" style={{ background: '#f8fafc', padding: 'var(--space-4) var(--space-6)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-bold)', color: '#0f172a' }}>Invite Team Member</h2>
+              <button type="button" onClick={() => setShowMemberModal(false)} className="btn btn--ghost btn--icon"><X size={18} /></button>
+            </div>
+
+            <form onSubmit={handleSaveMember} style={{ padding: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="form-group">
+                  <label className="form-label" style={{ fontWeight: 600, color: '#334155' }}>Member Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Alex Morgan"
+                    value={memberName}
+                    onChange={(e) => setMemberName(e.target.value)}
+                    className="form-input"
+                    style={{ background: '#f8fafc', border: '1px solid var(--border-default)', color: '#0f172a' }}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" style={{ fontWeight: 600, color: '#334155' }}>Email Address *</label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="e.g. alex@company.com"
+                    value={memberEmail}
+                    onChange={(e) => setMemberEmail(e.target.value)}
+                    className="form-input"
+                    style={{ background: '#f8fafc', border: '1px solid var(--border-default)', color: '#0f172a' }}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="form-group">
+                  <label className="form-label" style={{ fontWeight: 600, color: '#334155' }}>Designation</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Senior QA Engineer"
+                    value={memberDesignation}
+                    onChange={(e) => setMemberDesignation(e.target.value)}
+                    className="form-input"
+                    style={{ background: '#f8fafc', border: '1px solid var(--border-default)', color: '#0f172a' }}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" style={{ fontWeight: 600, color: '#334155' }}>Assign Custom Role</label>
+                  <select
+                    value={memberRoleId}
+                    onChange={(e) => setMemberRoleId(e.target.value)}
+                    className="form-select"
+                    style={{ background: '#f8fafc', border: '1px solid var(--border-default)', color: '#0f172a' }}
+                  >
+                    <option value="">Default Team Role</option>
+                    {(teams.find((t) => t.id === memberTeamId)?.roles || []).map((r) => (
+                      <option key={r.id} value={r.id}>{r.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="modal-footer" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 'var(--space-4)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                <button type="button" onClick={() => setShowMemberModal(false)} className="btn btn--secondary">Cancel</button>
+                <button type="submit" disabled={isPending} className="btn btn--primary">
+                  {isPending ? 'Sending Invite...' : 'Send Magic Link Invite'}
                 </button>
               </div>
             </form>
