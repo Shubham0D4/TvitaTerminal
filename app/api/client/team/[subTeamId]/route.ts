@@ -1,30 +1,27 @@
 import { apiSuccess, Errors } from '@/lib/api-response'
-import { getClientSubTeamContext, getServerUser, isClient } from '@/lib/auth/server'
+import { AuthService } from '@/lib/services/auth.service'
+import { ClientService } from '@/lib/services/client.service'
 import { prisma } from '@/lib/prisma'
-import { createSupabaseAdminClient } from '@/lib/supabase/server'
 import { NextRequest } from 'next/server'
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ subTeamId: string }> }
 ) {
-  const user = await getServerUser()
-  if (!user || !isClient(user)) {
+  const user = await AuthService.getCurrentUser()
+  if (!user || !AuthService.checkIsClient(user)) {
     return Errors.UNAUTHORIZED()
   }
 
   const { subTeamId } = await params
 
   try {
-    const subTeamCtx = await getClientSubTeamContext(user.id)
+    const subTeamCtx = await AuthService.getSubTeamContext(user.id)
     if (subTeamCtx) {
       return Errors.FORBIDDEN('Only primary client can modify sub-teams')
     }
 
-    const client = await prisma.client.findFirst({
-      where: { OR: [{ profileId: user.id }, { email: user.email }] },
-    })
-
+    const client = await ClientService.getClientByUserId(user.id, user.email)
     if (!client) return Errors.NOT_FOUND('Client account')
 
     const team = await prisma.clientSubTeam.findFirst({
@@ -69,7 +66,6 @@ export async function PUT(
       },
     })
 
-    // Sync changes to Profile
     const profileUpdates: { name?: string; email?: string; isActive?: boolean } = {}
     if (name && name !== team.name) profileUpdates.name = name
     if (email && email !== team.email) profileUpdates.email = email
@@ -100,23 +96,20 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ subTeamId: string }> }
 ) {
-  const user = await getServerUser()
-  if (!user || !isClient(user)) {
+  const user = await AuthService.getCurrentUser()
+  if (!user || !AuthService.checkIsClient(user)) {
     return Errors.UNAUTHORIZED()
   }
 
   const { subTeamId } = await params
 
   try {
-    const subTeamCtx = await getClientSubTeamContext(user.id)
+    const subTeamCtx = await AuthService.getSubTeamContext(user.id)
     if (subTeamCtx) {
       return Errors.FORBIDDEN('Only primary client can delete sub-teams')
     }
 
-    const client = await prisma.client.findFirst({
-      where: { OR: [{ profileId: user.id }, { email: user.email }] },
-    })
-
+    const client = await ClientService.getClientByUserId(user.id, user.email)
     if (!client) return Errors.NOT_FOUND('Client account')
 
     const team = await prisma.clientSubTeam.findFirst({
@@ -125,37 +118,8 @@ export async function DELETE(
 
     if (!team) return Errors.NOT_FOUND('Sub-team')
 
-    // Soft delete: mark team status INACTIVE and deactivate team members & profiles
-    await prisma.$transaction([
-      prisma.clientSubTeam.update({
-        where: { id: subTeamId },
-        data: { status: 'INACTIVE' },
-      }),
-      prisma.clientSubTeamMember.updateMany({
-        where: { subTeamId },
-        data: { status: 'INACTIVE' },
-      }),
-    ])
-
-    // Deactivate profiles of team members so active sessions are invalidated
-    const teamMembers = await prisma.clientSubTeamMember.findMany({
-      where: { subTeamId },
-      select: { profileId: true },
-    })
-    const profileIds = teamMembers
-      .map((m) => m.profileId)
-      .filter((id): id is string => Boolean(id))
-
-    if (team.profileId) profileIds.push(team.profileId)
-
-    if (profileIds.length > 0) {
-      await prisma.profile.updateMany({
-        where: { id: { in: profileIds } },
-        data: { isActive: false },
-      })
-    }
-
-    return apiSuccess({ deleted: true, soft: true })
+    const result = await ClientService.softDeleteSubTeam(subTeamId)
+    return apiSuccess(result)
   } catch (error) {
     console.error('Client soft delete sub-team API error:', error)
     return Errors.INTERNAL('Failed to deactivate sub-team')
