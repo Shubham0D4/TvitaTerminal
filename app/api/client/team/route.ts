@@ -75,12 +75,8 @@ export async function POST(request: NextRequest) {
       return Errors.VALIDATION('Sub-team name is required')
     }
 
-    const contactEmail = email && email.trim() !== '' ? email.trim() : `${name.toLowerCase().replace(/[^a-z0-9]/g, '')}-${Date.now()}@subteam.tvita`
-
-    const existingProfile = await prisma.profile.findUnique({ where: { email: contactEmail } })
-    if (existingProfile) {
-      return Errors.CONFLICT(`Email ${contactEmail} is already registered on the platform`)
-    }
+    const hasCustomEmail = Boolean(email && email.trim() !== '')
+    const contactEmail = hasCustomEmail ? email.trim() : `${name.toLowerCase().replace(/[^a-z0-9]/g, '')}-${Date.now()}@team.tvita`
 
     const existingTeam = await prisma.clientSubTeam.findUnique({ where: { email: contactEmail } })
     if (existingTeam) {
@@ -97,46 +93,62 @@ export async function POST(request: NextRequest) {
       documents: policy?.documents !== false,
     }
 
-    const supabaseAdmin = createSupabaseAdminClient()
-    const appUrl = getAppBaseUrl(request)
+    let authUserId: string | null = null
 
-    let { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'invite',
-      email: contactEmail,
-      options: {
-        redirectTo: `${appUrl}/auth/callback?next=/reset-password`,
-        data: { role: 'CLIENT', name, clientTeam: true },
-      },
-    })
+    if (hasCustomEmail) {
+      const existingProfile = await prisma.profile.findUnique({ where: { email: contactEmail } })
+      if (existingProfile) {
+        return Errors.CONFLICT(`Email ${contactEmail} is already registered on the platform`)
+      }
 
-    if (linkError || !linkData?.user) {
-      const fallback = await supabaseAdmin.auth.admin.generateLink({
-        type: 'magiclink',
+      const supabaseAdmin = createSupabaseAdminClient()
+      const appUrl = getAppBaseUrl(request)
+
+      let { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'invite',
         email: contactEmail,
         options: {
           redirectTo: `${appUrl}/auth/callback?next=/reset-password`,
+          data: { role: 'CLIENT', name, clientTeam: true },
         },
       })
-      linkData = fallback.data
-      linkError = fallback.error
+
+      if (linkError || !linkData?.user) {
+        const fallback = await supabaseAdmin.auth.admin.generateLink({
+          type: 'magiclink',
+          email: contactEmail,
+          options: {
+            redirectTo: `${appUrl}/auth/callback?next=/reset-password`,
+          },
+        })
+        linkData = fallback.data
+        linkError = fallback.error
+      }
+
+      if (linkError || !linkData?.user) {
+        return Errors.VALIDATION(`Could not generate invite link: ${linkError?.message}`)
+      }
+
+      authUserId = linkData.user.id
+      const inviteLink = linkData.properties?.action_link ?? `${appUrl}/login`
+
+      await prisma.profile.create({
+        data: {
+          id: authUserId,
+          email: contactEmail,
+          role: 'CLIENT',
+          name,
+          isActive: true,
+        },
+      })
+
+      await sendClientTeamInvite({
+        to: contactEmail,
+        teamName: name,
+        clientName: client.name,
+        inviteLink,
+      }).catch(() => {})
     }
-
-    if (linkError || !linkData?.user) {
-      return Errors.VALIDATION(`Could not generate invite link: ${linkError?.message}`)
-    }
-
-    const authUserId = linkData.user.id
-    const inviteLink = linkData.properties?.action_link ?? `${appUrl}/login`
-
-    await prisma.profile.create({
-      data: {
-        id: authUserId,
-        email: contactEmail,
-        role: 'CLIENT',
-        name,
-        isActive: true,
-      },
-    })
 
     const subTeam = await prisma.clientSubTeam.create({
       data: {
@@ -154,13 +166,6 @@ export async function POST(request: NextRequest) {
         roles: true,
         members: true,
       },
-    })
-
-    await sendClientTeamInvite({
-      to: email,
-      teamName: name,
-      clientName: client.name,
-      inviteLink,
     })
 
     return apiSuccess(subTeam, 201)

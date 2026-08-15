@@ -29,6 +29,8 @@ import {
   KeyRound,
   Layers,
 } from 'lucide-react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { apiClient } from '@/lib/api-client'
 import type { Client } from '@prisma/client'
@@ -170,6 +172,7 @@ function formatDate(date: Date | string | null): string {
 }
 
 export default function ClientTeamsManager({ client, projects, initialSubTeams }: Props) {
+  const router = useRouter()
   const [teams, setTeams] = useState<TeamItem[]>(initialSubTeams as TeamItem[])
   const [search, setSearch] = useState('')
   const [copiedId, setCopiedId] = useState<string | null>(null)
@@ -477,7 +480,7 @@ export default function ClientTeamsManager({ client, projects, initialSubTeams }
                     justifyContent: 'space-between',
                     cursor: 'pointer',
                   }}
-                  onClick={() => setExpandedTeamId(isExpanded ? null : team.id)}
+                  onClick={() => router.push(`/client/teams/${team.id}`)}
                 >
                   <div className="flex items-center gap-3">
                     <div
@@ -537,13 +540,21 @@ export default function ClientTeamsManager({ client, projects, initialSubTeams }
                     </div>
 
                     <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                      <Link
+                        href={`/client/teams/${team.id}`}
+                        className="btn btn--primary btn--xs"
+                        style={{ gap: 4 }}
+                      >
+                        Manage Team &amp; Members
+                      </Link>
+
                       <button
                         type="button"
                         onClick={() => openEditTeamModal(team)}
                         className="btn btn--ghost btn--xs"
                         title="Edit Team & Project Access"
                       >
-                        <Edit3 size={14} /> Edit
+                        <Edit3 size={14} />
                       </button>
                       <button
                         type="button"

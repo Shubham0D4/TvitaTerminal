@@ -141,52 +141,17 @@ export default function AdminSubTeamsSection({
           <table className="table">
             <thead>
               <tr>
-                <th>Member Name</th>
-                <th>Login Email</th>
-                <th>Access Scope</th>
+                <th>Sub-Team Name</th>
                 <th>Status</th>
                 <th style={{ textAlign: 'right' }}>Admin Actions</th>
               </tr>
             </thead>
             <tbody>
               {teams.map((team) => {
-                const policy = (team.accessPolicy as Partial<AccessPolicy>) ?? {}
-                const activePerms = PERMISSION_TAGS.filter((pt) => Boolean(policy[pt.key]))
-
                 return (
                   <tr key={team.id}>
                     <td>
                       <div style={{ fontWeight: 'var(--font-medium)', color: 'var(--text-primary)' }}>{team.name}</div>
-                    </td>
-                    <td>
-                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>{team.email}</span>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxWidth: 260 }}>
-                        {activePerms.map((p) => {
-                          const Icon = p.icon
-                          return (
-                            <span
-                              key={p.key}
-                              className="badge"
-                              style={{
-                                background: 'var(--bg-overlay)',
-                                color: 'var(--text-secondary)',
-                                fontSize: 9,
-                                padding: '1px 6px',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 3,
-                              }}
-                            >
-                              <Icon size={10} /> {p.label}
-                            </span>
-                          )
-                        })}
-                        {activePerms.length === 0 && (
-                          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>None</span>
-                        )}
-                      </div>
                     </td>
                     <td>
                       {team.revokedByAdmin ? (

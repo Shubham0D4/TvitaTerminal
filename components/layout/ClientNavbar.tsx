@@ -132,7 +132,14 @@ export default function ClientNavbar({ user, isSubTeam: isSubTeamProp = false, s
         <div className="client-navbar__brand">
           <Link href="/client/dashboard" className="client-navbar__logo-link">
             <img src="/logo.png" alt="Tvita Logo" style={{ height: '32px', width: 'auto', objectFit: 'contain' }} />
-            <span className="sidebar__logo-name" style={{ fontSize: 'var(--text-lg)' }}>Tvita</span>
+            <span className="sidebar__logo-name" style={{ fontSize: 'var(--text-lg)', display: 'inline-flex', alignItems: 'baseline' }}>
+              Tvita
+              {isSubTeam && (
+                <sub style={{ fontSize: '0.55em', marginLeft: '2px', fontWeight: 700, color: 'var(--accent-primary)', textTransform: 'lowercase', bottom: '-0.2em' }}>
+                  team
+                </sub>
+              )}
+            </span>
           </Link>
           {subTeamCtx?.teamName && (
             <span className="client-navbar__portal-badge" style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', fontSize: 10, padding: '2px 8px', borderRadius: 12, fontWeight: 600 }}>
