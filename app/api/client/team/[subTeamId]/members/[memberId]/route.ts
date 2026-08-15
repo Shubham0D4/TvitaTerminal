@@ -85,21 +85,22 @@ export async function DELETE(
     })
     if (!member) return Errors.NOT_FOUND('Sub-team member')
 
+    // Soft remove: set member status INACTIVE and deactivate associated profile (preserving history & logs)
+    await prisma.clientSubTeamMember.update({
+      where: { id: memberId },
+      data: { status: 'INACTIVE' },
+    })
+
     if (member.profileId) {
-      const supabaseAdmin = createSupabaseAdminClient()
-      try {
-        await supabaseAdmin.auth.admin.deleteUser(member.profileId)
-        await prisma.profile.delete({ where: { id: member.profileId } })
-      } catch {
-        // Fallback cleanup
-      }
+      await prisma.profile.update({
+        where: { id: member.profileId },
+        data: { isActive: false },
+      })
     }
 
-    await prisma.clientSubTeamMember.delete({ where: { id: memberId } })
-
-    return apiSuccess({ deleted: true })
+    return apiSuccess({ deleted: true, soft: true })
   } catch (error) {
-    console.error('Delete subteam member error:', error)
-    return Errors.INTERNAL('Failed to delete team member')
+    console.error('Soft delete subteam member error:', error)
+    return Errors.INTERNAL('Failed to soft remove team member')
   }
 }

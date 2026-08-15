@@ -125,20 +125,39 @@ export async function DELETE(
 
     if (!team) return Errors.NOT_FOUND('Sub-team')
 
-    if (team.profileId) {
-      const supabaseAdmin = createSupabaseAdminClient()
-      try {
-        await supabaseAdmin.auth.admin.deleteUser(team.profileId)
-        await prisma.profile.delete({ where: { id: team.profileId } })
-      } catch {
-        // Profile cleanup fallback
-      }
-    }
-    await prisma.clientSubTeam.delete({ where: { id: subTeamId } })
+    // Soft delete: mark team status INACTIVE and deactivate team members & profiles
+    await prisma.$transaction([
+      prisma.clientSubTeam.update({
+        where: { id: subTeamId },
+        data: { status: 'INACTIVE' },
+      }),
+      prisma.clientSubTeamMember.updateMany({
+        where: { subTeamId },
+        data: { status: 'INACTIVE' },
+      }),
+    ])
 
-    return apiSuccess({ deleted: true })
+    // Deactivate profiles of team members so active sessions are invalidated
+    const teamMembers = await prisma.clientSubTeamMember.findMany({
+      where: { subTeamId },
+      select: { profileId: true },
+    })
+    const profileIds = teamMembers
+      .map((m) => m.profileId)
+      .filter((id): id is string => Boolean(id))
+
+    if (team.profileId) profileIds.push(team.profileId)
+
+    if (profileIds.length > 0) {
+      await prisma.profile.updateMany({
+        where: { id: { in: profileIds } },
+        data: { isActive: false },
+      })
+    }
+
+    return apiSuccess({ deleted: true, soft: true })
   } catch (error) {
-    console.error('Client delete sub-team API error:', error)
-    return Errors.INTERNAL('Failed to delete sub-team')
+    console.error('Client soft delete sub-team API error:', error)
+    return Errors.INTERNAL('Failed to deactivate sub-team')
   }
 }

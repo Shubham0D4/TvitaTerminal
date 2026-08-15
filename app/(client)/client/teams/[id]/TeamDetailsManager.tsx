@@ -269,19 +269,19 @@ export default function TeamDetailsManager({
   }
 
   const handleDeleteMember = async (m: MemberItem) => {
-    if (!confirm(`Permanently delete member "${m.name}" from this team?`)) return
+    if (!confirm(`Soft remove member "${m.name}" from this team?\n\nTheir history and activity logs will be preserved. You can re-invite them to any team later.`)) return
 
     setIsPending(true)
     try {
       await apiClient.delete(`/api/client/team/${team.id}/members/${m.id}`)
       setTeam((prev) => ({
         ...prev,
-        members: prev.members.filter((mem) => mem.id !== m.id),
+        members: prev.members.map((mem) => (mem.id === m.id ? { ...mem, status: 'INACTIVE' } : mem)),
       }))
 
-      toast.success(`Member "${m.name}" removed from team`)
+      toast.success(`Member "${m.name}" soft removed. You can re-invite them to any team later.`)
     } catch (err: unknown) {
-      toast.error((err as Error)?.message || 'Failed to delete member')
+      toast.error((err as Error)?.message || 'Failed to remove member')
     } finally {
       setIsPending(false)
     }

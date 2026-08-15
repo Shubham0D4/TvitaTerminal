@@ -36,9 +36,8 @@ export default async function ClientProjectDetailPage({ params }: { params: Prom
     include: {
       lead: { select: { name: true } },
       milestones: {
-        where: { status: 'COMPLETED' },  // client sees ONLY completed milestones
-        orderBy: { completedDate: 'desc' },
-        select: { id: true, name: true, description: true, status: true, completedDate: true },
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+        select: { id: true, name: true, description: true, status: true, progress: true, dueDate: true, completedDate: true },
       },
       updates: {
         where: { clientVisible: true },
@@ -129,41 +128,82 @@ export default async function ClientProjectDetailPage({ params }: { params: Prom
         {/* Right 2 cols: Milestones + Approvals + Updates */}
         <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
 
-          {/* Completed Milestones */}
+          {/* Project Milestones & Deliverables */}
           <div className="card">
-            <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', marginBottom: 'var(--space-4)' }}>
-              Completed Milestones
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', margin: 0 }}>
+                Project Milestones &amp; Deliverables ({project.milestones.length})
+              </h2>
+              <span className="text-xs text-muted">
+                {completedMilestones} of {totalMilestones} Completed
+              </span>
+            </div>
+
             {project.milestones.length === 0 ? (
               <div className="empty-state" style={{ padding: 'var(--space-6)' }}>
                 <Clock size={24} />
-                <div className="empty-state__title">No milestones completed yet</div>
-                <div className="empty-state__desc">Completed milestones will appear here as your team progresses.</div>
+                <div className="empty-state__title">No milestones scheduled yet</div>
+                <div className="empty-state__desc">Project milestones will appear here as work is planned.</div>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                {project.milestones.map((m) => (
-                  <div key={m.id} style={{ background: 'var(--bg-elevated)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-4)' }}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div style={{ flex: 1 }}>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span style={{ fontSize: 14, color: '#10b981' }}>✓</span>
-                          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
-                            {m.name}
-                          </span>
+                {project.milestones.map((m) => {
+                  const isDone = m.status === 'COMPLETED'
+                  const isInProgress = m.status === 'IN_PROGRESS'
+                  const isPlanned = m.status === 'PLANNED'
+
+                  let badgeClass = 'badge--neutral'
+                  if (isDone) badgeClass = 'badge--success'
+                  else if (isInProgress) badgeClass = 'badge--info'
+                  else if (isPlanned) badgeClass = 'badge--warning'
+
+                  return (
+                    <div
+                      key={m.id}
+                      style={{
+                        background: 'var(--bg-elevated)',
+                        border: isDone ? '1px solid rgba(16,185,129,0.3)' : '1px solid var(--border-subtle)',
+                        borderRadius: 'var(--radius-lg)',
+                        padding: 'var(--space-4)',
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div style={{ flex: 1 }}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span style={{ fontSize: 14, color: isDone ? '#10b981' : isInProgress ? '#3b82f6' : 'var(--text-muted)' }}>
+                              {isDone ? '✓' : isInProgress ? '⏳' : '📌'}
+                            </span>
+                            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
+                              {m.name}
+                            </span>
+                            <span className={`badge ${badgeClass}`} style={{ fontSize: 9, textTransform: 'capitalize' }}>
+                              {m.status.replace(/_/g, ' ').toLowerCase()}
+                            </span>
+                          </div>
+                          {m.description && (
+                            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', marginLeft: 22 }}>
+                              {m.description}
+                            </p>
+                          )}
                         </div>
-                        {m.description && (
-                          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', marginLeft: 22 }}>
-                            {m.description}
-                          </p>
-                        )}
+
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          {isDone ? (
+                            <span style={{ fontSize: 10, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                              Done {formatDate(m.completedDate)}
+                            </span>
+                          ) : m.dueDate ? (
+                            <span style={{ fontSize: 10, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                              Due {formatDate(m.dueDate)}
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>In progress</span>
+                          )}
+                        </div>
                       </div>
-                      <span style={{ fontSize: 10, color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                        {m.completedDate ? `Done ${formatDate(m.completedDate)}` : ''}
-                      </span>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>
