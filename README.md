@@ -1,136 +1,147 @@
-# Tvita — Modern Agency & Client Operations Platform
+# ⚡ Tvita — Enterprise Agency & Client Operations Platform
 
-**Tvita** is an enterprise-grade agency and project management platform built with Next.js 16 (App Router), Prisma ORM, Supabase Authentication, PostgreSQL, and a tailored Vanilla CSS Design System.
-
-Tvita provides a three-portal architecture designed for seamless agency collaboration:
-1. **Admin Portal** (`/admin`) — High-level agency administration, client onboarding, team member provisioning, subscription plan management, billing, and system settings.
-2. **Staff & Leads Portal** (`/team`) — Project milestone execution, task assignment & management, workload tracking, deliverable submission, and document management.
-3. **Client & Sub-Teams Portal** (`/client`) — Client workspace for project tracking, deliverable approvals, subscriptions, invoices, and granular sub-team access control.
+**Tvita** is a serious, production-grade agency management platform built with Next.js 16 (App Router with Turbopack), Prisma ORM (v7.9), Supabase Authentication, PostgreSQL, Stripe, and a professional Vanilla CSS design system.
 
 ---
 
-## Key Features
+## 🏛️ Architecture Overview
 
-### 🏢 Granular Client Sub-Team Access System
-Clients can create internal sub-teams (e.g. QA, Marketing, Billing Reviewers) and invite members individually via magic links:
-- **Project-Level Access Boundaries**: Restrict specific sub-teams to authorized projects (`allowedProjects`) or grant workspace-wide visibility.
-- **Financial Scope Protection**: Toggle financial visibility (Invoices, Subscriptions, Billing) ON or OFF per team.
-- **Individual Member Magic Link Invites**: Client team members receive secure magic login links sent directly to their registered email addresses.
-- **Component-Level Access Scope**: Customize access permissions per member (Milestones, Approvals, Documents, Updates).
-- **Independent Member Revocation**: Clients can revoke or reactivate individual member accounts or delete members safely without affecting the parent team.
+Tvita is engineered around a three-tier portal architecture with strict Role-Based Access Control (RBAC):
 
-### 🛡️ Administrative Control & Revocation
-- Admins can provision client accounts, leads, developers, and QA testers.
-- Admins possess high-level access revocation capabilities (`revokedByAdmin`) to immediately suspend sub-team access across the platform.
+```text
+                               ┌──────────────────────────┐
+                               │     ADMIN PORTAL         │
+                               │  /admin (Control Tower)  │
+                               └────────────┬─────────────┘
+                                            │
+                    ┌───────────────────────┴───────────────────────┐
+                    ▼                                               ▼
+     ┌────────────────────────────┐                  ┌────────────────────────────┐
+     │     STAFF & LEADS PORTAL   │                  │   CLIENT & SUB-TEAMS PORTAL│
+     │      /team (Operational)   │                  │  /client (Action-Oriented) │
+     └────────────────────────────┘                  └────────────────────────────┘
+```
 
-### 📧 Automated Magic Links & Email Integration
-- Integrated email dispatch via SMTP / Gmail OAuth2 (`lib/mailer.ts`).
-- Admin-configurable SMTP credentials directly in Admin Settings (`/admin/settings`).
-- Dynamic base URL resolution using `NEXT_PUBLIC_APP_URL` (`lib/url.ts`).
+1. **Admin Portal (`/admin`)**: Organization control tower for overall platform health, client onboarding, staff provisioning, project assignment, retainer/subscription management, billing, and system audit logs.
+2. **Staff & Leads Portal (`/team`)**: Operational dashboard for project leads, software developers, and QA testers. Features milestone tracking, task auto-assignment, issue tracking, and deliverable management.
+3. **Client & Sub-Teams Portal (`/client`)**: Action-oriented portal for client organizations and internal sub-teams (e.g. Finance, Product, QA, Marketing) with granular component-level RBAC and project isolation.
+
+---
+
+## 🔑 Demo Credentials & Quick Start Seeding
+
+> ⚠️ **Default Password for ALL Seeded Accounts**: `Pass1234`
+
+### 📜 Seed the Database
+To populate the database with 1 Admin, 10 Agency Staff Members, 4 Clients, 22 Sub-Teams with RBAC, 6 Projects, 4 Subscription Retainers, Milestones, Tasks, and GST Invoices:
+
+```bash
+npm run seed:agency
+# Or directly:
+npx tsx --env-file=.env scripts/seed-agency-data.ts
+```
+
+---
+
+## ✨ Key Features & Technical Capabilities
+
+### 🗂️ Project & Team Assignment Engine
+* **Synchronized Roster & Lead Management**: Automatically pairs `Project.leadId` with `ProjectMember` records (`role: 'TEAM_LEAD'`).
+* **Role Upsert**: Seamlessly modify project roles (`DEVELOPER`, `TESTER`, `TEAM_LEAD`) without database conflicts.
+* **Agency-Wide Staff Selector**: Allows Admins to select any active team member or lead for project allocation.
+
+### 🔐 Granular Client Sub-Team Access & RBAC
+* **Project Isolation**: Restrict specific sub-teams to authorized project IDs or grant workspace-wide access.
+* **Field-Level Scope Protection**: Independently grant or restrict financial data (Invoices, Retainers, Subscriptions) per sub-team.
+* **Independent Invites & Revocation**: Magic-link invitations for sub-team members with single-click admin revocation (`revokedByAdmin`).
+
+### 📦 Subscription & Retainer Billing Engine
+* **Tiered & Custom Plans**: Support for Starter, Growth, Agency Enterprise, and Custom Retainers.
+* **GST-Compliant Invoices**: Invoice generation with tax calculations (`18% GST`), line itemization, and status tracking (`PAID`, `PENDING`).
+* **Prisma Decimal Handling**: Safe JSON serialization boundary for Next.js Server Components to Client Components.
 
 ---
 
 ## 🛠️ Technology Stack
 
-- **Framework**: [Next.js 16 (Turbopack, App Router)](https://nextjs.org/)
-- **Database & ORM**: [PostgreSQL](https://www.postgresql.org/) with [Prisma ORM](https://www.prisma.io/)
-- **Authentication**: [Supabase Auth](https://supabase.com/docs/guides/auth)
-- **Styling**: Vanilla CSS Design System with CSS Custom Properties, modern typography, glassmorphism, and responsive layouts
-- **Email Service**: Nodemailer with SMTP / Gmail integration
-- **Icons**: [Lucide React](https://lucide.dev/)
+* **Framework**: [Next.js 16](https://nextjs.org/) (App Router, Turbopack)
+* **Database & ORM**: PostgreSQL with [Prisma v7.9.1](https://www.prisma.io/) (`@prisma/adapter-pg`)
+* **Authentication**: [Supabase Auth](https://supabase.com/) & Local Password Hashing (Bcrypt)
+* **Payments & Billing**: [Stripe](https://stripe.com/) Node SDK
+* **Styling**: Vanilla CSS Design System with CSS Custom Properties & Responsive Grid
+* **Icons**: [Lucide React](https://lucide.dev/)
+* **Email Service**: Nodemailer & Gmail API / SMTP integration
 
 ---
 
 ## 🚀 Getting Started
 
 ### 1. Prerequisites
-- **Node.js**: v18.x or v20.x
-- **npm** or **pnpm**
-- **PostgreSQL Database**: A running PostgreSQL instance (or Supabase Postgres connection string)
+* **Node.js**: v18.x or v20.x
+* **npm**
+* **PostgreSQL Database**: PostgreSQL connection string (Supabase or direct instance)
 
-### 2. Environment Setup
-
-Create a `.env` file in the root directory:
+### 2. Environment Configuration
+Copy `.env.example` or update `.env` in the root directory:
 
 ```env
-# Database Connection
-DATABASE_URL="postgresql://user:password@localhost:5432/tvita?schema=public"
-
-# Supabase Authentication & Admin
+DATABASE_URL="postgresql://postgres:password@localhost:5432/tvita?pgbouncer=true"
+DIRECT_URL="postgresql://postgres:password@localhost:5432/tvita"
 NEXT_PUBLIC_SUPABASE_URL="https://your-project.supabase.co"
-NEXT_PUBLIC_SUPABASE_ANON_KEY="your-supabase-anon-key"
-SUPABASE_SERVICE_ROLE_KEY="your-supabase-service-role-key"
-
-# Application Base URL (Used for Magic Link Invites)
+NEXT_PUBLIC_SUPABASE_ANON_KEY="your-anon-key"
+SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
-
-# SMTP / Gmail Configuration (Configurable via Admin Settings UI as well)
-SMTP_HOST="smtp.gmail.com"
-SMTP_PORT=587
-SMTP_USER="your-email@gmail.com"
-SMTP_PASS="your-app-password"
-SMTP_FROM="Tvita Platform <noreply@tvita.local>"
 ```
 
-### 3. Database Migration & Prisma Client
-
+### 3. Database Setup & Migration
 ```bash
 # Generate Prisma Client
 npx prisma generate
 
-# Run Database Migrations
-npx prisma migrate dev --name init
+# Seed Database with Demo Accounts & Projects
+npm run seed:agency
 ```
 
-### 4. Running Development Server
-
+### 4. Run Development Server
 ```bash
 npm run dev
 ```
-
-Open [http://localhost:3000](http://localhost:3000) to access the platform.
+Open [http://localhost:3000](http://localhost:3000) to log in.
 
 ---
 
-## 📁 Project Structure
+## 📁 Repository Structure
 
-```
+```text
+Tvita/
 ├── app/
-│   ├── (admin)/             # Admin Portal Pages (/admin)
-│   ├── (client)/            # Client Portal Pages (/client)
-│   │   └── client/teams/    # Sub-Team Management & Detail Routes
-│   ├── (team)/              # Staff / Lead Portal Pages (/team)
-│   ├── api/                 # RESTful API Endpoints
-│   │   ├── admin/           # Administrative API Endpoints
-│   │   ├── client/          # Client & Sub-Team API Endpoints
-│   │   └── team/            # Staff & Task API Endpoints
-│   ├── auth/                # Supabase Auth Callbacks & Magic Link handlers
-│   ├── login/               # Portal Login Page
-│   └── reset-password/      # Password Reset Handler
-├── components/              # Shared Reusable UI Components
-│   └── layout/              # Navbars, Sidebars, Footers
+│   ├── (admin)/             # Admin Control Tower (/admin)
+│   ├── (client)/            # Client & Sub-Team Portal (/client)
+│   ├── (team)/              # Staff & Project Lead Portal (/team)
+│   ├── api/                 # REST API Routes (/api/admin, /api/team, /api/client)
+│   └── auth/                # Authentication Callbacks & Magic Links
+├── components/              # Shared UI Components & Layouts
 ├── lib/
-│   ├── auth/                # Server & Sub-Team Policy Resolvers
-│   ├── mailer.ts            # Dynamic SMTP / Gmail Email Dispatcher
-│   ├── prisma.ts            # Prisma Client Singleton
-│   ├── supabase/            # Supabase SSR & Admin SDK Clients
-│   └── url.ts               # Base URL Resolution Utility
-└── prisma/
-    └── schema.prisma        # Database Schema & Model Definitions
+│   ├── auth/                # Auth & RBAC Policy Resolvers
+│   ├── repositories/        # Data Access Layer & Repositories
+│   └── prisma.ts            # Prisma Client Initialization
+├── prisma/
+│   └── schema.prisma        # Database Schema Definitions
+├── scripts/
+│   └── seed-agency-data.ts  # Complete Data Seeding Script
+└── PLATFORM_STATE_AND_CREDENTIALS.md # Full Account & Password Directory
 ```
 
 ---
 
-## 🧪 Verification & Build
+## 🧪 Build & Verification
 
-To compile a production build and run TypeScript checks:
-
+To verify TypeScript types and build production bundles:
 ```bash
-npx next build
+npm run build
 ```
 
 ---
 
 ## 📄 License
-
-Copyright © 2026 Tvita. All rights reserved.
+Copyright © 2026 Tvita Agency Platform. All rights reserved.

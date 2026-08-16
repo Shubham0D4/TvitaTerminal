@@ -2,8 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { createSupabaseBrowserClient } from '@/infrastructure/supabase/client'
 import { useRouter, usePathname } from 'next/navigation'
+import { signOut } from 'next-auth/react'
+import { createSupabaseBrowserClient } from '@/infrastructure/supabase/client'
 import toast from 'react-hot-toast'
 import {
   Bell,
@@ -119,11 +120,14 @@ export default function Topbar({ user }: TopbarProps) {
   const handleLogout = async () => {
     setLoggingOut(true)
     try {
-      const supabase = createSupabaseBrowserClient()
-      await supabase.auth.signOut()
+      try {
+        const supabase = createSupabaseBrowserClient()
+        await supabase.auth.signOut()
+      } catch {
+        // ignore supabase browser client errors
+      }
       toast.success('Signed out successfully')
-      router.push('/login')
-      router.refresh()
+      await signOut({ callbackUrl: '/login' })
     } catch {
       toast.error('Failed to sign out')
       setLoggingOut(false)

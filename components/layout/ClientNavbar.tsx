@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { signOut } from 'next-auth/react'
 import { createSupabaseBrowserClient } from '@/infrastructure/supabase/client'
 import toast from 'react-hot-toast'
 import {
@@ -114,11 +115,14 @@ export default function ClientNavbar({ user, isSubTeam: isSubTeamProp = false, s
   const handleLogout = async () => {
     setLoggingOut(true)
     try {
-      const supabase = createSupabaseBrowserClient()
-      await supabase.auth.signOut()
+      try {
+        const supabase = createSupabaseBrowserClient()
+        await supabase.auth.signOut()
+      } catch {
+        // ignore
+      }
       toast.success('Signed out successfully')
-      router.push('/login')
-      router.refresh()
+      await signOut({ callbackUrl: '/login' })
     } catch {
       toast.error('Failed to sign out')
       setLoggingOut(false)
