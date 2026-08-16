@@ -22,8 +22,10 @@
     "@supabase/supabase-js": "^2.112.3",
     "@types/nodemailer": "^8.0.1",
     "@types/react-pdf": "^6.2.0",
+    "bcryptjs": "^3.0.3",
     "lucide-react": "^1.31.0",
     "next": "16.3.0",
+    "next-auth": "^4.24.15",
     "nodemailer": "^9.0.5",
     "pg": "^8.23.0",
     "react": "19.2.8",
@@ -35,6 +37,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/pg": "^8.21.0",
     "@types/react": "^19",

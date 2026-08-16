@@ -1,17 +1,8 @@
 import 'dotenv/config'
-import { createClient } from '@supabase/supabase-js'
 import { prisma } from '../lib/prisma'
 import type { TeamRole } from '@prisma/client'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-
-const supabase = createClient(supabaseUrl, serviceRoleKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-})
+import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
 
 const DEFAULT_PASSWORD = 'Password123!'
 
@@ -54,38 +45,15 @@ const USERS = [
 ]
 
 async function main() {
-  console.log('🔑 Provisioning Supabase Auth demo users with password:', DEFAULT_PASSWORD)
-
-  const { data: existingList } = await supabase.auth.admin.listUsers()
+  console.log('🔑 Provisioning local demo users with password:', DEFAULT_PASSWORD)
 
   for (const user of USERS) {
-    const existing = existingList?.users.find((u) => u.email === user.email)
+    const existing = await prisma.profile.findUnique({
+      where: { email: user.email },
+    })
 
-    let userId: string
-
-    if (existing) {
-      console.log(`  Updating password & metadata for existing auth user: ${user.email}`)
-      userId = existing.id
-      await supabase.auth.admin.updateUserById(userId, {
-        password: user.password,
-        user_metadata: { role: user.role, teamRole: user.teamRole, name: user.name },
-        email_confirm: true,
-      })
-    } else {
-      console.log(`  Creating new auth user: ${user.email}`)
-      const { data: created, error } = await supabase.auth.admin.createUser({
-        email: user.email,
-        password: user.password,
-        email_confirm: true,
-        user_metadata: { role: user.role, teamRole: user.teamRole, name: user.name },
-      })
-
-      if (error) {
-        console.error(`  ❌ Failed to create ${user.email}:`, error.message)
-        continue
-      }
-      userId = created.user.id
-    }
+    const userId = existing?.id || crypto.randomUUID()
+    const passwordHash = bcrypt.hashSync(user.password, 10)
 
     // Sync profile in public.profiles table
     await prisma.profile.upsert({
@@ -96,6 +64,7 @@ async function main() {
         teamRole: user.teamRole,
         name: user.name,
         isActive: true,
+        passwordHash,
       },
       create: {
         id: userId,
@@ -104,6 +73,7 @@ async function main() {
         teamRole: user.teamRole,
         name: user.name,
         isActive: true,
+        passwordHash,
       },
     })
 

@@ -1,10 +1,10 @@
+import crypto from 'crypto'
 import { apiSuccess, Errors } from '@/shared/utilities/api-response'
 import { writeAuditLog } from '@/lib/audit'
 import { getServerUser, isAdmin } from '@/lib/auth/server'
 import { sendRoleAccountCreatedEmail } from '@/infrastructure/email'
 import { createNotification } from '@/lib/notifications'
 import { prisma } from '@/lib/prisma'
-import { createSupabaseAdminClient } from '@/infrastructure/supabase/server'
 import { getAppBaseUrl } from '@/shared/utilities/url'
 import { TeamRole } from '@prisma/client'
 import { NextRequest } from 'next/server'
@@ -83,41 +83,10 @@ export async function POST(request: NextRequest) {
     }
 
     const appUrl = getAppBaseUrl(request)
-    let inviteLink = `${appUrl}/login`
-    let userId = crypto.randomUUID()
-    const supabaseAdmin = createSupabaseAdminClient()
-
-    try {
-      let { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-        type: 'invite',
-        email,
-        options: {
-          redirectTo: `${appUrl}/auth/callback?next=/reset-password`,
-          data: { role: role || 'TEAM_MEMBER', teamRole, name },
-        },
-      })
-
-      if (linkError || !linkData?.user?.id) {
-        const fallback = await supabaseAdmin.auth.admin.generateLink({
-          type: 'magiclink',
-          email,
-          options: {
-            redirectTo: `${appUrl}/auth/callback?next=/reset-password`,
-          },
-        })
-        linkData = fallback.data
-        linkError = fallback.error
-      }
-
-      if (linkData?.user?.id) {
-        userId = linkData.user.id
-        inviteLink = linkData.properties?.action_link ?? `${appUrl}/login`
-      } else if (linkError) {
-        console.warn('Supabase invite link warning:', linkError.message)
-      }
-    } catch (err) {
-      console.warn('Failed to invoke Supabase Auth Admin:', err)
-    }
+    const token = crypto.randomBytes(32).toString('hex')
+    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000)
+    const userId = crypto.randomUUID()
+    const inviteLink = `${appUrl}/auth/callback?token=${token}&email=${email}&next=/reset-password`
 
     const newMember = await prisma.profile.create({
       data: {
@@ -130,6 +99,8 @@ export async function POST(request: NextRequest) {
         teamRole: (teamRole as TeamRole) || null,
         isActive: true,
         invitedAt: new Date(),
+        magicLinkToken: token,
+        magicLinkExpires: expires,
       },
     })
 

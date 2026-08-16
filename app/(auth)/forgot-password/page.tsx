@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { createSupabaseBrowserClient } from '@/infrastructure/supabase/client'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 
@@ -15,13 +14,15 @@ export default function ForgotPasswordPage() {
     setLoading(true)
 
     try {
-      const supabase = createSupabaseBrowserClient()
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/reset-password`,
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
       })
 
-      if (error) {
-        toast.error(error.message)
+      const data = await res.json()
+      if (data.error) {
+        toast.error(data.error)
       } else {
         setSent(true)
       }

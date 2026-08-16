@@ -1,5 +1,5 @@
+import crypto from 'crypto'
 import { prisma } from '@/lib/prisma'
-import { createSupabaseAdminClient } from '@/infrastructure/supabase/server'
 import { sendClientTeamInvite } from '@/infrastructure/email'
 import { ClientRepository } from '@/infrastructure/database/repositories/client.repository'
 
@@ -119,7 +119,6 @@ export class ClientService {
    */
   static async addOrReinviteMember(input: AddTeamMemberInput) {
     const cleanEmail = input.email.trim().toLowerCase()
-    const supabaseAdmin = createSupabaseAdminClient()
 
     const existingMember = await prisma.clientSubTeamMember.findUnique({
       where: { email: cleanEmail },
@@ -129,31 +128,28 @@ export class ClientService {
     const team = await ClientRepository.findSubTeamById(input.subTeamId)
     if (!team) throw new Error('Sub-team not found')
 
+    const token = crypto.randomBytes(32).toString('hex')
+    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000)
+
     if (existingMember) {
       if (existingMember.subTeamId === input.subTeamId && existingMember.status === 'ACTIVE') {
         throw new Error(`Member ${cleanEmail} is already active in this team`)
       }
 
-      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-        type: 'magiclink',
-        email: cleanEmail,
-        options: {
-          redirectTo: `${input.appUrl}/auth/callback?next=/reset-password`,
-        },
-      })
-
-      if (linkError || !linkData?.user) {
-        throw new Error(`Could not generate invite link: ${linkError?.message}`)
-      }
-
-      const inviteLink = linkData.properties?.action_link ?? `${input.appUrl}/login`
-
       if (existingMember.profileId) {
         await prisma.profile.update({
           where: { id: existingMember.profileId },
-          data: { name: input.name, isActive: true, invitedAt: new Date() },
+          data: {
+            name: input.name,
+            isActive: true,
+            invitedAt: new Date(),
+            magicLinkToken: token,
+            magicLinkExpires: expires,
+          },
         })
       }
+
+      const inviteLink = `${input.appUrl}/auth/callback?token=${token}&email=${cleanEmail}&next=/reset-password`
 
       const updatedMember = await prisma.clientSubTeamMember.update({
         where: { id: existingMember.id },
@@ -184,56 +180,21 @@ export class ClientService {
     // Check if profile exists
     const existingProfile = await prisma.profile.findUnique({ where: { email: cleanEmail } })
     let authUserId: string
-    let inviteLink: string
 
     if (existingProfile) {
       authUserId = existingProfile.id
       await prisma.profile.update({
         where: { id: authUserId },
-        data: { name: input.name, isActive: true, invitedAt: new Date() },
-      })
-
-      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-        type: 'magiclink',
-        email: cleanEmail,
-        options: {
-          redirectTo: `${input.appUrl}/auth/callback?next=/reset-password`,
+        data: {
+          name: input.name,
+          isActive: true,
+          invitedAt: new Date(),
+          magicLinkToken: token,
+          magicLinkExpires: expires,
         },
       })
-
-      if (linkError || !linkData?.user) {
-        throw new Error(`Could not generate invite link: ${linkError?.message}`)
-      }
-      inviteLink = linkData.properties?.action_link ?? `${input.appUrl}/login`
     } else {
-      let { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-        type: 'invite',
-        email: cleanEmail,
-        options: {
-          redirectTo: `${input.appUrl}/auth/callback?next=/reset-password`,
-          data: { role: 'CLIENT', name: input.name, clientTeam: true },
-        },
-      })
-
-      if (linkError || !linkData?.user) {
-        const fallback = await supabaseAdmin.auth.admin.generateLink({
-          type: 'magiclink',
-          email: cleanEmail,
-          options: {
-            redirectTo: `${input.appUrl}/auth/callback?next=/reset-password`,
-          },
-        })
-        linkData = fallback.data
-        linkError = fallback.error
-      }
-
-      if (linkError || !linkData?.user) {
-        throw new Error(`Could not generate invite link: ${linkError?.message}`)
-      }
-
-      authUserId = linkData.user.id
-      inviteLink = linkData.properties?.action_link ?? `${input.appUrl}/login`
-
+      authUserId = crypto.randomUUID()
       await prisma.profile.create({
         data: {
           id: authUserId,
@@ -242,9 +203,13 @@ export class ClientService {
           name: input.name,
           isActive: true,
           invitedAt: new Date(),
+          magicLinkToken: token,
+          magicLinkExpires: expires,
         },
       })
     }
+
+    const inviteLink = `${input.appUrl}/auth/callback?token=${token}&email=${cleanEmail}&next=/reset-password`
 
     const newMember = await prisma.clientSubTeamMember.create({
       data: {

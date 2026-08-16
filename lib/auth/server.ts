@@ -1,7 +1,8 @@
 import { prisma } from '@/lib/prisma'
-import { createSupabaseServerClient } from '@/infrastructure/supabase/server'
 import { Role, TeamRole } from '@prisma/client'
 import { env } from '@/config/application/env'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 
 export type AuthUser = {
   id: string
@@ -13,22 +14,13 @@ export type AuthUser = {
 
 export async function getServerUser(): Promise<AuthUser | null> {
   try {
-    const supabase = await createSupabaseServerClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.email) return null
 
-    if (!user) return null
-
-    let profile = await prisma.profile.findUnique({
-      where: { id: user.id },
+    const profile = await prisma.profile.findUnique({
+      where: { email: session.user.email },
       select: { id: true, email: true, role: true, teamRole: true, name: true, isActive: true },
     })
-
-    if (!profile && user.email) {
-      profile = await prisma.profile.findUnique({
-        where: { email: user.email },
-        select: { id: true, email: true, role: true, teamRole: true, name: true, isActive: true },
-      })
-    }
 
     if (!profile || !profile.isActive) return null
 

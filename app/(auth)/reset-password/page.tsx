@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { createSupabaseBrowserClient } from '@/infrastructure/supabase/client'
+import { getSession } from 'next-auth/react'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 
@@ -16,53 +16,24 @@ function ResetPasswordForm() {
   const [sessionError, setSessionError] = useState<string | null>(null)
 
   useEffect(() => {
-    const supabase = createSupabaseBrowserClient()
-
     async function initSession() {
       try {
-        // 1. Check if user already has an active session
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session) {
+        const session = await getSession()
+        if (session?.user) {
           setVerifying(false)
-          return
-        }
-
-        // 2. Check if PKCE code parameter is present in URL
-        const code = searchParams.get('code')
-        if (code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(code)
-          if (error) {
-            console.error('[reset-password] Code exchange error:', error)
-            setSessionError('The link is invalid or has expired. Please request a new link.')
-          }
+        } else {
+          setSessionError('Please request a new reset link. No active session found.')
           setVerifying(false)
-          return
         }
-
-        // 3. Check hash parameters (implicit flow fallback)
-        if (window.location.hash.includes('access_token')) {
-          // Supabase JS auto-parses token in hash
-          const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-            if (session) {
-              setVerifying(false)
-            }
-          })
-          setTimeout(() => {
-            setVerifying(false)
-            subscription.unsubscribe()
-          }, 1500)
-          return
-        }
-
-        setVerifying(false)
       } catch (err) {
         console.error('[reset-password] Error initializing session:', err)
+        setSessionError('Verification failed. Please try again.')
         setVerifying(false)
       }
     }
 
     initSession()
-  }, [searchParams])
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -78,19 +49,16 @@ function ResetPasswordForm() {
 
     setLoading(true)
     try {
-      const supabase = createSupabaseBrowserClient()
-      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      })
 
-      if (!session) {
-        toast.error('Auth session missing or link expired. Please request a new invite/reset link.')
-        setLoading(false)
-        return
-      }
+      const data = await res.json()
 
-      const { error } = await supabase.auth.updateUser({ password })
-
-      if (error) {
-        toast.error(error.message)
+      if (data.error) {
+        toast.error(data.error)
       } else {
         toast.success('Password set successfully! Redirecting to login...')
         setTimeout(() => {

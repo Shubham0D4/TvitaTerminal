@@ -1,10 +1,10 @@
+import crypto from 'crypto'
 import { apiSuccess, Errors } from '@/shared/utilities/api-response'
 import { writeAuditLog } from '@/lib/audit'
 import { getServerUser, isAdmin } from '@/lib/auth/server'
 import { sendClientInvite } from '@/infrastructure/email'
 import { createNotification } from '@/lib/notifications'
 import { prisma } from '@/lib/prisma'
-import { createSupabaseAdminClient } from '@/infrastructure/supabase/server'
 import { getAppBaseUrl } from '@/shared/utilities/url'
 import { NextRequest } from 'next/server'
 
@@ -76,41 +76,28 @@ export async function POST(request: NextRequest) {
     let profileId: string | undefined
 
     if (loginEmail) {
-      const supabaseAdmin = createSupabaseAdminClient()
       const appUrl = getAppBaseUrl(request)
+      const token = crypto.randomBytes(32).toString('hex')
+      const expires = new Date(Date.now() + 24 * 60 * 60 * 1000)
 
-      let { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-        type: 'invite',
-        email: loginEmail,
-        options: {
-          redirectTo: `${appUrl}/auth/callback?next=/reset-password`,
-          data: { role: 'CLIENT', name: body.contactPerson || body.legalName },
-        },
+      const existingProfile = await prisma.profile.findUnique({
+        where: { email: loginEmail }
       })
 
-      if (linkError || !linkData?.user) {
-        const fallback = await supabaseAdmin.auth.admin.generateLink({
-          type: 'magiclink',
-          email: loginEmail,
-          options: {
-            redirectTo: `${appUrl}/auth/callback?next=/reset-password`,
-          },
-        })
-        linkData = fallback.data
-        linkError = fallback.error
-      }
-
-      if (linkError || !linkData?.user) {
-        console.error('Magic link error:', linkError)
-        return Errors.VALIDATION(`Could not create invite: ${linkError?.message}`)
-      }
-
-      const authUserId = linkData.user.id
-      const inviteLink = linkData.properties?.action_link ?? `${appUrl}/login`
+      const authUserId = existingProfile?.id || crypto.randomUUID()
+      const inviteLink = `${appUrl}/auth/callback?token=${token}&email=${loginEmail}&next=/reset-password`
 
       await prisma.profile.upsert({
         where: { email: loginEmail },
-        update: { id: authUserId, role: 'CLIENT', name: body.contactPerson || body.legalName || '', isActive: true, invitedAt: new Date() },
+        update: {
+          id: authUserId,
+          role: 'CLIENT',
+          name: body.contactPerson || body.legalName || '',
+          isActive: true,
+          invitedAt: new Date(),
+          magicLinkToken: token,
+          magicLinkExpires: expires,
+        },
         create: {
           id: authUserId,
           email: loginEmail,
@@ -119,6 +106,8 @@ export async function POST(request: NextRequest) {
           phone: body.phone || null,
           isActive: true,
           invitedAt: new Date(),
+          magicLinkToken: token,
+          magicLinkExpires: expires,
         },
       })
       profileId = authUserId

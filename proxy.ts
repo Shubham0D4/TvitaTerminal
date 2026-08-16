@@ -1,6 +1,5 @@
-import { createServerClient } from '@supabase/ssr'
+import { getToken } from 'next-auth/jwt'
 import { NextResponse, type NextRequest } from 'next/server'
-import { env } from '@/config/application/env'
 
 const PUBLIC_ROUTES = [
   '/login',
@@ -53,41 +52,22 @@ function isAuthorizedForRoute(role: string, pathname: string): boolean {
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
+  const response = NextResponse.next({ request })
 
-  let response = NextResponse.next({ request })
-
-  const supabase = createServerClient(
-    env.SUPABASE_URL,
-    env.SUPABASE_ANON_KEY,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-          response = NextResponse.next({ request })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          )
-        },
-      },
-    }
-  )
-
-  let user = null
+  // Retrieve next-auth token
+  let token = null
   try {
-    const { data, error } = await supabase.auth.getUser()
-    if (!error) {
-      user = data.user
-    }
-  } catch {
-    user = null
+    token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    })
+  } catch (err) {
+    console.error('[Middleware] getToken error:', err)
   }
 
   // 1. If user is logged in and visits /login, redirect to their portal
-  if (user && pathname === '/login') {
-    const role = (user.user_metadata?.role as string) || 'ADMIN'
+  if (token && pathname === '/login') {
+    const role = (token.role as string) || 'ADMIN'
     return NextResponse.redirect(new URL(getPortalForRole(role), request.url))
   }
 
@@ -101,7 +81,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // 3. Not authenticated → redirect to login
-  if (!user) {
+  if (!token) {
     const loginUrl = new URL('/login', request.url)
     if (pathname !== '/') {
       loginUrl.searchParams.set('redirect', pathname)
@@ -109,8 +89,8 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // 4. Get role from user metadata
-  const role = (user.user_metadata?.role as string) || 'CLIENT'
+  // 4. Get role from token
+  const role = (token.role as string) || 'CLIENT'
 
   // 5. Root route redirect
   if (pathname === '/') {

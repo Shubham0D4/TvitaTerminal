@@ -411,3 +411,49 @@ export async function sendSubscriptionActivatedEmail({
   return sendEmail({ to, subject, html })
 }
 
+interface PasswordResetEmailOptions {
+  to: string
+  name: string
+  resetLink: string
+  appName?: string
+}
+
+export async function sendPasswordResetEmail({
+  to,
+  name,
+  resetLink,
+  appName = 'Tvita',
+}: PasswordResetEmailOptions) {
+  const subject = `Reset your password — ${appName}`
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Reset Password — ${appName}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#0f0f13;font-family:'Segoe UI',Arial,sans-serif;">
+  <div style="max-width:560px;margin:40px auto;background:#18181f;border-radius:16px;overflow:hidden;border:1px solid #2a2a35;">
+    <div style="background:linear-gradient(135deg,#6c47ff,#a855f7);padding:32px 40px;text-align:center;color:#fff;">
+      <h1 style="margin:0;font-size:22px;font-weight:700;">Password Reset Request</h1>
+    </div>
+    <div style="padding:36px 40px;">
+      <h2 style="color:#f1f1f1;font-size:18px;margin:0 0 12px;">Hello ${name},</h2>
+      <p style="color:#a1a1b5;font-size:14px;line-height:1.7;margin:0 0 20px;">
+        We received a request to reset the password for your account. Click the button below to reset it:
+      </p>
+      <div style="text-align:center;margin:30px 0;">
+        <a href="${resetLink}" style="display:inline-block;background:linear-gradient(135deg,#6c47ff,#a855f7);color:#fff;text-decoration:none;padding:12px 28px;border-radius:10px;font-size:14px;font-weight:600;">Reset Password</a>
+      </div>
+      <p style="color:#6b6b80;font-size:12px;line-height:1.6;margin:0;">
+        This link expires in 2 hours. If you didn't request a password reset, you can safely ignore this email.
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+`
+  return sendEmail({ to, subject, html })
+}
+
+

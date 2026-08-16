@@ -2,7 +2,7 @@
 
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { createSupabaseBrowserClient } from '@/infrastructure/supabase/client'
+import { signIn } from 'next-auth/react'
 import toast from 'react-hot-toast'
 
 function LoginForm() {
@@ -21,11 +21,14 @@ function LoginForm() {
 
     setLoading(true)
     try {
-      const supabase = createSupabaseBrowserClient()
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      })
 
-      if (error) {
-        toast.error(error.message || 'Invalid email or password')
+      if (result?.error) {
+        toast.error('Invalid email or password')
         setLoading(false)
         return
       }

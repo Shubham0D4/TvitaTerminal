@@ -159,6 +159,10 @@ model Profile {
   updatedAt DateTime  @updatedAt @map("updated_at")
   invitedAt DateTime? @map("invited_at")
 
+  passwordHash     String?   @map("password_hash")
+  magicLinkToken   String?   @map("magic_link_token")
+  magicLinkExpires DateTime? @map("magic_link_expires")
+
   // Relations
   clientProfile        Client?              @relation("ClientProfile")
   clientsCreated       Client[]             @relation("ClientCreatedBy")

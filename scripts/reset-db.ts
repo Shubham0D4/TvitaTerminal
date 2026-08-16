@@ -1,12 +1,7 @@
 import 'dotenv/config'
 import { prisma } from '../lib/prisma'
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-  auth: { autoRefreshToken: false, persistSession: false },
-})
+import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
 
 const ADMIN_EMAIL = 'shubhamd@tvita.in'
 const ADMIN_PASSWORD = 'Pass1234'
@@ -50,54 +45,11 @@ async function resetDatabase() {
     }
     console.log('  ✓ All database tables purged cleanly.')
 
-    // 2. Clear Supabase Auth Users
-    console.log('\n🔒 Resetting Supabase Auth users...')
-    const { data: usersData, error: listUsersErr } = await supabaseAdmin.auth.admin.listUsers()
-    if (listUsersErr) {
-      console.warn('  ⚠️ Could not list Supabase users:', listUsersErr.message)
-    } else if (usersData?.users) {
-      for (const u of usersData.users) {
-        if (u.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
-          console.log(`  - Deleting auth user ${u.email}...`)
-          await supabaseAdmin.auth.admin.deleteUser(u.id).catch(() => { })
-        }
-      }
-    }
-
-    // 3. Create or Update Admin User in Supabase Auth
+    // 2. Hash password and seed admin
     console.log(`\n👤 Provisioning Admin User (${ADMIN_EMAIL})...`)
-    let adminUserId: string
+    const adminUserId = crypto.randomUUID()
+    const passwordHash = bcrypt.hashSync(ADMIN_PASSWORD, 10)
 
-    const { data: searchUsers } = await supabaseAdmin.auth.admin.listUsers()
-    const existingAdminUser = searchUsers?.users.find(
-      (u) => u.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()
-    )
-
-    if (existingAdminUser) {
-      adminUserId = existingAdminUser.id
-      console.log(`  - Updating existing auth user (${adminUserId})...`)
-      const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(adminUserId, {
-        password: ADMIN_PASSWORD,
-        email_confirm: true,
-        user_metadata: { role: 'ADMIN', name: ADMIN_NAME },
-      })
-      if (updateErr) throw new Error(`Failed to update admin user password: ${updateErr.message}`)
-    } else {
-      console.log('  - Creating new admin auth user...')
-      const { data: newUserData, error: createErr } = await supabaseAdmin.auth.admin.createUser({
-        email: ADMIN_EMAIL,
-        password: ADMIN_PASSWORD,
-        email_confirm: true,
-        user_metadata: { role: 'ADMIN', name: ADMIN_NAME },
-      })
-      if (createErr || !newUserData.user) {
-        throw new Error(`Failed to create admin auth user: ${createErr?.message}`)
-      }
-      adminUserId = newUserData.user.id
-    }
-
-    // 4. Create Single Admin Profile in Prisma
-    console.log(`  - Creating Admin Profile in Prisma (${adminUserId})...`)
     const adminProfile = await prisma.profile.create({
       data: {
         id: adminUserId,
@@ -106,6 +58,7 @@ async function resetDatabase() {
         role: 'ADMIN',
         isActive: true,
         phone: '+91 98765 43210',
+        passwordHash,
       },
     })
 

@@ -5,20 +5,15 @@
  */
 
 import 'dotenv/config'
-import { createClient } from '@supabase/supabase-js'
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import pg from 'pg'
+import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL })
 const adapter = new PrismaPg(pool)
 const prisma = new PrismaClient({ adapter })
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-)
 
 // Real IDs from Supabase Auth
 let IDS = {
@@ -66,49 +61,50 @@ async function main() {
 
   // --- Step 1: Provision Auth users ---
   console.log('🔑 Provisioning additional Auth users...')
-  const { data: existingList } = await supabaseAdmin.auth.admin.listUsers()
   const newIds: Record<string, string> = {}
+  const passwordHash = bcrypt.hashSync(DEFAULT_PASSWORD, 10)
 
   for (const u of NEW_USERS) {
-    const existing = existingList?.users.find(e => e.email === u.email)
+    const existing = await prisma.profile.findUnique({ where: { email: u.email } })
     if (existing) {
       newIds[u.key] = existing.id
-      await supabaseAdmin.auth.admin.updateUserById(existing.id, {
-        password: DEFAULT_PASSWORD,
-        user_metadata: { role: u.role, teamRole: u.teamRole, name: u.name },
-        email_confirm: true,
+      await prisma.profile.update({
+        where: { id: existing.id },
+        data: {
+          name: u.name,
+          role: u.role as any,
+          teamRole: u.teamRole as any,
+          isActive: true,
+          passwordHash,
+        },
       })
       console.log(`  ↻ Updated: ${u.email} (${u.key})`)
     } else {
-      const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
-        email: u.email,
-        password: DEFAULT_PASSWORD,
-        email_confirm: true,
-        user_metadata: { role: u.role, teamRole: u.teamRole, name: u.name },
+      const generatedId = crypto.randomUUID()
+      newIds[u.key] = generatedId
+      await prisma.profile.create({
+        data: {
+          id: generatedId,
+          email: u.email,
+          name: u.name,
+          role: u.role as any,
+          teamRole: u.teamRole as any,
+          isActive: true,
+          passwordHash,
+        },
       })
-      if (error) { console.error(`  ✗ Failed ${u.email}:`, error.message); continue }
-      newIds[u.key] = created.user.id
       console.log(`  ✓ Created: ${u.email} (${u.key})`)
     }
   }
 
   // --- Step 2: Sync profiles into public.profiles ---
   console.log('\n👥 Syncing profiles...')
-  await prisma.profile.update({ where: { id: IDS.ADMIN }, data: { name: 'Shubham Verma', teamRole: null } })
-  await prisma.profile.update({ where: { id: IDS.LEAD_1 }, data: { name: 'Rahul Sharma', teamRole: 'TEAM_LEAD', phone: '+91 98001 11111' } })
-  await prisma.profile.update({ where: { id: IDS.DEV_1 }, data: { name: 'Amit Patel', teamRole: 'DEVELOPER', phone: '+91 98001 22222' } })
-  await prisma.profile.update({ where: { id: IDS.TESTER_1 }, data: { name: 'Neha Gupta', teamRole: 'TESTER', phone: '+91 98001 33333' } })
-  await prisma.profile.update({ where: { id: IDS.CLIENT_1 }, data: { name: 'Rajesh Kumar', teamRole: null } })
+  await prisma.profile.update({ where: { id: IDS.ADMIN }, data: { name: 'Shubham Verma', teamRole: null, passwordHash } })
+  await prisma.profile.update({ where: { id: IDS.LEAD_1 }, data: { name: 'Rahul Sharma', teamRole: 'TEAM_LEAD', phone: '+91 98001 11111', passwordHash } })
+  await prisma.profile.update({ where: { id: IDS.DEV_1 }, data: { name: 'Amit Patel', teamRole: 'DEVELOPER', phone: '+91 98001 22222', passwordHash } })
+  await prisma.profile.update({ where: { id: IDS.TESTER_1 }, data: { name: 'Neha Gupta', teamRole: 'TESTER', phone: '+91 98001 33333', passwordHash } })
+  await prisma.profile.update({ where: { id: IDS.CLIENT_1 }, data: { name: 'Rajesh Kumar', teamRole: null, passwordHash } })
 
-  for (const u of NEW_USERS) {
-    const uid = newIds[u.key]
-    if (!uid) continue
-    await prisma.profile.upsert({
-      where: { email: u.email },
-      update: { id: uid, name: u.name, role: u.role as any, teamRole: u.teamRole as any, isActive: true },
-      create: { id: uid, email: u.email, name: u.name, role: u.role as any, teamRole: u.teamRole as any, isActive: true },
-    })
-  }
   console.log('  ✓ Profiles synced\n')
 
   const LEAD_2 = newIds['LEAD_2']

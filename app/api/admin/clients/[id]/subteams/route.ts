@@ -1,8 +1,8 @@
+import crypto from 'crypto'
 import { apiSuccess, Errors } from '@/shared/utilities/api-response'
 import { DEFAULT_SUBTEAM_POLICY, getServerUser, isAdmin } from '@/lib/auth/server'
 import { sendClientTeamInvite } from '@/infrastructure/email'
 import { prisma } from '@/lib/prisma'
-import { createSupabaseAdminClient } from '@/infrastructure/supabase/server'
 import { getAppBaseUrl } from '@/shared/utilities/url'
 import { NextRequest } from 'next/server'
 
@@ -30,41 +30,36 @@ export async function POST(
       return Errors.VALIDATION('Sub-team name and email are required')
     }
 
-    const supabaseAdmin = createSupabaseAdminClient()
     const appUrl = getAppBaseUrl(request)
+    const token = crypto.randomBytes(32).toString('hex')
+    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000)
 
-    let { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'invite',
-      email,
-      options: {
-        redirectTo: `${appUrl}/auth/callback?next=/reset-password`,
-        data: { role: 'CLIENT', name },
-      },
+    const existingProfile = await prisma.profile.findUnique({
+      where: { email }
     })
 
-    if (linkError || !linkData?.user) {
-      const fallback = await supabaseAdmin.auth.admin.generateLink({
-        type: 'magiclink',
-        email,
-        options: {
-          redirectTo: `${appUrl}/auth/callback?next=/reset-password`,
-        },
-      })
-      linkData = fallback.data
-      linkError = fallback.error
-    }
-
-    if (linkError || !linkData?.user) {
-      return Errors.VALIDATION(`Could not create user invite: ${linkError?.message}`)
-    }
-
-    const authUserId = linkData.user.id
-    const inviteLink = linkData.properties?.action_link ?? `${appUrl}/login`
+    const authUserId = existingProfile?.id || crypto.randomUUID()
+    const inviteLink = `${appUrl}/auth/callback?token=${token}&email=${email}&next=/reset-password`
 
     await prisma.profile.upsert({
       where: { email },
-      update: { id: authUserId, role: 'CLIENT', name, isActive: true },
-      create: { id: authUserId, email, role: 'CLIENT', name, isActive: true },
+      update: {
+        id: authUserId,
+        role: 'CLIENT',
+        name,
+        isActive: true,
+        magicLinkToken: token,
+        magicLinkExpires: expires,
+      },
+      create: {
+        id: authUserId,
+        email,
+        role: 'CLIENT',
+        name,
+        isActive: true,
+        magicLinkToken: token,
+        magicLinkExpires: expires,
+      },
     })
 
     const mergedPolicy = { ...DEFAULT_SUBTEAM_POLICY, ...(policy || {}) }
