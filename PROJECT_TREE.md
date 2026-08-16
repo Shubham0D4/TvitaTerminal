@@ -5,15 +5,83 @@
 
 ## Project Statistics
 
-- Total files: **1343**
-- Directories: **421**
-- TypeScript: **123**
-- TSX: **86**
-- JavaScript: **50**
-- Other files: **1084**
+- Total files: **41409**
+- Directories: **4508**
+- TypeScript: **9418**
+- TSX: **143**
+- JavaScript: **24111**
+- Other files: **7737**
 
 ## API Routes
 
+- `.next/server/app/api/admin/audit-logs/route.js`
+- `.next/server/app/api/admin/billing/invoices/[id]/reminder/route.js`
+- `.next/server/app/api/admin/billing/invoices/[id]/route.js`
+- `.next/server/app/api/admin/billing/invoices/[id]/send/route.js`
+- `.next/server/app/api/admin/billing/invoices/route.js`
+- `.next/server/app/api/admin/clients/[id]/contacts/[contactId]/route.js`
+- `.next/server/app/api/admin/clients/[id]/contacts/route.js`
+- `.next/server/app/api/admin/clients/[id]/route.js`
+- `.next/server/app/api/admin/clients/[id]/subteams/[subTeamId]/route.js`
+- `.next/server/app/api/admin/clients/[id]/subteams/route.js`
+- `.next/server/app/api/admin/clients/route.js`
+- `.next/server/app/api/admin/dashboard/route.js`
+- `.next/server/app/api/admin/projects/[id]/members/route.js`
+- `.next/server/app/api/admin/projects/[id]/milestones/[milestoneId]/route.js`
+- `.next/server/app/api/admin/projects/[id]/milestones/route.js`
+- `.next/server/app/api/admin/projects/[id]/route.js`
+- `.next/server/app/api/admin/projects/route.js`
+- `.next/server/app/api/admin/settings/route.js`
+- `.next/server/app/api/admin/subscriptions/[id]/cancel/route.js`
+- `.next/server/app/api/admin/subscriptions/[id]/route.js`
+- `.next/server/app/api/admin/subscriptions/assign/route.js`
+- `.next/server/app/api/admin/subscriptions/plans/[id]/route.js`
+- `.next/server/app/api/admin/subscriptions/plans/route.js`
+- `.next/server/app/api/admin/team/[id]/route.js`
+- `.next/server/app/api/admin/team/route.js`
+- `.next/server/app/api/auth/[...nextauth]/route.js`
+- `.next/server/app/api/auth/forgot-password/route.js`
+- `.next/server/app/api/auth/reset-password/route.js`
+- `.next/server/app/api/client/approvals/[id]/respond/route.js`
+- `.next/server/app/api/client/dashboard/route.js`
+- `.next/server/app/api/client/invoices/[id]/route.js`
+- `.next/server/app/api/client/invoices/route.js`
+- `.next/server/app/api/client/profile/route.js`
+- `.next/server/app/api/client/projects/[id]/route.js`
+- `.next/server/app/api/client/projects/route.js`
+- `.next/server/app/api/client/subscriptions/checkout/route.js`
+- `.next/server/app/api/client/subscriptions/route.js`
+- `.next/server/app/api/client/team/[subTeamId]/members/[memberId]/route.js`
+- `.next/server/app/api/client/team/[subTeamId]/members/route.js`
+- `.next/server/app/api/client/team/[subTeamId]/roles/route.js`
+- `.next/server/app/api/client/team/[subTeamId]/route.js`
+- `.next/server/app/api/client/team/route.js`
+- `.next/server/app/api/client/teams/[subTeamId]/route.js`
+- `.next/server/app/api/client/teams/route.js`
+- `.next/server/app/api/integrations/gmail/send/route.js`
+- `.next/server/app/api/integrations/gmail/webhook/route.js`
+- `.next/server/app/api/integrations/webhooks/route.js`
+- `.next/server/app/api/notifications/route.js`
+- `.next/server/app/api/projects/[id]/banner/route.js`
+- `.next/server/app/api/stripe/checkout/route.js`
+- `.next/server/app/api/stripe/webhook/route.js`
+- `.next/server/app/api/team/dashboard/route.js`
+- `.next/server/app/api/team/milestones/[id]/status/route.js`
+- `.next/server/app/api/team/milestones/route.js`
+- `.next/server/app/api/team/profile/route.js`
+- `.next/server/app/api/team/projects/[id]/lead/route.js`
+- `.next/server/app/api/team/projects/[id]/members/route.js`
+- `.next/server/app/api/team/projects/[id]/route.js`
+- `.next/server/app/api/team/projects/[id]/updates/route.js`
+- `.next/server/app/api/team/projects/route.js`
+- `.next/server/app/api/team/tasks/[id]/assignments/route.js`
+- `.next/server/app/api/team/tasks/[id]/comments/route.js`
+- `.next/server/app/api/team/tasks/[id]/route.js`
+- `.next/server/app/api/team/tasks/[id]/status/route.js`
+- `.next/server/app/api/team/tasks/auto-assign/route.js`
+- `.next/server/app/api/team/tasks/route.js`
+- `.next/server/app/auth/callback/route.js`
+- `.next/server/app/favicon.ico/route.js`
 - `app/api/admin/audit-logs/route.ts`
 - `app/api/admin/billing/invoices/[id]/reminder/route.ts`
 - `app/api/admin/billing/invoices/[id]/route.ts`
@@ -81,10 +149,52 @@
 - `app/api/team/tasks/auto-assign/route.ts`
 - `app/api/team/tasks/route.ts`
 - `app/auth/callback/route.ts`
+- `node_modules/color-convert/route.js`
 
 ## Pages
 
 - `.next/dev/server/app/(auth)/login/page.js`
+- `.next/server/app/(admin)/admin/audit-logs/page.js`
+- `.next/server/app/(admin)/admin/billing/[id]/page.js`
+- `.next/server/app/(admin)/admin/billing/new/page.js`
+- `.next/server/app/(admin)/admin/billing/page.js`
+- `.next/server/app/(admin)/admin/clients/[id]/edit/page.js`
+- `.next/server/app/(admin)/admin/clients/[id]/page.js`
+- `.next/server/app/(admin)/admin/clients/new/page.js`
+- `.next/server/app/(admin)/admin/clients/page.js`
+- `.next/server/app/(admin)/admin/dashboard/page.js`
+- `.next/server/app/(admin)/admin/projects/[id]/page.js`
+- `.next/server/app/(admin)/admin/projects/new/page.js`
+- `.next/server/app/(admin)/admin/projects/page.js`
+- `.next/server/app/(admin)/admin/settings/page.js`
+- `.next/server/app/(admin)/admin/subscriptions/page.js`
+- `.next/server/app/(admin)/admin/subscriptions/plans/new/page.js`
+- `.next/server/app/(admin)/admin/team/[id]/page.js`
+- `.next/server/app/(admin)/admin/team/new/page.js`
+- `.next/server/app/(admin)/admin/team/page.js`
+- `.next/server/app/(auth)/forgot-password/page.js`
+- `.next/server/app/(auth)/login/page.js`
+- `.next/server/app/(auth)/login/verify/page.js`
+- `.next/server/app/(auth)/reset-password/page.js`
+- `.next/server/app/(client)/client/dashboard/page.js`
+- `.next/server/app/(client)/client/invoices/[id]/page.js`
+- `.next/server/app/(client)/client/invoices/page.js`
+- `.next/server/app/(client)/client/profile/page.js`
+- `.next/server/app/(client)/client/projects/[id]/page.js`
+- `.next/server/app/(client)/client/projects/page.js`
+- `.next/server/app/(client)/client/subscriptions/page.js`
+- `.next/server/app/(client)/client/teams/[id]/page.js`
+- `.next/server/app/(client)/client/teams/page.js`
+- `.next/server/app/(team)/team/dashboard/page.js`
+- `.next/server/app/(team)/team/milestones/page.js`
+- `.next/server/app/(team)/team/profile/page.js`
+- `.next/server/app/(team)/team/projects/[id]/page.js`
+- `.next/server/app/(team)/team/projects/page.js`
+- `.next/server/app/(team)/team/tasks/page.js`
+- `.next/server/app/_global-error/page.js`
+- `.next/server/app/_not-found/page.js`
+- `.next/server/app/page.js`
+- `.next/server/app/print/invoice/[id]/page.js`
 - `app/(admin)/admin/audit-logs/page.tsx`
 - `app/(admin)/admin/billing/[id]/page.tsx`
 - `app/(admin)/admin/billing/new/page.tsx`
@@ -1264,10 +1374,6 @@
 │   │       ├── type: AccessPolicy (line 84)
 │   │       ├── type: SubTeamContext (line 102)
 │   │       └── function: getClientSubTeamContext (line 117)
-│   ├── config/
-│   ├── dto/
-│   ├── errors/
-│   ├── validations/
 │   ├── audit.ts
 │   │   ├── type: AuditAction (line 5)
 │   │   ├── type: AuditEntityType (line 18)
@@ -1364,6 +1470,7 @@
 ├── .env — Environment configuration
 ├── .env.example — Environment configuration
 ├── .gitignore
+├── .npmrc
 ├── AGENTS.md
 ├── CLAUDE.md
 ├── eslint.config.mjs
