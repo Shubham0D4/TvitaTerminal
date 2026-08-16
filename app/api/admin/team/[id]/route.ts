@@ -1,10 +1,10 @@
-import { apiSuccess, Errors } from '@/lib/api-response'
+import { apiSuccess, Errors } from '@/shared/utilities/api-response'
 import { writeAuditLog } from '@/lib/audit'
 import { getServerUser, isAdmin } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
 import { TeamRole } from '@prisma/client'
 import { NextRequest } from 'next/server'
-import { createSupabaseAdminClient } from '@/lib/supabase/server'
+import { createSupabaseAdminClient } from '@/infrastructure/supabase/server'
 
 export async function GET(
   request: NextRequest,
@@ -186,7 +186,6 @@ export async function DELETE(
     await prisma.taskActivity.deleteMany({ where: { actorId: id } })
     await prisma.notification.deleteMany({ where: { userId: id } })
     await prisma.auditLog.deleteMany({ where: { actorId: id } })
-    await prisma.document.deleteMany({ where: { uploadedById: id } })
 
     // 3. Delete from Supabase Auth
     try {

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { apiClient } from '@/lib/api-client'
+import { apiClient } from '@/shared/utilities/api-client'
 import toast from 'react-hot-toast'
 import { Plus, CheckCircle2 } from 'lucide-react'
 
@@ -23,7 +23,7 @@ export default function AssignPlanButton({ clients, plans }: AssignPlanButtonPro
     }
 
     setIsPending(true)
-    const res = await apiClient('/api/admin/subscriptions', {
+    const res = await apiClient('/api/admin/subscriptions/assign', {
       method: 'POST',
       body: JSON.stringify({ clientId: selectedClient, planId: selectedPlan }),
     })

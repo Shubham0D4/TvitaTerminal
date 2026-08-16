@@ -9,8 +9,8 @@ const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
 })
 
 const ADMIN_EMAIL = 'shubhamd@tvita.in'
-const ADMIN_PASSWORD = 'Pass1234..'
-const ADMIN_NAME = 'Shubham Verma'
+const ADMIN_PASSWORD = 'Pass1234'
+const ADMIN_NAME = 'Shubham Darekar'
 
 async function resetDatabase() {
   console.log('🧹 Starting Complete Database Reset & Single Admin Provisioning...\n')
@@ -18,13 +18,12 @@ async function resetDatabase() {
   try {
     // 1. Clear Prisma Database Tables in Sequential Order
     console.log('🗑️ Purging database tables...')
-    
+
     const deleteOps = [
       () => prisma.auditLog.deleteMany(),
       () => prisma.notification.deleteMany(),
       () => prisma.clientApproval.deleteMany(),
       () => prisma.projectUpdate.deleteMany(),
-      () => prisma.document.deleteMany(),
       () => prisma.invoice.deleteMany(),
       () => prisma.subscription.deleteMany(),
       () => prisma.taskComment.deleteMany(),
@@ -36,7 +35,6 @@ async function resetDatabase() {
       () => prisma.clientSubTeamRole.deleteMany(),
       () => prisma.clientSubTeam.deleteMany(),
       () => prisma.clientContact.deleteMany(),
-      () => prisma.clientDocument.deleteMany(),
       () => prisma.client.deleteMany(),
       () => prisma.planFeature.deleteMany(),
       () => prisma.plan.deleteMany(),
@@ -61,7 +59,7 @@ async function resetDatabase() {
       for (const u of usersData.users) {
         if (u.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
           console.log(`  - Deleting auth user ${u.email}...`)
-          await supabaseAdmin.auth.admin.deleteUser(u.id).catch(() => {})
+          await supabaseAdmin.auth.admin.deleteUser(u.id).catch(() => { })
         }
       }
     }

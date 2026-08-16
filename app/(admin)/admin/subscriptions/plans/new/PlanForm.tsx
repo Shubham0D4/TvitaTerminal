@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { apiClient } from '@/lib/api-client'
+import { apiClient } from '@/shared/utilities/api-client'
 import Link from 'next/link'
 import { ArrowLeft, Plus, Trash2, Lock } from 'lucide-react'
 
@@ -27,8 +27,8 @@ export default function PlanForm({ clients = [] }: { clients?: Client[] }) {
       if (!value.trim()) errorMsg = 'Monthly Retainer Price is required'
       else {
         const num = Number(value)
-        if (isNaN(num) || num < 0) {
-          errorMsg = 'Monthly Retainer Price must be non-negative'
+        if (isNaN(num)) {
+          errorMsg = 'Monthly Retainer Price must be a valid number'
         }
       }
     } else if (name === 'clientId') {
@@ -159,7 +159,7 @@ export default function PlanForm({ clients = [] }: { clients?: Client[] }) {
           <div className="settings-grid">
             <div className="form-group">
               <label className="form-label" htmlFor="price">Monthly Retainer Price (₹) <span className="form-required">*</span></label>
-              <input id="price" name="price" type="number" min={0} step={5000} className={fieldClass('price')} placeholder="45000" required
+              <input id="price" name="price" type="number" step="any" className={fieldClass('price')} placeholder="45000" required
                 onChange={handleChange} onBlur={handleBlur} />
               {displayError('price')}
               <p className="form-hint">Recurring subscription pricing rate (gross, in INR)</p>

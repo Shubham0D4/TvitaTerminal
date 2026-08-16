@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { UserPlus, UserMinus } from 'lucide-react'
-import { apiClient } from '@/lib/api-client'
+import { apiClient } from '@/shared/utilities/api-client'
 import toast from 'react-hot-toast'
 
 interface ProjectTeamManagerProps {

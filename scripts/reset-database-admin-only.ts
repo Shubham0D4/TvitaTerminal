@@ -10,14 +10,9 @@ const supabase = createClient(
 
 const ADMIN_ACCOUNTS = [
   {
-    email: 'admin@tvita.dev',
-    password: 'AdminPassword123!',
-    name: 'Admin User',
-  },
-  {
-    email: 'darekarshubham2005@gmail.com',
-    password: 'AdminPassword123!',
-    name: 'Shubham Darekar (Admin)',
+    email: 'shubhamd@tvita.in',
+    password: 'Pass1234',
+    name: 'Shubham Darekar',
   },
 ]
 
@@ -32,11 +27,10 @@ async function resetDatabase() {
   await prisma.task.deleteMany({})
   await prisma.project.deleteMany({})
 
-  console.log('Deleting invoices, payments, subscriptions, documents, contacts, subteams, clients...')
+  console.log('Deleting invoices, payments, subscriptions, contacts, subteams, clients...')
   await prisma.invoice.deleteMany({})
   await prisma.payment.deleteMany({})
   await prisma.subscription.deleteMany({})
-  await prisma.document.deleteMany({})
   await prisma.clientContact.deleteMany({})
   await prisma.clientSubTeam.deleteMany({})
   await prisma.client.deleteMany({})
@@ -167,9 +161,9 @@ async function resetDatabase() {
         currency: 'INR',
         smtpHost: 'smtp.gmail.com',
         smtpPort: 587,
-        smtpUser: process.env.GMAIL_USER || 'darekarshubham2005@gmail.com',
+        smtpUser: process.env.GMAIL_USER || 'shubhamd@tvita.in',
         smtpPass: process.env.GMAIL_APP_PASSWORD || '',
-        smtpSender: `Tvita Platform <${process.env.GMAIL_USER || 'darekarshubham2005@gmail.com'}>`,
+        smtpSender: `Tvita Platform <${process.env.GMAIL_USER || 'shubhamd@tvita.in'}>`,
       },
     })
   } else {
@@ -178,9 +172,9 @@ async function resetDatabase() {
       data: {
         smtpHost: 'smtp.gmail.com',
         smtpPort: 587,
-        smtpUser: process.env.GMAIL_USER || 'darekarshubham2005@gmail.com',
+        smtpUser: process.env.GMAIL_USER || 'shubhamd@tvita.in',
         smtpPass: process.env.GMAIL_APP_PASSWORD || '',
-        smtpSender: `Tvita Platform <${process.env.GMAIL_USER || 'darekarshubham2005@gmail.com'}>`,
+        smtpSender: `Tvita Platform <${process.env.GMAIL_USER || 'shubhamd@tvita.in'}>`,
       },
     })
   }
@@ -188,8 +182,7 @@ async function resetDatabase() {
   console.log('\n✅ DATABASE RESET COMPLETE!')
   console.log('All dummy data cleared.')
   console.log('Available Admin Credentials:')
-  console.log('  1. Email: darekarshubham2005@gmail.com | Password: AdminPassword123!')
-  console.log('  2. Email: admin@tvita.dev               | Password: AdminPassword123!')
+  console.log('  1. Email: shubhamd@tvita.in | Password: Pass1234')
 }
 
 resetDatabase()

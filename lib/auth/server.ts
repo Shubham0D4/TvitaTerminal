@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createSupabaseServerClient } from '@/infrastructure/supabase/server'
 import { Role, TeamRole } from '@prisma/client'
+import { env } from '@/config/application/env'
 
 export type AuthUser = {
   id: string
@@ -45,7 +46,7 @@ export async function getServerUser(): Promise<AuthUser | null> {
 
 export function verifyThirdPartyAuth(request: Request): boolean {
   const apiKeyHeader = request.headers.get('x-api-key') || request.headers.get('authorization')
-  const validApiKey = process.env.THIRD_PARTY_API_KEY || process.env.GMAIL_WEBHOOK_SECRET
+  const validApiKey = env.THIRD_PARTY_API_KEY || env.GMAIL_WEBHOOK_SECRET
   if (!validApiKey) return true // Allow in dev if not explicitly set
   if (!apiKeyHeader) return false
   return apiKeyHeader.includes(validApiKey)
@@ -95,7 +96,6 @@ export type AccessPolicy = {
   invoices: boolean
   subscriptions: boolean
   billing: boolean
-  documents: boolean
 }
 
 export const DEFAULT_SUBTEAM_POLICY: AccessPolicy = {
@@ -105,7 +105,6 @@ export const DEFAULT_SUBTEAM_POLICY: AccessPolicy = {
   invoices: false,
   subscriptions: false,
   billing: false,
-  documents: true,
 }
 
 export type SubTeamContext = {

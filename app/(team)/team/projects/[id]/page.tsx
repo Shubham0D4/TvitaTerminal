@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { ArrowLeft, Building2 } from 'lucide-react'
 import MilestonesPanel from '@/components/projects/MilestonesPanel'
 import ApprovalsPanel from '@/components/projects/ApprovalsPanel'
+import ProjectBannerUpload from '@/components/projects/ProjectBannerUpload'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -94,6 +95,26 @@ export default async function TeamProjectDetailPage({ params }: PageProps) {
               {project.lead && <><span>·</span><span>Lead: {project.lead.name}</span></>}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Project Banner cover image */}
+      <div 
+        style={{ 
+          position: 'relative', 
+          width: '100%', 
+          height: '240px', 
+          borderRadius: 'var(--radius-xl)', 
+          overflow: 'hidden', 
+          marginBottom: 'var(--space-6)',
+          backgroundImage: `url(${project.banner || '/banner.webp'})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          border: '1px solid var(--border-subtle)'
+        }}
+      >
+        <div style={{ position: 'absolute', right: 'var(--space-4)', bottom: 'var(--space-4)' }}>
+          <ProjectBannerUpload projectId={project.id} canUpload={isLead} />
         </div>
       </div>
 

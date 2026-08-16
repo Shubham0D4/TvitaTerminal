@@ -1,8 +1,6 @@
-import { apiSuccess, Errors } from '@/lib/api-response'
-import { writeAuditLog } from '@/lib/audit'
+import { apiSuccess, Errors } from '@/shared/utilities/api-response'
 import { getServerUser, isAdmin } from '@/lib/auth/server'
-import { prisma } from '@/lib/prisma'
-import { BillingCycle } from '@prisma/client'
+import { SubscriptionService } from '@/application/services/subscription.service'
 import { NextRequest } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -12,26 +10,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const [plans, subscriptions] = await Promise.all([
-      prisma.plan.findMany({
-        orderBy: { createdAt: 'desc' },
-        include: {
-          features: true,
-          client: { select: { name: true } },
-          _count: { select: { subscriptions: true } },
-        },
-      }),
-      prisma.subscription.findMany({
-        orderBy: { createdAt: 'desc' },
-        include: {
-          client: { select: { id: true, name: true, legalName: true } },
-          plan: { select: { id: true, name: true, price: true, billingCycle: true } },
-        },
-      }),
-    ])
-
-    return apiSuccess({ plans, subscriptions })
-  } catch (error) {
+    const result = await SubscriptionService.getPlansAndSubscriptions()
+    return apiSuccess(result)
+  } catch (error: any) {
     console.error('Admin subscription plans GET API error:', error)
     return Errors.INTERNAL('Failed to fetch subscription plans')
   }
@@ -45,33 +26,9 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { name, description, price, billingCycle = 'MONTHLY', currency = 'INR', clientId, features } = body
-
-    if (!name || price === undefined) {
-      return Errors.VALIDATION('Plan name and price are required')
-    }
-
-    const isPrivate = Boolean(clientId)
-    const plan = await prisma.plan.create({
-      data: {
-        name,
-        description: description || null,
-        price: Number(price),
-        billingCycle: billingCycle as BillingCycle,
-        currency,
-        isActive: true,
-        isPrivate,
-        clientId: clientId || null,
-      },
-    })
-
-    if (Array.isArray(features) && features.length > 0) {
-      await prisma.planFeature.createMany({
-        data: features.map((feature: string) => ({
-          planId: plan.id,
-          name: feature,
-        })),
-      })
+    const plan = await SubscriptionService.createPlan(body)
+    if (!plan) {
+      return Errors.INTERNAL('Failed to create subscription plan')
     }
 
     await writeAuditLog({
@@ -86,8 +43,14 @@ export async function POST(request: NextRequest) {
     })
 
     return apiSuccess(plan, 201)
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin subscription plan POST API error:', error)
+    if (error.name === 'ValidationError') {
+      return Errors.VALIDATION(error.message)
+    }
     return Errors.INTERNAL('Failed to create subscription plan')
   }
 }
+
+// Inline helper since writeAuditLog is imported from audit helper
+import { writeAuditLog } from '@/lib/audit'

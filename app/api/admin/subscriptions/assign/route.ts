@@ -1,8 +1,6 @@
-import { apiSuccess, Errors } from '@/lib/api-response'
-import { writeAuditLog } from '@/lib/audit'
+import { apiSuccess, Errors } from '@/shared/utilities/api-response'
 import { getServerUser, isAdmin } from '@/lib/auth/server'
-import { prisma } from '@/lib/prisma'
-import { SubscriptionStatus } from '@prisma/client'
+import { SubscriptionService } from '@/application/services/subscription.service'
 import { NextRequest } from 'next/server'
 
 export async function POST(request: NextRequest) {
@@ -13,59 +11,18 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { clientId, planId, status = 'ACTIVE' } = body
+    const { clientId, planId } = body
 
-    if (!clientId || !planId) {
-      return Errors.VALIDATION('clientId and planId are required')
-    }
-
-    const [client, plan] = await Promise.all([
-      prisma.client.findUnique({ where: { id: clientId } }),
-      prisma.plan.findUnique({ where: { id: planId } }),
-    ])
-
-    if (!client || !plan) {
-      return Errors.NOT_FOUND('Client or Plan')
-    }
-
-    const startDate = new Date()
-    const endDate = new Date()
-    if (plan.billingCycle === 'YEARLY') {
-      endDate.setFullYear(endDate.getFullYear() + 1)
-    } else {
-      endDate.setMonth(endDate.getMonth() + 1)
-    }
-
-    await prisma.subscription.updateMany({
-      where: { clientId, status: 'ACTIVE' },
-      data: { status: 'CANCELLED' },
-    })
-
-    const subscription = await prisma.subscription.create({
-      data: {
-        clientId,
-        planId,
-        status: status as SubscriptionStatus,
-        startDate,
-        endDate,
-      },
-      include: { plan: true, client: true },
-    })
-
-    await writeAuditLog({
-      actorId: user.id,
-      actorEmail: user.email,
-      actorRole: user.role,
-      action: 'CREATE',
-      entityType: 'subscription',
-      entityId: subscription.id,
-      entityLabel: `${client.name} → ${plan.name}`,
-      newValue: { status, planName: plan.name },
-    })
-
+    const subscription = await SubscriptionService.assignPlanToClient(clientId, planId, user)
     return apiSuccess(subscription, 201)
-  } catch (error) {
+  } catch (error: any) {
     console.error('Assign subscription API error:', error)
+    if (error.name === 'ValidationError') {
+      return Errors.VALIDATION(error.message)
+    }
+    if (error.name === 'NotFoundError') {
+      return Errors.NOT_FOUND(error.message)
+    }
     return Errors.INTERNAL('Failed to assign subscription')
   }
 }

@@ -9,8 +9,7 @@ async function testLogins() {
   )
 
   const testAccounts = [
-    { email: 'darekarshubham2005@gmail.com', pass: 'AdminPassword123!' },
-    { email: 'admin@tvita.dev', pass: 'AdminPassword123!' },
+    { email: 'shubhamd@tvita.in', pass: 'Pass1234' },
   ]
 
   for (const acc of testAccounts) {

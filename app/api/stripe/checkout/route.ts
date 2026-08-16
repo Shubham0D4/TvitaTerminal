@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { stripe } from '@/lib/stripe'
+import { stripe } from '@/infrastructure/stripe'
 import { getServerUser } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
 

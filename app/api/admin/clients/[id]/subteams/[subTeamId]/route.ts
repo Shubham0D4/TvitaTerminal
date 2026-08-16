@@ -1,7 +1,7 @@
-import { apiSuccess, Errors } from '@/lib/api-response'
+import { apiSuccess, Errors } from '@/shared/utilities/api-response'
 import { getServerUser, isAdmin } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
-import { sendAccountStatusChangedEmail } from '@/lib/email'
+import { sendAccountStatusChangedEmail } from '@/infrastructure/email'
 import { createNotification } from '@/lib/notifications'
 import { NextRequest } from 'next/server'
 

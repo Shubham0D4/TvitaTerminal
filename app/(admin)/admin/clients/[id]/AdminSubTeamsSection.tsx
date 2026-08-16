@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { ShieldOff, ShieldCheck, Trash2, Plus, Users, FolderKanban, FileText, CreditCard, Sparkles, X } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { apiClient } from '@/lib/api-client'
+import { apiClient } from '@/shared/utilities/api-client'
 import type { ClientSubTeam } from '@prisma/client'
 import type { AccessPolicy } from '@/lib/auth/server'
 
@@ -11,7 +11,6 @@ const PERMISSION_TAGS: { key: keyof AccessPolicy; label: string; icon: typeof Fo
   { key: 'projects', label: 'Projects', icon: FolderKanban },
   { key: 'milestones', label: 'Milestones', icon: ShieldCheck },
   { key: 'approvals', label: 'Approvals', icon: ShieldCheck },
-  { key: 'documents', label: 'Documents', icon: FileText },
   { key: 'invoices', label: 'Invoices', icon: CreditCard },
   { key: 'subscriptions', label: 'Subscriptions', icon: Sparkles },
   { key: 'billing', label: 'Billing', icon: CreditCard },

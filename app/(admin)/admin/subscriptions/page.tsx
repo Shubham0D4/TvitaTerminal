@@ -1,7 +1,9 @@
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
-import { Boxes, Plus, CheckCircle2, Clock, Building2, Layers } from 'lucide-react'
+import { Boxes, Plus, Layers } from 'lucide-react'
 import AssignPlanButton from './AssignPlanButton'
+import PlansListGrid from '@/components/subscriptions/PlansListGrid'
+import SubscriptionsListTable from '@/components/subscriptions/SubscriptionsListTable'
 
 export const metadata = {
   title: 'Subscription Plans — Tvita Admin',
@@ -20,13 +22,18 @@ function formatDate(date: Date | null): string {
 export default async function AdminSubscriptionsPage() {
   const [plans, subscriptions, clients] = await Promise.all([
     prisma.plan.findMany({
-      include: { features: true },
+      include: { 
+        features: true,
+        client: { select: { name: true } }
+      },
       orderBy: { price: 'asc' },
     }),
     prisma.subscription.findMany({
       include: {
         client: { select: { id: true, name: true } },
-        plan: { select: { name: true, price: true, billingCycle: true } },
+        plan: { 
+          include: { features: true }
+        },
       },
       orderBy: { createdAt: 'desc' },
     }),
@@ -74,43 +81,7 @@ export default async function AdminSubscriptionsPage() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-6">
-            {plans.map((plan) => (
-              <div key={plan.id} className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)' }}>
-                      {plan.name}
-                    </h3>
-                    <span className="badge badge--active">
-                      {plan.billingCycle}
-                    </span>
-                  </div>
-
-                  <div style={{ fontSize: 'var(--text-xl)', fontWeight: 'var(--font-bold)', color: 'var(--accent-primary)', marginBottom: 'var(--space-3)' }}>
-                    {formatCurrency(Number(plan.price))}<span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>/{plan.billingCycle.toLowerCase()}</span>
-                  </div>
-
-                  {plan.description && (
-                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', marginBottom: 'var(--space-4)', lineHeight: 1.5 }}>
-                      {plan.description}
-                    </p>
-                  )}
-
-                  {plan.features.length > 0 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', paddingTop: 'var(--space-3)', borderTop: '1px solid var(--border-subtle)' }}>
-                      {plan.features.map((f) => (
-                        <div key={f.id} className="flex items-center gap-2" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
-                          <CheckCircle2 size={13} className="text-success" />
-                          <span>{f.name}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+          <PlansListGrid plans={plans as any} />
         )}
       </div>
 
@@ -129,50 +100,7 @@ export default async function AdminSubscriptionsPage() {
             </div>
           </div>
         ) : (
-          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-            <div className="table-wrapper">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Client</th>
-                    <th>Plan</th>
-                    <th>Billing Rate</th>
-                    <th>Start Date</th>
-                    <th>Renewal Date</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {subscriptions.map((sub) => (
-                    <tr key={sub.id}>
-                      <td style={{ fontWeight: 'var(--font-medium)', color: 'var(--text-primary)' }}>
-                        <Link href={`/admin/clients/${sub.client.id}`} style={{ color: 'var(--accent-primary)' }}>
-                          {sub.client.name}
-                        </Link>
-                      </td>
-                      <td style={{ fontWeight: 'var(--font-medium)', color: 'var(--text-primary)' }}>
-                        {sub.plan.name}
-                      </td>
-                      <td style={{ color: 'var(--text-muted)' }}>
-                        {formatCurrency(Number(sub.plan.price))} / {sub.plan.billingCycle.toLowerCase()}
-                      </td>
-                      <td style={{ color: 'var(--text-muted)' }}>
-                        {formatDate(sub.startDate)}
-                      </td>
-                      <td style={{ color: 'var(--text-muted)' }}>
-                        {formatDate(sub.endDate)}
-                      </td>
-                      <td>
-                        <span className={`badge badge--${sub.status.toLowerCase()}`}>
-                          {sub.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <SubscriptionsListTable subscriptions={subscriptions as any} />
         )}
       </div>
     </div>

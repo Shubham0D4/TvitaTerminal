@@ -1,4 +1,4 @@
-import { apiSuccess, Errors } from '@/lib/api-response'
+import { apiSuccess, Errors } from '@/shared/utilities/api-response'
 import { writeAuditLog } from '@/lib/audit'
 import { getServerUser, isAdmin } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
@@ -35,7 +35,6 @@ export async function GET(
           include: { author: { select: { name: true } } },
         },
         approvals: { orderBy: { createdAt: 'desc' } },
-        documents: true,
       },
     })
 

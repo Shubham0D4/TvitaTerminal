@@ -1,7 +1,6 @@
-import { apiSuccess, Errors } from '@/lib/api-response'
+import { apiSuccess, Errors } from '@/shared/utilities/api-response'
 import { getClientSubTeamContext, getServerUser, isClient } from '@/lib/auth/server'
-import { prisma } from '@/lib/prisma'
-import { createSupabaseAdminClient } from '@/lib/supabase/server'
+import { ClientService } from '@/application/services/client.service'
 import { NextRequest } from 'next/server'
 
 export async function PUT(
@@ -17,47 +16,17 @@ export async function PUT(
   const { subTeamId, memberId } = await params
 
   try {
-    const client = await prisma.client.findFirst({
-      where: { OR: [{ profileId: user.id }, { email: user.email }] },
-    })
+    const client = await ClientService.getClientByUserId(user.id, user.email)
     if (!client) return Errors.NOT_FOUND('Client account')
 
-    const member = await prisma.clientSubTeamMember.findFirst({
-      where: { id: memberId, subTeamId },
-    })
-    if (!member) return Errors.NOT_FOUND('Sub-team member')
-
     const body = await request.json()
-    const { name, designation, roleId, customPolicy, status } = body
-
-    const updated = await prisma.clientSubTeamMember.update({
-      where: { id: memberId },
-      data: {
-        name: name ?? member.name,
-        designation: designation !== undefined ? designation : member.designation,
-        roleId: roleId !== undefined ? roleId : member.roleId,
-        customPolicy: customPolicy !== undefined ? customPolicy : member.customPolicy,
-        status: status ?? member.status,
-      },
-      include: {
-        role: true,
-        profile: { select: { email: true, name: true, isActive: true } },
-      },
-    })
-
-    if (member.profileId) {
-      await prisma.profile.update({
-        where: { id: member.profileId },
-        data: {
-          name: updated.name,
-          isActive: updated.status === 'ACTIVE',
-        },
-      })
-    }
-
+    const updated = await ClientService.updateSubTeamMember(subTeamId, memberId, body)
     return apiSuccess(updated)
-  } catch (error) {
+  } catch (error: any) {
     console.error('Update subteam member error:', error)
+    if (error.message === 'Sub-team member not found') {
+      return Errors.NOT_FOUND('Sub-team member')
+    }
     return Errors.INTERNAL('Failed to update team member')
   }
 }
@@ -75,30 +44,14 @@ export async function DELETE(
   const { subTeamId, memberId } = await params
 
   try {
-    const client = await prisma.client.findFirst({
-      where: { OR: [{ profileId: user.id }, { email: user.email }] },
-    })
+    const client = await ClientService.getClientByUserId(user.id, user.email)
     if (!client) return Errors.NOT_FOUND('Client account')
 
-    const member = await prisma.clientSubTeamMember.findFirst({
-      where: { id: memberId, subTeamId },
-    })
-    if (!member) return Errors.NOT_FOUND('Sub-team member')
-
     // Soft remove: set member status INACTIVE and deactivate associated profile (preserving history & logs)
-    await prisma.clientSubTeamMember.update({
-      where: { id: memberId },
-      data: { status: 'INACTIVE' },
-    })
+    const result = await ClientService.softRemoveMember(memberId)
+    if (!result) return Errors.NOT_FOUND('Sub-team member')
 
-    if (member.profileId) {
-      await prisma.profile.update({
-        where: { id: member.profileId },
-        data: { isActive: false },
-      })
-    }
-
-    return apiSuccess({ deleted: true, soft: true })
+    return apiSuccess(result)
   } catch (error) {
     console.error('Soft delete subteam member error:', error)
     return Errors.INTERNAL('Failed to soft remove team member')

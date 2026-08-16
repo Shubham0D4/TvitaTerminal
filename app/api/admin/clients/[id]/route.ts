@@ -1,9 +1,9 @@
-import { apiSuccess, Errors } from '@/lib/api-response'
+import { apiSuccess, Errors } from '@/shared/utilities/api-response'
 import { writeAuditLog } from '@/lib/audit'
 import { getServerUser, isAdmin } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'
-import { createSupabaseAdminClient } from '@/lib/supabase/server'
+import { createSupabaseAdminClient } from '@/infrastructure/supabase/server'
 
 export async function GET(
   request: NextRequest,
@@ -192,7 +192,6 @@ export async function DELETE(
       await prisma.milestone.deleteMany({ where: { projectId: { in: projectIds } } })
       await prisma.projectUpdate.deleteMany({ where: { projectId: { in: projectIds } } })
       await prisma.clientApproval.deleteMany({ where: { projectId: { in: projectIds } } })
-      await prisma.document.deleteMany({ where: { projectId: { in: projectIds } } })
       await prisma.project.deleteMany({ where: { clientId: id } })
     }
 
@@ -204,13 +203,11 @@ export async function DELETE(
     const invoiceIds = invoices.map(i => i.id)
     if (invoiceIds.length > 0) {
       await prisma.payment.deleteMany({ where: { invoiceId: { in: invoiceIds } } })
-      await prisma.document.deleteMany({ where: { invoiceId: { in: invoiceIds } } })
       await prisma.invoice.deleteMany({ where: { clientId: id } })
     }
 
     // Delete subscriptions and other client collections
     await prisma.subscription.deleteMany({ where: { clientId: id } })
-    await prisma.clientDocument.deleteMany({ where: { clientId: id } })
     await prisma.clientContact.deleteMany({ where: { clientId: id } })
     await prisma.clientApproval.deleteMany({ where: { clientId: id } })
 

@@ -1,9 +1,9 @@
-import { apiSuccess, Errors } from '@/lib/api-response'
+import { apiSuccess, Errors } from '@/shared/utilities/api-response'
 import { DEFAULT_SUBTEAM_POLICY, getServerUser, isAdmin } from '@/lib/auth/server'
-import { sendClientTeamInvite } from '@/lib/email'
+import { sendClientTeamInvite } from '@/infrastructure/email'
 import { prisma } from '@/lib/prisma'
-import { createSupabaseAdminClient } from '@/lib/supabase/server'
-import { getAppBaseUrl } from '@/lib/url'
+import { createSupabaseAdminClient } from '@/infrastructure/supabase/server'
+import { getAppBaseUrl } from '@/shared/utilities/url'
 import { NextRequest } from 'next/server'
 
 export async function POST(

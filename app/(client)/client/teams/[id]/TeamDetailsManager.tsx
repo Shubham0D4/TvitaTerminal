@@ -24,7 +24,7 @@ import {
   Settings,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { apiClient } from '@/lib/api-client'
+import { apiClient } from '@/shared/utilities/api-client'
 import type { AccessPolicy } from '@/lib/auth/server'
 
 type ProjectItem = {
@@ -73,7 +73,6 @@ const ACCESS_COMPONENTS: { key: keyof AccessPolicy; label: string; description: 
   { key: 'projects', label: 'Project Visibility', description: 'View assigned project overview & details', icon: FolderKanban },
   { key: 'milestones', label: 'Milestones & Tasks', description: 'View project timelines and milestone status', icon: ShieldCheck },
   { key: 'approvals', label: 'Deliverable Approvals', description: 'Review and approve milestone deliverables', icon: Check },
-  { key: 'documents', label: 'Project Documents', description: 'Access uploaded files and assets', icon: FileText },
   { key: 'invoices', label: 'Billing & Invoices', description: 'View invoices and payment receipts', icon: CreditCard },
   { key: 'subscriptions', label: 'Subscriptions & Plans', description: 'View subscription plan details', icon: Sparkles },
   { key: 'billing', label: 'Payment Settings', description: 'View payment methods and billing info', icon: CreditCard },
@@ -108,7 +107,6 @@ export default function TeamDetailsManager({
     projects: true,
     milestones: true,
     approvals: true,
-    documents: true,
     invoices: false,
     subscriptions: false,
     billing: false,
@@ -120,7 +118,6 @@ export default function TeamDetailsManager({
     projects: true,
     milestones: true,
     approvals: true,
-    documents: true,
     invoices: false,
     subscriptions: false,
     billing: false,
@@ -141,7 +138,6 @@ export default function TeamDetailsManager({
         projects: enableProjectAccess,
         milestones: enableProjectAccess,
         approvals: enableProjectAccess,
-        documents: enableProjectAccess,
         invoices: enableProjectAccess && enableFinancialAccess,
         subscriptions: enableProjectAccess && enableFinancialAccess,
         billing: enableProjectAccess && enableFinancialAccess,
@@ -212,7 +208,6 @@ export default function TeamDetailsManager({
       projects: m.customPolicy?.projects !== false,
       milestones: m.customPolicy?.milestones !== false,
       approvals: m.customPolicy?.approvals !== false,
-      documents: m.customPolicy?.documents !== false,
       invoices: Boolean(m.customPolicy?.invoices),
       subscriptions: Boolean(m.customPolicy?.subscriptions),
       billing: Boolean(m.customPolicy?.billing),

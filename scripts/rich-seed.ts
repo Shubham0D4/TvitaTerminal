@@ -21,7 +21,7 @@ const supabaseAdmin = createClient(
 )
 
 // Real IDs from Supabase Auth
-const IDS = {
+let IDS = {
   ADMIN:   '32270386-4e3f-4380-a7d2-26299cf4acff',
   LEAD_1:  '083ffe80-0705-4164-bf15-662ca48f14d9',
   DEV_1:   'a0d7d287-8add-415b-ad4f-9057defa3643',
@@ -46,6 +46,23 @@ const NEW_USERS = [
 
 async function main() {
   console.log('🌱 Starting Rich Seed...\n')
+
+  // --- Step 0: Resolve dynamic IDs of primary demo users ---
+  const adminProfile = await prisma.profile.findFirst({ where: { email: 'shubhamd@tvita.in' } })
+  const lead1Profile = await prisma.profile.findFirst({ where: { email: 'lead@tvita.dev' } })
+  const dev1Profile = await prisma.profile.findFirst({ where: { email: 'dev@tvita.dev' } })
+  const tester1Profile = await prisma.profile.findFirst({ where: { email: 'tester@tvita.dev' } })
+  const client1Profile = await prisma.profile.findFirst({ where: { email: 'client@tvita.dev' } })
+
+  if (adminProfile) IDS.ADMIN = adminProfile.id
+  if (lead1Profile) IDS.LEAD_1 = lead1Profile.id
+  if (dev1Profile) IDS.DEV_1 = dev1Profile.id
+  if (tester1Profile) IDS.TESTER_1 = tester1Profile.id
+  if (client1Profile) IDS.CLIENT_1 = client1Profile.id
+
+  if (!adminProfile || !lead1Profile || !dev1Profile || !tester1Profile || !client1Profile) {
+    throw new Error('Could not find primary demo profiles in the database. Please run `npx tsx scripts/create-demo-users.ts` first to provision the core demo users!')
+  }
 
   // --- Step 1: Provision Auth users ---
   console.log('🔑 Provisioning additional Auth users...')
@@ -411,27 +428,7 @@ async function main() {
   }
   console.log('  ✓ 4 invoices created\n')
 
-  // --- Step 10: Documents ---
-  console.log('📄 Creating documents...')
-  const docs = [
-    { id: '50000000-0000-0000-0000-000000000001', name: 'TechVision Project Proposal.pdf', fileUrl: 'https://placeholder-storage.tvita.dev/techvision-proposal.pdf', fileType: 'application/pdf', fileSize: 248000, clientId: clTechvision.id, projectId: pTV1.id, uploadedById: IDS.LEAD_1, visibility: 'CLIENT_VISIBLE' },
-    { id: '50000000-0000-0000-0000-000000000002', name: 'UI Mockup v3 - Homepage.fig', fileUrl: 'https://placeholder-storage.tvita.dev/homepage-v3.fig', fileType: 'application/octet-stream', fileSize: 1240000, clientId: clTechvision.id, projectId: pTV1.id, uploadedById: IDS.LEAD_1, visibility: 'CLIENT_VISIBLE' },
-    { id: '50000000-0000-0000-0000-000000000003', name: 'Technical Architecture Diagram.md', fileUrl: 'https://placeholder-storage.tvita.dev/arch-diagram.md', fileType: 'text/markdown', fileSize: 12000, clientId: clTechvision.id, projectId: pTV1.id, uploadedById: IDS.LEAD_1, visibility: 'INTERNAL' },
-    { id: '50000000-0000-0000-0000-000000000004', name: 'Greenleaf NDA.pdf', fileUrl: 'https://placeholder-storage.tvita.dev/greenleaf-nda.pdf', fileType: 'application/pdf', fileSize: 150000, clientId: clGreenleaf.id, projectId: null, uploadedById: IDS.ADMIN, visibility: 'CLIENT_VISIBLE' },
-    { id: '50000000-0000-0000-0000-000000000005', name: 'E-commerce Product Import Template.xlsx', fileUrl: 'https://placeholder-storage.tvita.dev/product-template.xlsx', fileType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', fileSize: 520000, clientId: clGreenleaf.id, projectId: pGL1.id, uploadedById: IDS.LEAD_1, visibility: 'CLIENT_VISIBLE' },
-    { id: '50000000-0000-0000-0000-000000000006', name: 'Aerocraft Brand Guidelines v2.pdf', fileUrl: 'https://placeholder-storage.tvita.dev/aerocraft-brand.pdf', fileType: 'application/pdf', fileSize: 4200000, clientId: clAerocraft.id, projectId: pAC1.id, uploadedById: IDS.LEAD_1, visibility: 'CLIENT_VISIBLE' },
-    { id: '50000000-0000-0000-0000-000000000007', name: 'Zenitech System Requirements.docx', fileUrl: 'https://placeholder-storage.tvita.dev/zenitech-specs.docx', fileType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', fileSize: 380000, clientId: clZenitech.id, projectId: pZT1.id, uploadedById: IDS.LEAD_1, visibility: 'CLIENT_VISIBLE' },
-    { id: '50000000-0000-0000-0000-000000000008', name: 'DB Schema & ERD (Internal).pdf', fileUrl: 'https://placeholder-storage.tvita.dev/internal-erd.pdf', fileType: 'application/pdf', fileSize: 890000, clientId: clZenitech.id, projectId: pZT1.id, uploadedById: IDS.LEAD_1, visibility: 'INTERNAL' },
-  ]
 
-  for (const d of docs) {
-    await prisma.document.upsert({
-      where: { id: d.id },
-      update: {},
-      create: d as any,
-    })
-  }
-  console.log('  ✓ 8 documents created\n')
 
   // --- Step 11: Project Updates ---
   console.log('📢 Creating project updates...')

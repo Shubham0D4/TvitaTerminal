@@ -1,8 +1,8 @@
-import { apiSuccess, Errors } from '@/lib/api-response'
-import { AuthService } from '@/lib/services/auth.service'
-import { ClientService } from '@/lib/services/client.service'
-import { prisma } from '@/lib/prisma'
-import { getAppBaseUrl } from '@/lib/url'
+import { apiSuccess, Errors } from '@/shared/utilities/api-response'
+import { AuthService } from '@/application/services/auth.service'
+import { ClientService } from '@/application/services/client.service'
+import { ClientRepository } from '@/infrastructure/database/repositories/client.repository'
+import { getAppBaseUrl } from '@/shared/utilities/url'
 import { NextRequest } from 'next/server'
 
 export async function GET(
@@ -14,14 +14,13 @@ export async function GET(
 
   const { subTeamId } = await params
   try {
-    const members = await prisma.clientSubTeamMember.findMany({
-      where: { subTeamId },
-      include: {
+    const members = await ClientRepository.findSubTeamMembers(
+      { subTeamId },
+      {
         role: true,
         profile: { select: { email: true, name: true, isActive: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    })
+      }
+    )
     return apiSuccess(members)
   } catch (error) {
     console.error('Fetch subteam members error:', error)
@@ -52,7 +51,7 @@ export async function POST(
       return Errors.VALIDATION('Member name and email are required')
     }
 
-    const appUrl = getAppBaseUrl(request)
+    const appUrl = getAppBaseUrl()
 
     const member = await ClientService.addOrReinviteMember({
       subTeamId,
@@ -67,8 +66,8 @@ export async function POST(
     })
 
     return apiSuccess(member, 201)
-  } catch (error: unknown) {
+  } catch (error: any) {
     console.error('Create subteam member error:', error)
-    return Errors.INTERNAL((error as Error)?.message || 'Failed to create team member')
+    return Errors.INTERNAL(error.message || 'Failed to create team member')
   }
 }

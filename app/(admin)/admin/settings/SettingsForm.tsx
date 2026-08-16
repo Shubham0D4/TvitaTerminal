@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import toast from 'react-hot-toast'
-import { apiClient } from '@/lib/api-client'
+import { apiClient } from '@/shared/utilities/api-client'
 import type { AppSettings } from '@prisma/client'
+import { createSupabaseBrowserClient } from '@/infrastructure/supabase/client'
+import { KeyRound } from 'lucide-react'
 
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
@@ -21,6 +23,43 @@ interface SettingsFormProps {
 export default function SettingsForm({ settings }: SettingsFormProps) {
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({})
   const [pending, setPending] = useState(false)
+
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordPending, setPasswordPending] = useState(false)
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newPassword) {
+      toast.error('Password cannot be empty.')
+      return
+    }
+    if (newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters.')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('Passwords do not match.')
+      return
+    }
+
+    setPasswordPending(true)
+    try {
+      const supabase = createSupabaseBrowserClient()
+      const { error } = await supabase.auth.updateUser({ password: newPassword })
+      if (error) {
+        toast.error(error.message)
+      } else {
+        toast.success('Password updated successfully!')
+        setNewPassword('')
+        setConfirmPassword('')
+      }
+    } catch (err: any) {
+      toast.error('An unexpected error occurred.')
+    } finally {
+      setPasswordPending(false)
+    }
+  }
 
   const validateField = (name: string, value: string) => {
     let errorMsg = ''
@@ -120,6 +159,7 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
   }
 
   return (
+    <>
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-8)' }}>
 
       {/* ── Company Info ── */}
@@ -463,5 +503,58 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
         </button>
       </div>
     </form>
+
+    <div style={{ margin: 'var(--space-8) 0', borderTop: '1px solid var(--border-subtle)' }} />
+
+    <form onSubmit={handlePasswordChange} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', maxWidth: 640 }}>
+      <section className="card">
+        <h2 className="settings-section__title flex items-center gap-2" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <KeyRound size={20} />
+          Change Password
+        </h2>
+        <p className="settings-section__desc" style={{ marginBottom: 'var(--space-4)' }}>
+          Update your account password. Must be at least 6 characters.
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <div className="form-group">
+            <label className="form-label" htmlFor="newPassword">New Password</label>
+            <input
+              id="newPassword"
+              type="password"
+              className="form-input"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="confirmPassword">Confirm New Password</label>
+            <input
+              id="confirmPassword"
+              type="password"
+              className="form-input"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+            />
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'var(--space-6)' }}>
+          <button
+            type="submit"
+            className={`btn btn--primary${passwordPending ? ' btn--loading' : ''}`}
+            disabled={passwordPending}
+          >
+            {passwordPending ? '' : 'Update Password'}
+          </button>
+        </div>
+      </section>
+    </form>
+    </>
   )
 }

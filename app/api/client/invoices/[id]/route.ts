@@ -1,6 +1,7 @@
-import { apiSuccess, Errors } from '@/lib/api-response'
+import { apiSuccess, Errors } from '@/shared/utilities/api-response'
 import { getClientSubTeamContext, getServerUser, isClient } from '@/lib/auth/server'
-import { prisma } from '@/lib/prisma'
+import { ClientRepository } from '@/infrastructure/database/repositories/client.repository'
+import { InvoiceService } from '@/application/services/invoice.service'
 import { NextRequest } from 'next/server'
 
 export async function GET(
@@ -20,32 +21,30 @@ export async function GET(
       return Errors.FORBIDDEN('Financial data is restricted for sub-teams')
     }
 
-    const client = await prisma.client.findFirst({
-      where: subTeamCtx
-        ? { id: subTeamCtx.clientId }
-        : { OR: [{ profileId: user.id }, { email: user.email }] },
+    const client = await ClientRepository.findClientForActor({
+      userId: user.id,
+      email: user.email,
+      subTeamClientId: subTeamCtx?.clientId,
     })
 
     if (!client) {
       return Errors.NOT_FOUND('Client')
     }
 
-    const invoice = await prisma.invoice.findFirst({
-      where: { id, clientId: client.id },
-      include: {
-        project: { select: { id: true, name: true } },
-      },
-    })
-
-    if (!invoice) {
+    const result = await InvoiceService.getInvoiceDetails(id)
+    if (!result.invoice) {
       return Errors.NOT_FOUND('Invoice')
     }
+    if (result.invoice.clientId !== client.id) {
+      return Errors.UNAUTHORIZED()
+    }
 
-    const settings = await prisma.appSettings.findFirst()
-
-    return apiSuccess({ invoice, settings })
-  } catch (error) {
+    return apiSuccess(result)
+  } catch (error: any) {
     console.error('Client invoice GET API error:', error)
+    if (error.name === 'NotFoundError') {
+      return Errors.NOT_FOUND(error.message)
+    }
     return Errors.INTERNAL('Failed to fetch invoice details')
   }
 }

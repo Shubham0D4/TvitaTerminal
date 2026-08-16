@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Plus, Trash2, UserCheck, X } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { apiClient } from '@/lib/api-client'
+import { apiClient } from '@/shared/utilities/api-client'
 import type { ClientContact } from '@prisma/client'
 
 interface Props {

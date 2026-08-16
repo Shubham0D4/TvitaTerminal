@@ -1,11 +1,11 @@
-import { apiSuccess, Errors } from '@/lib/api-response'
+import { apiSuccess, Errors } from '@/shared/utilities/api-response'
 import { writeAuditLog } from '@/lib/audit'
 import { getServerUser, isAdmin } from '@/lib/auth/server'
-import { sendRoleAccountCreatedEmail } from '@/lib/email'
+import { sendRoleAccountCreatedEmail } from '@/infrastructure/email'
 import { createNotification } from '@/lib/notifications'
 import { prisma } from '@/lib/prisma'
-import { createSupabaseAdminClient } from '@/lib/supabase/server'
-import { getAppBaseUrl } from '@/lib/url'
+import { createSupabaseAdminClient } from '@/infrastructure/supabase/server'
+import { getAppBaseUrl } from '@/shared/utilities/url'
 import { TeamRole } from '@prisma/client'
 import { NextRequest } from 'next/server'
 
@@ -129,6 +129,7 @@ export async function POST(request: NextRequest) {
         role: role || 'TEAM_MEMBER',
         teamRole: (teamRole as TeamRole) || null,
         isActive: true,
+        invitedAt: new Date(),
       },
     })
 

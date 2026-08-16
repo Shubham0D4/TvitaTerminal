@@ -1,5 +1,6 @@
-import { apiSuccess, Errors } from '@/lib/api-response'
+import { apiSuccess, Errors } from '@/shared/utilities/api-response'
 import { getClientSubTeamContext, getServerUser, isClient } from '@/lib/auth/server'
+import { ClientService } from '@/application/services/client.service'
 import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'
 
@@ -36,10 +37,7 @@ export async function POST(
   const { subTeamId } = await params
 
   try {
-    const client = await prisma.client.findFirst({
-      where: { OR: [{ profileId: user.id }, { email: user.email }] },
-    })
-
+    const client = await ClientService.getClientByUserId(user.id, user.email)
     if (!client) return Errors.NOT_FOUND('Client account')
 
     const team = await prisma.clientSubTeam.findFirst({
@@ -54,15 +52,7 @@ export async function POST(
       return Errors.VALIDATION('Role name is required')
     }
 
-    const role = await prisma.clientSubTeamRole.create({
-      data: {
-        subTeamId,
-        name: name.trim(),
-        description: description || null,
-        permissions: permissions || {},
-      },
-    })
-
+    const role = await ClientService.createSubTeamRole(subTeamId, name, description, permissions)
     return apiSuccess(role, 201)
   } catch (error) {
     console.error('Create subteam role error:', error)

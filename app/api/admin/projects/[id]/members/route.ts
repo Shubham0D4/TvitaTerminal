@@ -1,4 +1,4 @@
-import { apiSuccess, Errors } from '@/lib/api-response'
+import { apiSuccess, Errors } from '@/shared/utilities/api-response'
 import { getServerUser, isAdmin } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'

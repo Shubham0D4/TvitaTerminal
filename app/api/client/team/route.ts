@@ -1,7 +1,7 @@
-import { apiSuccess, Errors } from '@/lib/api-response'
-import { AuthService } from '@/lib/services/auth.service'
-import { ClientService } from '@/lib/services/client.service'
-import { prisma } from '@/lib/prisma'
+import { apiSuccess, Errors } from '@/shared/utilities/api-response'
+import { AuthService } from '@/application/services/auth.service'
+import { ClientService } from '@/application/services/client.service'
+import { ClientRepository } from '@/infrastructure/database/repositories/client.repository'
 import { NextRequest } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -19,10 +19,9 @@ export async function GET(request: NextRequest) {
     const client = await ClientService.getClientByUserId(user.id, user.email)
     if (!client) return Errors.NOT_FOUND('Client account')
 
-    const subTeams = await prisma.clientSubTeam.findMany({
-      where: { clientId: client.id },
-      orderBy: { createdAt: 'desc' },
-      include: {
+    const subTeams = await ClientRepository.findSubTeams(
+      { clientId: client.id },
+      {
         profile: { select: { email: true, name: true, isActive: true } },
         roles: true,
         members: {
@@ -31,8 +30,8 @@ export async function GET(request: NextRequest) {
             profile: { select: { email: true, name: true, isActive: true } },
           },
         },
-      },
-    })
+      }
+    )
 
     return apiSuccess(subTeams)
   } catch (error) {

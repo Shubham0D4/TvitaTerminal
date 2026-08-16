@@ -11,7 +11,12 @@ export const metadata = {
   title: 'Dashboard — Tvita Client Portal',
 }
 
+import { cleanupExpiredInvitations } from '@/lib/invitation-cleanup'
+
 export default async function ClientDashboardPage() {
+  // Trigger cleanup of expired invitations asynchronously
+  cleanupExpiredInvitations().catch(err => console.error('[Cleanup Error]', err))
+
   const user = await getServerUser()
   if (!user) return null
 
@@ -33,15 +38,12 @@ export default async function ClientDashboardPage() {
 
   const showFinancials = !subTeamCtx
 
-  const [projectCount, pendingInvoices, openDocs] = await Promise.all([
+  const [projectCount, pendingInvoices] = await Promise.all([
     client
       ? prisma.project.count({ where: { clientId: client.id, status: { in: ['IN_PROGRESS', 'PLANNED'] } } })
       : Promise.resolve(0),
     showFinancials && client
       ? prisma.invoice.count({ where: { clientId: client.id, status: { in: ['PENDING', 'OVERDUE'] } } })
-      : Promise.resolve(0),
-    client
-      ? prisma.document.count({ where: { clientId: client.id, visibility: 'CLIENT_VISIBLE' } })
       : Promise.resolve(0),
   ])
 
@@ -85,7 +87,7 @@ export default async function ClientDashboardPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-2 gap-4 mb-8">
         <div className="stat-card">
           <div className="stat-card__icon stat-card__icon--purple">
             <FolderKanban size={20} />
@@ -103,16 +105,6 @@ export default async function ClientDashboardPage() {
           <div>
             <div className="stat-card__value">{pendingInvoices}</div>
             <div className="stat-card__label">Pending Invoices</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-card__icon stat-card__icon--blue">
-            <FileText size={20} />
-          </div>
-          <div>
-            <div className="stat-card__value">{openDocs}</div>
-            <div className="stat-card__label">Documents</div>
           </div>
         </div>
       </div>

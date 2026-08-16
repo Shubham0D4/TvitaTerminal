@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
-import { createSupabaseAdminClient } from '@/lib/supabase/server'
+import { createSupabaseAdminClient } from '@/infrastructure/supabase/server'
 
 // ─────────────────────────────────────────────
 // Helpers

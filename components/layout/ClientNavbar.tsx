@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { createSupabaseBrowserClient } from '@/lib/supabase/client'
+import { createSupabaseBrowserClient } from '@/infrastructure/supabase/client'
 import toast from 'react-hot-toast'
 import {
   LayoutDashboard,

@@ -1,7 +1,6 @@
-import { apiSuccess, Errors } from '@/lib/api-response'
-import { writeAuditLog } from '@/lib/audit'
+import { apiSuccess, Errors } from '@/shared/utilities/api-response'
 import { getServerUser, isAdmin } from '@/lib/auth/server'
-import { prisma } from '@/lib/prisma'
+import { SubscriptionService } from '@/application/services/subscription.service'
 import { NextRequest } from 'next/server'
 
 export async function POST(
@@ -16,31 +15,13 @@ export async function POST(
   const { id } = await params
 
   try {
-    const subscription = await prisma.subscription.findUnique({ where: { id } })
-    if (!subscription) {
-      return Errors.NOT_FOUND('Subscription')
-    }
-
-    const updated = await prisma.subscription.update({
-      where: { id },
-      data: { status: 'CANCELLED' },
-    })
-
-    await writeAuditLog({
-      actorId: user.id,
-      actorEmail: user.email,
-      actorRole: user.role,
-      action: 'UPDATE',
-      entityType: 'subscription',
-      entityId: id,
-      entityLabel: 'Subscription Cancellation',
-      oldValue: { status: subscription.status },
-      newValue: { status: 'CANCELLED' },
-    })
-
+    const updated = await SubscriptionService.cancelSubscription(id, user)
     return apiSuccess(updated)
-  } catch (error) {
+  } catch (error: any) {
     console.error('Cancel subscription API error:', error)
+    if (error.name === 'NotFoundError') {
+      return Errors.NOT_FOUND(error.message)
+    }
     return Errors.INTERNAL('Failed to cancel subscription')
   }
 }

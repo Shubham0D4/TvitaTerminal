@@ -8,7 +8,12 @@ export const metadata = {
   title: 'Dashboard — Tvita Team',
 }
 
+import { cleanupExpiredInvitations } from '@/lib/invitation-cleanup'
+
 export default async function TeamDashboardPage() {
+  // Trigger cleanup of expired invitations asynchronously
+  cleanupExpiredInvitations().catch(err => console.error('[Cleanup Error]', err))
+
   const user = await getServerUser()
   if (!user) redirect('/login')
 

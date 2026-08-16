@@ -32,7 +32,7 @@ import {
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { apiClient } from '@/lib/api-client'
+import { apiClient } from '@/shared/utilities/api-client'
 import type { Client } from '@prisma/client'
 import type { AccessPolicy } from '@/lib/auth/server'
 
@@ -118,13 +118,6 @@ const POLICY_DEFINITIONS: PolicyDefinition[] = [
     icon: ShieldCheck,
   },
   {
-    key: 'documents',
-    label: 'Documents',
-    description: 'Access shared client project files and deliverables',
-    category: 'execution',
-    icon: FileText,
-  },
-  {
     key: 'invoices',
     label: 'Invoices',
     description: 'View client invoices, payment status, and download PDFs',
@@ -151,7 +144,6 @@ const DEFAULT_POLICY: AccessPolicy = {
   projects: true,
   milestones: true,
   approvals: true,
-  documents: true,
   invoices: false,
   subscriptions: false,
   billing: false,

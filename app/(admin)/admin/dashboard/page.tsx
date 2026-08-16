@@ -85,7 +85,12 @@ function formatDate(date: Date): string {
   return new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).format(date)
 }
 
+import { cleanupExpiredInvitations } from '@/lib/invitation-cleanup'
+
 export default async function AdminDashboardPage() {
+  // Trigger cleanup of expired invitations asynchronously
+  cleanupExpiredInvitations().catch(err => console.error('[Cleanup Error]', err))
+
   const user = await getServerUser()
   const stats = await getDashboardStats()
   const activity = await getRecentActivity()
@@ -112,7 +117,7 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-4 gap-6 mb-8">
         <div className="stat-card">
           <div className="flex items-center justify-between">
             <div className="stat-card__icon stat-card__icon--blue">

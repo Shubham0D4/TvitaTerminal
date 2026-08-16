@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma'
+import { NotificationRepository } from '@/infrastructure/database/repositories/notification.repository'
 
 export async function createNotification({
   userId,
@@ -15,34 +15,21 @@ export async function createNotification({
   entityType?: string
   entityId?: string
 }) {
-  try {
-    return await prisma.notification.create({
-      data: {
-        userId,
-        title,
-        message,
-        type,
-        entityType: entityType || null,
-        entityId: entityId || null,
-        isRead: false,
-      },
-    })
-  } catch (err) {
-    console.error('Failed to create notification:', err)
-  }
+  return NotificationRepository.create({
+    userId,
+    title,
+    message,
+    type,
+    entityType: entityType || null,
+    entityId: entityId || null,
+    isRead: false,
+  })
 }
 
 export async function getUserNotifications(userId: string) {
-  return prisma.notification.findMany({
-    where: { userId },
-    orderBy: { createdAt: 'desc' },
-    take: 10,
-  })
+  return NotificationRepository.findMany({ userId })
 }
 
 export async function markNotificationRead(id: string, userId: string) {
-  return prisma.notification.updateMany({
-    where: { id, userId },
-    data: { isRead: true },
-  })
+  return NotificationRepository.markAsRead(id, userId)
 }

@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { apiClient } from '@/lib/api-client'
+import { apiClient } from '@/shared/utilities/api-client'
 import type { Client, Project } from '@prisma/client'
 import Link from 'next/link'
 import { ArrowLeft, Plus, Trash2, Calculator } from 'lucide-react'
@@ -33,6 +33,43 @@ export default function InvoiceForm({
   const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId ?? '')
   const [taxRate, setTaxRate] = useState(18)
   const [pending, setPending] = useState(false)
+  const [currency, setCurrency] = useState('INR')
+  const [rates, setRates] = useState<Record<string, number>>({ INR: 83.25, USD: 1.0, EUR: 0.92, GBP: 0.79 })
+
+  useEffect(() => {
+    fetch('https://open.er-api.com/v6/latest/USD')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.rates) {
+          setRates(data.rates)
+        }
+      })
+      .catch(err => console.error('Failed to fetch exchange rates:', err))
+  }, [])
+
+  const handleCurrencyChange = (newCurrency: string) => {
+    const rateFromUSDToPrev = rates[currency] || 1
+    const rateFromUSDToNew = rates[newCurrency] || 1
+    
+    const updated = lineItems.map(item => {
+      const rateInUSD = item.rate / rateFromUSDToPrev
+      const newRate = Math.round(rateInUSD * rateFromUSDToNew * 100) / 100
+      return {
+        ...item,
+        rate: newRate,
+        amount: item.qty * newRate
+      }
+    })
+    setLineItems(updated)
+    setCurrency(newCurrency)
+  }
+
+  const formatValue = (val: number) => {
+    return new Intl.NumberFormat(currency === 'INR' ? 'en-IN' : 'en-US', {
+      style: 'currency',
+      currency,
+    }).format(val)
+  }
 
   const [lineItems, setLineItems] = useState<LineItemInput[]>([
     { description: 'Agency Services', qty: 1, rate: 10000, amount: 10000 },
@@ -91,11 +128,21 @@ export default function InvoiceForm({
     const form = e.currentTarget
     const formData = new FormData(form)
     const rawData = Object.fromEntries(formData.entries())
-    rawData.lineItemsJson = JSON.stringify(lineItems)
+
+    const payload = {
+      clientId: rawData.clientId,
+      projectId: rawData.projectId || null,
+      issuedDate: rawData.issuedDate,
+      dueDate: rawData.dueDate,
+      notes: rawData.notes || null,
+      taxRate: Number(rawData.taxRate) || 0,
+      currency: currency,
+      lineItems: lineItems,
+    }
 
     const res = await apiClient<{ id: string }>('/api/admin/billing/invoices', {
       method: 'POST',
-      body: JSON.stringify(rawData),
+      body: JSON.stringify(payload),
     })
 
     setPending(false)
@@ -188,6 +235,24 @@ export default function InvoiceForm({
             />
             <p className="form-hint">Final day for payment receipt before invoice status becomes overdue</p>
           </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="currency">Currency <span className="form-required">*</span></label>
+            <select
+              id="currency"
+              name="currency"
+              className="form-select"
+              value={currency}
+              onChange={(e) => handleCurrencyChange(e.target.value)}
+              required
+            >
+              <option value="INR">INR (₹)</option>
+              <option value="USD">USD ($)</option>
+              <option value="EUR">EUR (€)</option>
+              <option value="GBP">GBP (£)</option>
+            </select>
+            <p className="form-hint">The currency type applied to rates and totals</p>
+          </div>
         </div>
 
         {/* Dynamic Line Items Section */}
@@ -233,9 +298,9 @@ export default function InvoiceForm({
                   <input
                     type="number"
                     min={0}
-                    step={100}
+                    step="any"
                     className="form-input"
-                    placeholder="Rate (₹)"
+                    placeholder={`Rate (${currency === 'INR' ? '₹' : currency})`}
                     value={item.rate}
                     onChange={(e) => handleItemChange(index, 'rate', e.target.value)}
                     required
@@ -243,7 +308,7 @@ export default function InvoiceForm({
                 </div>
 
                 <div style={{ padding: '0 var(--space-3)', fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', textAlign: 'right' }}>
-                  ₹{item.amount.toLocaleString('en-IN')}
+                  {formatValue(item.amount)}
                 </div>
 
                 <div>
@@ -288,12 +353,12 @@ export default function InvoiceForm({
           <div style={{ width: 280, display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
             <div className="flex items-center justify-between" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
               <span>Subtotal:</span>
-              <span>₹{subtotal.toLocaleString('en-IN')}</span>
+              <span>{formatValue(subtotal)}</span>
             </div>
 
             <div className="flex items-center justify-between" style={{ fontSize: 'var(--text-sm)' }}>
               <div className="flex items-center gap-2">
-                <span style={{ color: 'var(--text-muted)' }}>GST Rate:</span>
+                <span style={{ color: 'var(--text-muted)' }}>{currency === 'INR' ? 'GST Rate' : 'Tax Rate'}:</span>
                 <select
                   id="taxRate"
                   name="taxRate"
@@ -308,14 +373,14 @@ export default function InvoiceForm({
                   <option value={0}>0%</option>
                 </select>
               </div>
-              <span style={{ color: 'var(--text-primary)' }}>₹{taxAmount.toLocaleString('en-IN')}</span>
+              <span style={{ color: 'var(--text-primary)' }}>{formatValue(taxAmount)}</span>
             </div>
 
             <div className="divider" style={{ margin: 'var(--space-2) 0' }} />
 
             <div className="flex items-center justify-between" style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)' }}>
               <span>Total Amount:</span>
-              <span style={{ color: 'var(--accent-primary)' }}>₹{grandTotal.toLocaleString('en-IN')}</span>
+              <span style={{ color: 'var(--accent-primary)' }}>{formatValue(grandTotal)}</span>
             </div>
           </div>
         </div>

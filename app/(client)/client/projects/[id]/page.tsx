@@ -86,6 +86,22 @@ export default async function ClientProjectDetailPage({ params }: { params: Prom
         </div>
       </div>
 
+      {/* Project Banner cover image */}
+      <div 
+        style={{ 
+          position: 'relative', 
+          width: '100%', 
+          height: '200px', 
+          borderRadius: 'var(--radius-xl)', 
+          overflow: 'hidden', 
+          marginBottom: 'var(--space-6)',
+          backgroundImage: `url(${project.banner || '/banner.webp'})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          border: '1px solid var(--border-subtle)'
+        }}
+      />
+
       <div className="grid grid-cols-3 gap-6">
         {/* Left: circular ring + completion info */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>

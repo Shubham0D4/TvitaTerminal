@@ -1,6 +1,6 @@
-import { apiSuccess, Errors } from '@/lib/api-response'
+import { apiSuccess, Errors } from '@/shared/utilities/api-response'
 import { verifyThirdPartyAuth } from '@/lib/auth/server'
-import { GmailIntegrationService } from '@/lib/integrations'
+import { GmailIntegrationService } from '@/infrastructure/integrations'
 import { NextRequest } from 'next/server'
 
 export async function POST(request: NextRequest) {

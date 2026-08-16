@@ -8,6 +8,7 @@ import ProjectTeamManager from '@/components/projects/ProjectTeamManager'
 import PublishUpdateTrigger from '@/components/projects/PublishUpdateTrigger'
 import MilestonesPanel from '@/components/projects/MilestonesPanel'
 import ApprovalsPanel from '@/components/projects/ApprovalsPanel'
+import ProjectBannerUpload from '@/components/projects/ProjectBannerUpload'
 
 export const metadata = {
   title: 'Project Workspace — Tvita Admin',
@@ -89,6 +90,26 @@ export default async function AdminProjectDetailPage({ params }: PageProps) {
         </div>
         <div className="page-header__actions flex items-center gap-2">
           <PublishUpdateTrigger projectId={project.id} />
+        </div>
+      </div>
+
+      {/* Project Banner cover image */}
+      <div 
+        style={{ 
+          position: 'relative', 
+          width: '100%', 
+          height: '240px', 
+          borderRadius: 'var(--radius-xl)', 
+          overflow: 'hidden', 
+          marginBottom: 'var(--space-6)',
+          backgroundImage: `url(${project.banner || '/banner.webp'})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          border: '1px solid var(--border-subtle)'
+        }}
+      >
+        <div style={{ position: 'absolute', right: 'var(--space-4)', bottom: 'var(--space-4)' }}>
+          <ProjectBannerUpload projectId={project.id} canUpload={isLead} />
         </div>
       </div>
 

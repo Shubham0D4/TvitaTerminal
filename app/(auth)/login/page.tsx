@@ -2,7 +2,7 @@
 
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { createSupabaseBrowserClient } from '@/lib/supabase/client'
+import { createSupabaseBrowserClient } from '@/infrastructure/supabase/client'
 import toast from 'react-hot-toast'
 
 function LoginForm() {

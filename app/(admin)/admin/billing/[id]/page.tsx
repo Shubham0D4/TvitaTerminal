@@ -8,8 +8,9 @@ export const metadata = {
   description: 'GST compliant tax invoice breakdown and payment status.',
 }
 
-function formatCurrency(amount: number | string): string {
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(Number(amount))
+function formatCurrency(amount: number | string, currency = 'INR'): string {
+  const locale = currency === 'INR' ? 'en-IN' : 'en-US'
+  return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(Number(amount))
 }
 
 function formatDate(date: Date | null): string {
@@ -166,10 +167,10 @@ export default async function AdminInvoiceDetailPage({ params }: PageProps) {
                   </td>
                   <td style={{ textAlign: 'center', color: 'var(--text-muted)' }}>{item.qty}</td>
                   <td style={{ textAlign: 'right', color: 'var(--text-muted)' }}>
-                    {formatCurrency(item.rate)}
+                    {formatCurrency(item.rate, invoice.currency)}
                   </td>
                   <td style={{ textAlign: 'right', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
-                    {formatCurrency(item.amount)}
+                    {formatCurrency(item.amount, invoice.currency)}
                   </td>
                 </tr>
               ))}
@@ -194,29 +195,36 @@ export default async function AdminInvoiceDetailPage({ params }: PageProps) {
           </div>
 
           <div style={{ width: 260, display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-            <div className="flex justify-between" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
+             <div className="flex justify-between" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
               <span>Subtotal:</span>
-              <span>{formatCurrency(Number(invoice.subtotal))}</span>
+              <span>{formatCurrency(Number(invoice.subtotal), invoice.currency)}</span>
             </div>
 
             {Number(invoice.taxAmount) > 0 && (
-              <>
+              invoice.currency === 'INR' ? (
+                <>
+                  <div className="flex justify-between" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                    <span>CGST ({(Number(invoice.taxRate) / 2)}%):</span>
+                    <span>{formatCurrency(Number(invoice.taxAmount) / 2, invoice.currency)}</span>
+                  </div>
+                  <div className="flex justify-between" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                    <span>SGST ({(Number(invoice.taxRate) / 2)}%):</span>
+                    <span>{formatCurrency(Number(invoice.taxAmount) / 2, invoice.currency)}</span>
+                  </div>
+                </>
+              ) : (
                 <div className="flex justify-between" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                  <span>CGST ({(Number(invoice.taxRate) / 2)}%):</span>
-                  <span>{formatCurrency(Number(invoice.taxAmount) / 2)}</span>
+                  <span>Tax ({Number(invoice.taxRate)}%):</span>
+                  <span>{formatCurrency(Number(invoice.taxAmount), invoice.currency)}</span>
                 </div>
-                <div className="flex justify-between" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                  <span>SGST ({(Number(invoice.taxRate) / 2)}%):</span>
-                  <span>{formatCurrency(Number(invoice.taxAmount) / 2)}</span>
-                </div>
-              </>
+              )
             )}
 
             <div className="divider" style={{ margin: 'var(--space-2) 0' }} />
 
             <div className="flex justify-between" style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)' }}>
               <span>Total Amount:</span>
-              <span style={{ color: 'var(--accent-primary)' }}>{formatCurrency(Number(invoice.amount))}</span>
+              <span style={{ color: 'var(--accent-primary)' }}>{formatCurrency(Number(invoice.amount), invoice.currency)}</span>
             </div>
           </div>
         </div>

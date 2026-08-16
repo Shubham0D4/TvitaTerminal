@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { COUNTRIES, getFlagEmoji, getCountryByCode } from '@/lib/countries'
+import { COUNTRIES, getFlagEmoji, getCountryByCode } from '@/shared/utilities/countries'
 import { ChevronDown, Search, X } from 'lucide-react'
 
 interface CountrySelectProps {

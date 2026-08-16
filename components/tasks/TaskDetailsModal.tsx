@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { X, History, MessageSquare, User, Clock, ArrowRight } from 'lucide-react'
-import { apiClient } from '@/lib/api-client'
+import { apiClient } from '@/shared/utilities/api-client'
 import toast from 'react-hot-toast'
 
 interface TaskDetailsModalProps {

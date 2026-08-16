@@ -3,10 +3,10 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft, Building2, Mail, Phone, MapPin, FileText, FolderKanban,
-  CreditCard, Plus, Layers, Globe, Edit, Users, ShieldCheck,
+  CreditCard, Plus, Layers, Globe, Edit, Users, User, ShieldCheck,
   Star, AlertTriangle, Clock, CheckCircle2, ExternalLink,
 } from 'lucide-react'
-import { getCountryDisplay, getFlagEmoji } from '@/lib/countries'
+import { getCountryDisplay, getFlagEmoji } from '@/shared/utilities/countries'
 import ClientContactsSection from './ClientContactsSection'
 import AdminSubTeamsSection from './AdminSubTeamsSection'
 import ClientDangerZone from './ClientDangerZone'
@@ -65,7 +65,6 @@ export default async function ClientDetailPage({ params }: PageProps) {
         },
         subscriptions: { orderBy: { createdAt: 'desc' }, include: { plan: true } },
         invoices: { orderBy: { createdAt: 'desc' } },
-        documents: { orderBy: { createdAt: 'desc' } },
         contacts: { orderBy: { createdAt: 'asc' } },
         subTeams: { orderBy: { createdAt: 'desc' } },
         accountManager: { select: { name: true } },
@@ -97,11 +96,9 @@ export default async function ClientDetailPage({ params }: PageProps) {
           </Link>
           <div>
             <div className="flex items-center gap-3">
-              {client.country && (
-                <span style={{ fontSize: '1.5rem', lineHeight: 1 }}>
-                  {getFlagEmoji(client.country)}
-                </span>
-              )}
+              <span style={{ display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}>
+                <User size={24} />
+              </span>
               <h1 className="page-header__title">{client.name}</h1>
               <span className={`badge badge--${client.status.toLowerCase()}`}>{client.status}</span>
               {client.clientPriority === 'VIP' && (

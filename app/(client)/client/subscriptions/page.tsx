@@ -1,8 +1,9 @@
 import { prisma } from '@/lib/prisma'
 import { getServerUser, getClientSubTeamContext } from '@/lib/auth/server'
 import { redirect } from 'next/navigation'
-import { Boxes, CheckCircle2, Sparkles } from 'lucide-react'
+import { Boxes, Sparkles } from 'lucide-react'
 import SubscriptionPlanCard from './SubscriptionPlanCard'
+import ClientActiveSubscriptionCard from '@/components/subscriptions/ClientActiveSubscriptionCard'
 
 export const metadata = {
   title: 'My Subscription — Tvita Client Portal',
@@ -34,6 +35,7 @@ export default async function ClientSubscriptionsPage() {
       subscriptions: {
         where: { status: 'ACTIVE' },
         include: {
+          client: { select: { id: true, name: true } },
           plan: {
             include: { features: true },
           },
@@ -69,66 +71,8 @@ export default async function ClientSubscriptionsPage() {
         </div>
       </div>
 
-      {/* Active Subscription Highlight Card */}
       {activeSubscription ? (
-        <div
-          className="card mb-8"
-          style={{
-            background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(168, 85, 247, 0.05) 100%)',
-            border: '1px solid rgba(99, 102, 241, 0.3)',
-            padding: 'var(--space-6)',
-          }}
-        >
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles size={18} className="text-primary" />
-                <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)', color: 'var(--accent-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  ACTIVE RETAINER
-                </span>
-              </div>
-              <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)' }}>
-                {activeSubscription.plan.name}
-              </h2>
-              <div style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-semibold)', color: 'var(--accent-primary)', marginTop: 4 }}>
-                {formatCurrency(Number(activeSubscription.plan.price))} / {activeSubscription.plan.billingCycle.toLowerCase()}
-              </div>
-            </div>
-
-            <span className="badge badge--active">ACTIVE</span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 mt-6 pt-4" style={{ borderTop: '1px solid var(--border-subtle)', fontSize: 'var(--text-xs)' }}>
-            <div>
-              <span style={{ color: 'var(--text-muted)' }}>Subscription Start: </span>
-              <span style={{ color: 'var(--text-primary)', fontWeight: 'var(--font-medium)' }}>
-                {formatDate(activeSubscription.startDate)}
-              </span>
-            </div>
-            <div>
-              <span style={{ color: 'var(--text-muted)' }}>Next Renewal Date: </span>
-              <span style={{ color: 'var(--text-primary)', fontWeight: 'var(--font-medium)' }}>
-                {formatDate(activeSubscription.endDate)}
-              </span>
-            </div>
-          </div>
-
-          {activeSubscription.plan.features.length > 0 && (
-            <div style={{ marginTop: 'var(--space-4)', paddingTop: 'var(--space-4)', borderTop: '1px solid var(--border-subtle)' }}>
-              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-semibold)', color: 'var(--text-muted)', marginBottom: 'var(--space-3)' }}>
-                Included Services & Deliverables:
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {activeSubscription.plan.features.map((f) => (
-                  <div key={f.id} className="flex items-center gap-2" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
-                    <CheckCircle2 size={14} className="text-success" />
-                    <span>{f.name}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        <ClientActiveSubscriptionCard subscription={activeSubscription as any} />
       ) : (
         <div className="card mb-8">
           <div className="empty-state">

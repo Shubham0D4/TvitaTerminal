@@ -1,11 +1,11 @@
-import { apiSuccess, Errors } from '@/lib/api-response'
+import { apiSuccess, Errors } from '@/shared/utilities/api-response'
 import { writeAuditLog } from '@/lib/audit'
 import { getServerUser, isAdmin } from '@/lib/auth/server'
-import { sendClientInvite } from '@/lib/email'
+import { sendClientInvite } from '@/infrastructure/email'
 import { createNotification } from '@/lib/notifications'
 import { prisma } from '@/lib/prisma'
-import { createSupabaseAdminClient } from '@/lib/supabase/server'
-import { getAppBaseUrl } from '@/lib/url'
+import { createSupabaseAdminClient } from '@/infrastructure/supabase/server'
+import { getAppBaseUrl } from '@/shared/utilities/url'
 import { NextRequest } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
 
       await prisma.profile.upsert({
         where: { email: loginEmail },
-        update: { id: authUserId, role: 'CLIENT', name: body.contactPerson || body.legalName || '', isActive: true },
+        update: { id: authUserId, role: 'CLIENT', name: body.contactPerson || body.legalName || '', isActive: true, invitedAt: new Date() },
         create: {
           id: authUserId,
           email: loginEmail,
@@ -118,6 +118,7 @@ export async function POST(request: NextRequest) {
           name: body.contactPerson || body.legalName || '',
           phone: body.phone || null,
           isActive: true,
+          invitedAt: new Date(),
         },
       })
       profileId = authUserId

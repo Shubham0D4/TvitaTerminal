@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { apiClient } from '@/lib/api-client'
+import { apiClient } from '@/shared/utilities/api-client'
 import toast from 'react-hot-toast'
-import { CheckCircle2, Printer, ArrowLeft } from 'lucide-react'
+import { CheckCircle2, Printer, ArrowLeft, Mail } from 'lucide-react'
 import Link from 'next/link'
 
 interface InvoiceActionsProps {
@@ -13,6 +13,21 @@ interface InvoiceActionsProps {
 
 export default function InvoiceActions({ invoiceId, status }: InvoiceActionsProps) {
   const [isPending, setIsPending] = useState(false)
+  const [reminderPending, setReminderPending] = useState(false)
+
+  const handleSendReminder = async () => {
+    setReminderPending(true)
+    const res = await apiClient(`/api/admin/billing/invoices/${invoiceId}/reminder`, {
+      method: 'POST',
+    })
+    setReminderPending(false)
+
+    if (res.success) {
+      toast.success('Payment reminder sent to client.')
+    } else {
+      toast.error(res.error?.message || 'Failed to send payment reminder')
+    }
+  }
 
   const handleMarkPaid = async () => {
     setIsPending(true)
@@ -69,15 +84,27 @@ export default function InvoiceActions({ invoiceId, status }: InvoiceActionsProp
         </button>
 
         {status === 'PENDING' && (
-          <button
-            type="button"
-            onClick={handleMarkPaid}
-            className={`btn btn--primary${isPending ? ' btn--loading' : ''}`}
-            disabled={isPending}
-          >
-            <CheckCircle2 size={16} />
-            Mark as Paid
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={handleSendReminder}
+              className={`btn btn--secondary${reminderPending ? ' btn--loading' : ''}`}
+              disabled={reminderPending}
+            >
+              <Mail size={16} />
+              Send Reminder
+            </button>
+
+            <button
+              type="button"
+              onClick={handleMarkPaid}
+              className={`btn btn--primary${isPending ? ' btn--loading' : ''}`}
+              disabled={isPending}
+            >
+              <CheckCircle2 size={16} />
+              Mark as Paid
+            </button>
+          </>
         )}
       </div>
     </div>

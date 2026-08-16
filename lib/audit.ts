@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma'
+import { AuditRepository } from '@/infrastructure/database/repositories/audit.repository'
 import { getServerUser } from '@/lib/auth/server'
 import type { NextRequest } from 'next/server'
 
@@ -44,26 +44,19 @@ export interface AuditLogOptions {
 }
 
 export async function writeAuditLog(options: AuditLogOptions): Promise<void> {
-  try {
-    await prisma.auditLog.create({
-      data: {
-        actorId: options.actorId ?? null,
-        actorEmail: options.actorEmail ?? null,
-        actorRole: options.actorRole ?? null,
-        action: options.action,
-        entityType: options.entityType,
-        entityId: options.entityId ?? null,
-        entityLabel: options.entityLabel ?? null,
-        oldValue: (options.oldValue as any) ?? undefined,
-        newValue: (options.newValue as any) ?? undefined,
-        ipAddress: options.ipAddress ?? null,
-        userAgent: options.userAgent ?? null,
-      },
-    })
-  } catch (err) {
-    // Audit log failures should not break the main flow
-    console.error('[AuditLog] Failed to write audit log:', err)
-  }
+  await AuditRepository.create({
+    actorId: options.actorId ?? null,
+    actorEmail: options.actorEmail ?? null,
+    actorRole: options.actorRole ?? null,
+    action: options.action,
+    entityType: options.entityType,
+    entityId: options.entityId ?? null,
+    entityLabel: options.entityLabel ?? null,
+    oldValue: (options.oldValue as any) ?? undefined,
+    newValue: (options.newValue as any) ?? undefined,
+    ipAddress: options.ipAddress ?? null,
+    userAgent: options.userAgent ?? null,
+  })
 }
 
 export function extractRequestMeta(req: NextRequest): { ipAddress: string; userAgent: string } {
