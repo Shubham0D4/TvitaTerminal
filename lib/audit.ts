@@ -28,6 +28,11 @@ export type AuditEntityType =
   | 'plan'
   | 'notification'
   | 'settings'
+  | 'issue'
+  | 'note'
+  | 'ticket'
+  | 'meeting'
+  | 'quote'
 
 export interface AuditLogOptions {
   actorId?: string

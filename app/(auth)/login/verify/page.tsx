@@ -12,15 +12,15 @@ function VerifyForm() {
   const email = searchParams.get('email')
   const next = searchParams.get('next') || '/'
 
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
-  const [errorMsg, setErrorMsg] = useState('')
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>(() => {
+    return (!token || !email) ? 'error' : 'loading'
+  })
+  const [errorMsg, setErrorMsg] = useState(() => {
+    return (!token || !email) ? 'Invalid verification link. Token or email is missing.' : ''
+  })
 
   useEffect(() => {
-    if (!token || !email) {
-      setStatus('error')
-      setErrorMsg('Invalid verification link. Token or email is missing.')
-      return
-    }
+    if (!token || !email) return
 
     let isMounted = true
 

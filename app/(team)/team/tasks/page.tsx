@@ -40,6 +40,7 @@ export default async function TeamTasksPage() {
         select: {
           id: true,
           name: true,
+          banner: true,
           client: { select: { name: true } },
           members: {
             include: {

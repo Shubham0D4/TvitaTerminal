@@ -141,6 +141,11 @@ enum VerificationStatus {
   VERIFIED
 }
 
+enum NoteType {
+  INTERNAL_TEAM
+  EXTERNAL_CLIENT
+}
+
 // ─────────────────────────────────────────────
 // PROFILE (extends Supabase auth.users)
 // ─────────────────────────────────────────────
@@ -187,6 +192,10 @@ model Profile {
   approvalsCreated     ClientApproval[]     @relation("ApprovalCreatedBy")
   clientSubTeam        ClientSubTeam? // If this profile is a sub-team login
   subTeamMember        ClientSubTeamMember? @relation("SubTeamMemberProfile")
+  issuesCreated        Issue[]              @relation("IssueCreator")
+  notesCreated         Note[]               @relation("NoteCreator")
+  ticketsCreated       Ticket[]             @relation("TicketCreator")
+  meetingsHosted       Meeting[]            @relation("MeetingHost")
 
   @@map("profiles")
 }
@@ -283,6 +292,7 @@ model Client {
   approvals      ClientApproval[]
   privatePlans   Plan[]           @relation("ClientPrivatePlans")
   subTeams       ClientSubTeam[]
+  quotes         Quote[]
 
   @@index([createdById])
   @@index([accountManagerId])
@@ -474,6 +484,10 @@ model Project {
   updates    ProjectUpdate[]
   invoices   Invoice[]
   approvals  ClientApproval[]
+  issues     Issue[]
+  notes      Note[]
+  tickets    Ticket[]
+  meetings   Meeting[]
 
   @@index([clientId])
   @@index([leadId])
@@ -788,4 +802,96 @@ model AppSettings {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("app_settings")
+}
+
+// ─────────────────────────────────────────────
+// NEW FEATURE MODELS
+// ─────────────────────────────────────────────
+
+model Issue {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId     String   @map("project_id") @db.Uuid
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title         String
+  description   String
+  status        String   @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED, CLOSED
+  priority      String   @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  creatorId     String   @map("creator_id") @db.Uuid
+  creator       Profile  @relation("IssueCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([projectId])
+  @@map("project_issues")
+}
+
+model Note {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId         String   @map("project_id") @db.Uuid
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title             String
+  content           String
+  type              NoteType @default(INTERNAL_TEAM)
+  creatorId         String   @map("creator_id") @db.Uuid
+  creator           Profile  @relation("NoteCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  allowedProfileIds String[] @default([]) @map("allowed_profile_ids")
+  allowedSubTeamIds String[] @default([]) @map("allowed_sub_team_ids")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@index([projectId])
+  @@map("project_notes")
+}
+
+model Ticket {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId     String   @map("project_id") @db.Uuid
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title         String
+  description   String
+  status        String   @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED, CLOSED
+  priority      String   @default("MEDIUM") // LOW, MEDIUM, HIGH
+  creatorId     String   @map("creator_id") @db.Uuid
+  creator       Profile  @relation("TicketCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([projectId])
+  @@map("project_tickets")
+}
+
+model Meeting {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId   String   @map("project_id") @db.Uuid
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  meetLink    String?  @map("meet_link")
+  eventId     String?  @map("event_id")
+  scheduledAt DateTime @map("scheduled_at")
+  duration    Int      @default(30)
+  hostId      String   @map("host_id") @db.Uuid
+  host        Profile  @relation("MeetingHost", fields: [hostId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([projectId])
+  @@map("project_meetings")
+}
+
+model Quote {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clientId      String   @map("client_id") @db.Uuid
+  client        Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  title         String
+  description   String
+  budget        Decimal  @db.Decimal(12, 2)
+  currency      String   @default("INR")
+  status        String   @default("PENDING") // PENDING, COUNTER_OFFERED, ACCEPTED, REJECTED
+  adminNotes    String?  @map("admin_notes")
+  counterBudget Decimal? @map("counter_budget") @db.Decimal(12, 2)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([clientId])
+  @@map("client_quotes")
 }

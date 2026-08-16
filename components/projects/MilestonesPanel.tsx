@@ -1,12 +1,17 @@
 'use client'
 
 import { useState, useTransition, useActionState, ChangeEvent } from 'react'
-import { Plus, X, Trash2, CheckCircle2, PlayCircle, PauseCircle, Image as ImageIcon, Lock } from 'lucide-react'
+import { Plus, X, Trash2, CheckCircle2, PlayCircle, PauseCircle, Image as ImageIcon, Lock, ChevronDown, ChevronUp } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { createMilestone, updateMilestoneStatus, deleteMilestone, type MilestoneFormState } from '@/app/(admin)/admin/projects/milestoneActions'
 import type { Milestone } from '@prisma/client'
+import { apiClient } from '@/shared/utilities/api-client'
 
-type MilestoneWithAssignee = Milestone & { assignee?: { name: string } | null; imageUrls?: string[] }
+type MilestoneWithAssignee = Milestone & {
+  assignee?: { name: string } | null
+  imageUrls?: string[]
+  tasks?: any[]
+}
 
 interface Props {
   projectId: string
@@ -37,6 +42,71 @@ export default function MilestonesPanel({ projectId, isLead, milestones: initial
   const [previewImages, setPreviewImages] = useState<string[]>([])
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+
+  // Collapsible and quick task creation state
+  const [expandedMilestones, setExpandedMilestones] = useState<Record<string, boolean>>({})
+  const [addingTaskMilestoneId, setAddingTaskMilestoneId] = useState<string | null>(null)
+
+  const [taskTitle, setTaskTitle] = useState('')
+  const [taskDesc, setTaskDesc] = useState('')
+  const [taskPriority, setTaskPriority] = useState<'URGENT' | 'HIGH' | 'MEDIUM' | 'LOW'>('MEDIUM')
+  const [taskDevId, setTaskDevId] = useState('')
+  const [taskTesterId, setTaskTesterId] = useState('')
+  const [taskClientVisible, setTaskClientVisible] = useState(false)
+  const [taskCreating, setTaskCreating] = useState(false)
+
+  const handleQuickAddTask = async (e: React.FormEvent, milestoneId: string) => {
+    e.preventDefault()
+    if (!taskTitle.trim()) {
+      toast.error('Task title is required')
+      return
+    }
+    setTaskCreating(true)
+    try {
+      const res = await apiClient('/api/team/tasks', {
+        method: 'POST',
+        body: JSON.stringify({
+          projectId,
+          milestoneId,
+          title: taskTitle.trim(),
+          description: taskDesc.trim() || undefined,
+          priority: taskPriority,
+          developerId: taskDevId || undefined,
+          testerId: taskTesterId || undefined,
+          clientVisible: taskClientVisible,
+        }),
+      })
+
+      toast.success('Task created successfully')
+
+      // Update tasks in local milestone state
+      setMilestones((prev) =>
+        prev.map((m) => {
+          if (m.id === milestoneId) {
+            const currentTasks = m.tasks || []
+            return {
+              ...m,
+              tasks: [...currentTasks, res],
+            }
+          }
+          return m
+        })
+      )
+
+      // Reset task form
+      setTaskTitle('')
+      setTaskDesc('')
+      setTaskPriority('MEDIUM')
+      setTaskDevId('')
+      setTaskTesterId('')
+      setTaskClientVisible(false)
+      setAddingTaskMilestoneId(null)
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to create task')
+    } finally {
+      setTaskCreating(false)
+    }
+  }
 
   const createBound = createMilestone.bind(null, projectId)
   const [state, formAction, creating] = useActionState(createBound, initial)
@@ -219,8 +289,12 @@ export default function MilestonesPanel({ projectId, isLead, milestones: initial
                       </span>
                     )}
                   </div>
-                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
+                  <div
+                    style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, userSelect: 'none' }}
+                    onClick={() => setExpandedMilestones(prev => ({ ...prev, [m.id]: !prev[m.id] }))}
+                  >
                     {m.name}
+                    {expandedMilestones[m.id] ? <ChevronUp size={14} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />}
                   </div>
                   {m.description && (
                     <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 2 }}>{m.description}</div>
@@ -283,6 +357,182 @@ export default function MilestonesPanel({ projectId, isLead, milestones: initial
                   )}
                 </div>
               </div>
+
+              {/* Collapsible Tasks block */}
+              {expandedMilestones[m.id] && (
+                <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border-subtle)' }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>Milestone Tasks ({m.tasks?.length ?? 0})</span>
+                    </div>
+                    {isLead && (
+                      <button
+                        type="button"
+                        className="btn btn--ghost btn--xs"
+                        onClick={() => setAddingTaskMilestoneId(addingTaskMilestoneId === m.id ? null : m.id)}
+                        style={{ fontSize: 10, padding: '2px 6px' }}
+                      >
+                        {addingTaskMilestoneId === m.id ? 'Cancel' : '+ Quick Add Task'}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Quick Add Task Form */}
+                  {isLead && addingTaskMilestoneId === m.id && (
+                    <form
+                      onSubmit={(e) => handleQuickAddTask(e, m.id)}
+                      style={{
+                        marginBottom: 12,
+                        padding: 12,
+                        background: '#ffffff',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--border-subtle)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                      }}
+                    >
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        <div style={{ gridColumn: 'span 2' }}>
+                          <input
+                            placeholder="Task Title *"
+                            className="form-input"
+                            style={{ background: '#ffffff', fontSize: 12, padding: '6px 8px', height: 'auto', width: '100%' }}
+                            value={taskTitle}
+                            onChange={(e) => setTaskTitle(e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div style={{ gridColumn: 'span 2' }}>
+                          <textarea
+                            placeholder="Description (optional)"
+                            className="form-input"
+                            style={{ background: '#ffffff', fontSize: 12, padding: '6px 8px', height: 'auto', width: '100%' }}
+                            rows={2}
+                            value={taskDesc}
+                            onChange={(e) => setTaskDesc(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <select
+                            className="form-select"
+                            style={{ background: '#ffffff', fontSize: 12, padding: '4px 8px', height: 'auto', width: '100%' }}
+                            value={taskPriority}
+                            onChange={(e) => setTaskPriority(e.target.value as any)}
+                          >
+                            <option value="LOW">Low Priority</option>
+                            <option value="MEDIUM">Medium Priority</option>
+                            <option value="HIGH">High Priority</option>
+                            <option value="URGENT">Urgent Priority</option>
+                          </select>
+                        </div>
+                        <div>
+                          <select
+                            className="form-select"
+                            style={{ background: '#ffffff', fontSize: 12, padding: '4px 8px', height: 'auto', width: '100%' }}
+                            value={taskDevId}
+                            onChange={(e) => setTaskDevId(e.target.value)}
+                          >
+                            <option value="">Auto-assign Dev</option>
+                            {projectMembers
+                              .filter((member) => member.role === 'DEVELOPER')
+                              .map((member) => (
+                                <option key={member.profileId} value={member.profileId}>
+                                  {member.profile.name} (Dev)
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+                        <div>
+                          <select
+                            className="form-select"
+                            style={{ background: '#ffffff', fontSize: 12, padding: '4px 8px', height: 'auto', width: '100%' }}
+                            value={taskTesterId}
+                            onChange={(e) => setTaskTesterId(e.target.value)}
+                          >
+                            <option value="">Auto-assign QA</option>
+                            {projectMembers
+                              .filter((member) => member.role === 'TESTER')
+                              .map((member) => (
+                                <option key={member.profileId} value={member.profileId}>
+                                  {member.profile.name} (QA)
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={taskClientVisible}
+                              onChange={(e) => setTaskClientVisible(e.target.checked)}
+                            />
+                            Client Visible
+                          </label>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+                        <button
+                          type="submit"
+                          className="btn btn--primary btn--xs"
+                          style={{ padding: '4px 10px' }}
+                          disabled={taskCreating}
+                        >
+                          {taskCreating ? 'Creating...' : 'Save Task'}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {/* Tasks List */}
+                  {m.tasks && m.tasks.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {m.tasks.map((task: any) => (
+                        <div
+                          key={task.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '6px 10px',
+                            background: 'var(--bg-overlay)',
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1px solid var(--border-subtle)',
+                            fontSize: 11,
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{task.title}</span>
+                            <span
+                              className={`badge`}
+                              style={{
+                                fontSize: 8,
+                                padding: '1px 4px',
+                                background:
+                                  task.priority === 'URGENT'
+                                    ? 'rgba(239, 68, 68, 0.1)'
+                                    : 'rgba(99,102,241,0.1)',
+                                color:
+                                  task.priority === 'URGENT' ? 'red' : 'var(--accent-primary)',
+                              }}
+                            >
+                              {task.priority}
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)' }}>
+                            <span>Status: {task.status.replace(/_/g, ' ')}</span>
+                            {(task.developer || task.tester) && (
+                              <span>· ({task.developer?.name || task.tester?.name})</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>No tasks set for this milestone.</p>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>

@@ -43,18 +43,21 @@ export default async function AdminSubscriptionsPage() {
     }),
   ])
 
+  const serializedPlans = JSON.parse(JSON.stringify(plans))
+  const serializedSubscriptions = JSON.parse(JSON.stringify(subscriptions))
+
   return (
     <div>
       {/* Page Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-header__title">Subscription Plans & Retainers</h1>
+          <h1 className="page-header__title">Subscription Plans &amp; Retainers</h1>
           <p className="page-header__subtitle">
             Configure monthly agency retainer packages and monitor client subscription status.
           </p>
         </div>
         <div className="page-header__actions">
-          <AssignPlanButton clients={clients} plans={plans.map((p) => ({ id: p.id, name: p.name }))} />
+          <AssignPlanButton clients={clients} plans={serializedPlans.map((p: any) => ({ id: p.id, name: p.name }))} />
           <Link href="/admin/subscriptions/plans/new" className="btn btn--primary">
             <Plus size={16} />
             Create Plan
@@ -65,10 +68,10 @@ export default async function AdminSubscriptionsPage() {
       {/* Subscription Plans Grid */}
       <div className="mb-8">
         <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', marginBottom: 'var(--space-4)' }}>
-          Active Retainer Packages ({plans.length})
+          Active Retainer Packages ({serializedPlans.length})
         </h2>
 
-        {plans.length === 0 ? (
+        {serializedPlans.length === 0 ? (
           <div className="card">
             <div className="empty-state">
               <Boxes size={28} />
@@ -81,17 +84,17 @@ export default async function AdminSubscriptionsPage() {
             </div>
           </div>
         ) : (
-          <PlansListGrid plans={plans as any} />
+          <PlansListGrid plans={serializedPlans} />
         )}
       </div>
 
       {/* Active Client Subscriptions List */}
       <div>
         <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', marginBottom: 'var(--space-4)' }}>
-          Client Subscriptions ({subscriptions.length})
+          Client Subscriptions ({serializedSubscriptions.length})
         </h2>
 
-        {subscriptions.length === 0 ? (
+        {serializedSubscriptions.length === 0 ? (
           <div className="card">
             <div className="empty-state">
               <Layers size={28} />
@@ -100,7 +103,7 @@ export default async function AdminSubscriptionsPage() {
             </div>
           </div>
         ) : (
-          <SubscriptionsListTable subscriptions={subscriptions as any} />
+          <SubscriptionsListTable subscriptions={serializedSubscriptions} />
         )}
       </div>
     </div>

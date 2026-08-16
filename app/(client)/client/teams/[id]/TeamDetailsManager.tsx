@@ -69,13 +69,15 @@ type SubTeamDetail = {
   members: MemberItem[]
 }
 
-const ACCESS_COMPONENTS: { key: keyof AccessPolicy; label: string; description: string; icon: typeof FolderKanban }[] = [
+const ACCESS_COMPONENTS: { key: keyof AccessPolicy; label: string; description: string; icon: any }[] = [
   { key: 'projects', label: 'Project Visibility', description: 'View assigned project overview & details', icon: FolderKanban },
   { key: 'milestones', label: 'Milestones & Tasks', description: 'View project timelines and milestone status', icon: ShieldCheck },
   { key: 'approvals', label: 'Deliverable Approvals', description: 'Review and approve milestone deliverables', icon: Check },
   { key: 'invoices', label: 'Billing & Invoices', description: 'View invoices and payment receipts', icon: CreditCard },
   { key: 'subscriptions', label: 'Subscriptions & Plans', description: 'View subscription plan details', icon: Sparkles },
   { key: 'billing', label: 'Payment Settings', description: 'View payment methods and billing info', icon: CreditCard },
+  { key: 'issues', label: 'Issue Tracking', description: 'View and report project issues', icon: ShieldAlert },
+  { key: 'notes', label: 'Notes System', description: 'View and create project notes', icon: FileText },
 ]
 
 export default function TeamDetailsManager({
@@ -110,6 +112,8 @@ export default function TeamDetailsManager({
     invoices: false,
     subscriptions: false,
     billing: false,
+    issues: true,
+    notes: true,
   })
 
   // Edit Member Access Scope Modal
@@ -121,6 +125,8 @@ export default function TeamDetailsManager({
     invoices: false,
     subscriptions: false,
     billing: false,
+    issues: true,
+    notes: true,
   })
 
   // --- Handlers ---
@@ -141,6 +147,8 @@ export default function TeamDetailsManager({
         invoices: enableProjectAccess && enableFinancialAccess,
         subscriptions: enableProjectAccess && enableFinancialAccess,
         billing: enableProjectAccess && enableFinancialAccess,
+        issues: enableProjectAccess,
+        notes: enableProjectAccess,
       }
 
       const updated = await apiClient.patch<SubTeamDetail>(`/api/client/team/${team.id}`, {
@@ -211,6 +219,8 @@ export default function TeamDetailsManager({
       invoices: Boolean(m.customPolicy?.invoices),
       subscriptions: Boolean(m.customPolicy?.subscriptions),
       billing: Boolean(m.customPolicy?.billing),
+      issues: m.customPolicy?.issues !== false,
+      notes: m.customPolicy?.notes !== false,
     })
   }
 
@@ -541,7 +551,8 @@ export default function TeamDetailsManager({
                     required
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="input"
+                    className="form-input"
+                    style={{ background: '#ffffff', color: '#0f172a' }}
                   />
                 </div>
 
@@ -551,13 +562,14 @@ export default function TeamDetailsManager({
                     type="text"
                     value={editDescription}
                     onChange={(e) => setEditDescription(e.target.value)}
-                    className="input"
+                    className="form-input"
+                    style={{ background: '#ffffff', color: '#0f172a' }}
                     placeholder="e.g. QA testing & deliverable review team"
                   />
                 </div>
 
                 {/* 1. Project Access Decision */}
-                <div style={{ padding: 'var(--space-3)', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+                <div style={{ padding: 'var(--space-3)', background: '#ffffff', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
                   <label className="flex items-center gap-2 cursor-pointer font-semibold text-primary text-xs">
                     <input
                       type="checkbox"
@@ -604,7 +616,7 @@ export default function TeamDetailsManager({
 
                 {/* 2. Financial Access Decision */}
                 {enableProjectAccess && (
-                  <div style={{ padding: 'var(--space-3)', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+                  <div style={{ padding: 'var(--space-3)', background: '#ffffff', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
                     <label className="flex items-center gap-2 cursor-pointer font-semibold text-primary text-xs">
                       <input
                         type="checkbox"
@@ -656,7 +668,8 @@ export default function TeamDetailsManager({
                     placeholder="e.g. Sarah Jenkins"
                     value={memberName}
                     onChange={(e) => setMemberName(e.target.value)}
-                    className="input"
+                    className="form-input"
+                    style={{ background: '#ffffff', color: '#0f172a' }}
                   />
                 </div>
 
@@ -668,7 +681,8 @@ export default function TeamDetailsManager({
                     placeholder="e.g. sarah@company.com"
                     value={memberEmail}
                     onChange={(e) => setMemberEmail(e.target.value)}
-                    className="input"
+                    className="form-input"
+                    style={{ background: '#ffffff', color: '#0f172a' }}
                   />
                   <p className="form-hint">
                     A personalized login magic link will be automatically sent to this email address.
@@ -682,7 +696,8 @@ export default function TeamDetailsManager({
                     placeholder="e.g. QA Lead / Designer"
                     value={memberDesignation}
                     onChange={(e) => setMemberDesignation(e.target.value)}
-                    className="input"
+                    className="form-input"
+                    style={{ background: '#ffffff', color: '#0f172a' }}
                   />
                 </div>
 
@@ -699,7 +714,7 @@ export default function TeamDetailsManager({
                           className="flex items-center gap-2 p-2 rounded cursor-pointer border text-xs"
                           style={{
                             borderColor: isChecked ? 'var(--accent-primary)' : 'var(--border-subtle)',
-                            background: isChecked ? 'rgba(99, 102, 241, 0.08)' : 'var(--bg-elevated)',
+                            background: isChecked ? 'rgba(99, 102, 241, 0.08)' : '#ffffff',
                           }}
                         >
                           <input
@@ -760,7 +775,7 @@ export default function TeamDetailsManager({
                         className="flex items-start gap-3 p-3 rounded-lg border cursor-pointer"
                         style={{
                           borderColor: isChecked ? 'var(--accent-primary)' : 'var(--border-subtle)',
-                          background: isChecked ? 'rgba(99, 102, 241, 0.06)' : 'var(--bg-elevated)',
+                          background: isChecked ? 'rgba(99, 102, 241, 0.06)' : '#ffffff',
                         }}
                       >
                         <input

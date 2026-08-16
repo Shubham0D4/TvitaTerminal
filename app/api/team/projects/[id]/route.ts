@@ -80,6 +80,14 @@ export async function PUT(
       },
     })
 
+    if (projectLeadId) {
+      await prisma.projectMember.upsert({
+        where: { projectId_profileId: { projectId: id, profileId: projectLeadId } },
+        create: { projectId: id, profileId: projectLeadId, role: 'TEAM_LEAD' },
+        update: { role: 'TEAM_LEAD' },
+      })
+    }
+
     return apiSuccess(updated)
   } catch (error) {
     console.error('Team project PUT API error:', error)

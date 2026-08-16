@@ -114,8 +114,8 @@ export default function InvoiceForm({
   const selectedClient = clients.find((c) => c.id === selectedClientId)
 
   // Default dates: Today & +15 days
-  const todayStr = new Date().toISOString().split('T')[0]
-  const dueDateStr = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+  const [todayStr] = useState(() => new Date().toISOString().split('T')[0])
+  const [dueDateStr] = useState(() => new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()

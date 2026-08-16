@@ -83,6 +83,15 @@ export async function PUT(
       },
     })
 
+    const finalLeadId = leadId !== undefined ? leadId : existing.leadId
+    if (finalLeadId) {
+      await prisma.projectMember.upsert({
+        where: { projectId_profileId: { projectId: id, profileId: finalLeadId } },
+        create: { projectId: id, profileId: finalLeadId, role: 'TEAM_LEAD' },
+        update: { role: 'TEAM_LEAD' },
+      })
+    }
+
     await writeAuditLog({
       actorId: user.id,
       actorEmail: user.email,

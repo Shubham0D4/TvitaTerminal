@@ -3,7 +3,7 @@ import { getServerUser } from '@/lib/auth/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Building2 } from 'lucide-react'
-import MilestonesPanel from '@/components/projects/MilestonesPanel'
+import ProjectWorkspaceTabs from '@/components/projects/ProjectWorkspaceTabs'
 import ApprovalsPanel from '@/components/projects/ApprovalsPanel'
 import ProjectBannerUpload from '@/components/projects/ProjectBannerUpload'
 
@@ -42,7 +42,16 @@ export default async function TeamProjectDetailPage({ params }: PageProps) {
       members: { include: { profile: { select: { id: true, name: true } } } },
       milestones: {
         orderBy: { sortOrder: 'asc' },
-        include: { assignee: { select: { name: true } } },
+        include: {
+          assignee: { select: { name: true } },
+          tasks: {
+            include: {
+              developer: { select: { name: true } },
+              tester: { select: { name: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+          },
+        },
       },
       updates: {
         where: { clientVisible: true },
@@ -144,11 +153,15 @@ export default async function TeamProjectDetailPage({ params }: PageProps) {
       <div className="grid grid-cols-3 gap-6">
         {/* Main: Milestones + Approvals (lead only) */}
         <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-          <MilestonesPanel
+          <ProjectWorkspaceTabs
             projectId={id}
-            isLead={isLead}
-            milestones={project.milestones as Parameters<typeof MilestonesPanel>[0]['milestones']}
+            clientId={project.clientId}
+            userRole={user.role}
+            userTeamRole={user.teamRole}
+            userId={user.id}
+            milestones={project.milestones}
             projectMembers={project.members}
+            isLead={isLead}
           />
 
           {isLead && (

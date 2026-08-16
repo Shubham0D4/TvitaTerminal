@@ -117,71 +117,74 @@ export default async function AdminProjectsPage({
       ) : (
         <div className="grid grid-cols-2 gap-4">
           {projects.map((project) => (
-            <div key={project.id} className="card hover-lift" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-              <div className="flex items-start justify-between gap-3">
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <Link
-                    href={`/admin/projects/${project.id}`}
-                    style={{
-                      fontSize: 'var(--text-md)',
-                      fontWeight: 'var(--font-semibold)',
-                      color: 'var(--text-primary)',
-                      textDecoration: 'none',
-                    }}
-                  >
-                    {project.name}
-                  </Link>
-                  <div className="flex items-center gap-2" style={{ marginTop: 'var(--space-1)', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                    <Building2 size={12} />
-                    <Link href={`/admin/clients/${project.client.id}`} style={{ color: 'var(--text-muted)' }}>
-                      {project.client.name}
+            <div key={project.id} className="card hover-lift" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: 0 }}>
+              <div style={{ height: 120, backgroundImage: `url(${project.banner || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800'})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+              <div style={{ padding: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                <div className="flex items-start justify-between gap-3">
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <Link
+                      href={`/admin/projects/${project.id}`}
+                      style={{
+                        fontSize: 'var(--text-md)',
+                        fontWeight: 'var(--font-semibold)',
+                        color: 'var(--text-primary)',
+                        textDecoration: 'none',
+                      }}
+                    >
+                      {project.name}
                     </Link>
+                    <div className="flex items-center gap-2" style={{ marginTop: 'var(--space-1)', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                      <Building2 size={12} />
+                      <Link href={`/admin/clients/${project.client.id}`} style={{ color: 'var(--text-muted)' }}>
+                        {project.client.name}
+                      </Link>
+                    </div>
+                  </div>
+
+                  <span className={`badge badge--${project.status.toLowerCase().replace('_', '-')}`}>
+                    {project.status.replace('_', ' ')}
+                  </span>
+                </div>
+
+                {project.description && (
+                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                    {project.description}
+                  </p>
+                )}
+
+                {/* Progress */}
+                <div>
+                  <div className="flex items-center justify-between mb-1" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                    <span>Progress</span>
+                    <span>{project.progress}%</span>
+                  </div>
+                  <div className="progress-bar-container">
+                    <div className="progress-bar-fill" style={{ width: `${project.progress}%` }} />
                   </div>
                 </div>
 
-                <span className={`badge badge--${project.status.toLowerCase().replace('_', '-')}`}>
-                  {project.status.replace('_', ' ')}
-                </span>
-              </div>
-
-              {project.description && (
-                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                  {project.description}
-                </p>
-              )}
-
-              {/* Progress */}
-              <div>
-                <div className="flex items-center justify-between mb-1" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                  <span>Progress</span>
-                  <span>{project.progress}%</span>
-                </div>
-                <div className="progress-bar-container">
-                  <div className="progress-bar-fill" style={{ width: `${project.progress}%` }} />
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="flex items-center justify-between pt-3" style={{ borderTop: '1px solid var(--border-subtle)', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                <div className="flex items-center gap-3">
-                  {project.lead && (
+                {/* Footer */}
+                <div className="flex items-center justify-between pt-3" style={{ borderTop: '1px solid var(--border-subtle)', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                  <div className="flex items-center gap-3">
+                    {project.lead && (
+                      <div className="flex items-center gap-1">
+                        <User size={12} />
+                        <span>{project.lead.name.split(' ')[0]}</span>
+                      </div>
+                    )}
                     <div className="flex items-center gap-1">
-                      <User size={12} />
-                      <span>{project.lead.name.split(' ')[0]}</span>
+                      <CheckCircle2 size={12} />
+                      <span>{project._count.tasks} tasks</span>
+                    </div>
+                  </div>
+
+                  {project.endDate && (
+                    <div className="flex items-center gap-1">
+                      <Calendar size={12} />
+                      <span>Due {formatDate(project.endDate)}</span>
                     </div>
                   )}
-                  <div className="flex items-center gap-1">
-                    <CheckCircle2 size={12} />
-                    <span>{project._count.tasks} tasks</span>
-                  </div>
                 </div>
-
-                {project.endDate && (
-                  <div className="flex items-center gap-1">
-                    <Calendar size={12} />
-                    <span>Due {formatDate(project.endDate)}</span>
-                  </div>
-                )}
               </div>
             </div>
           ))}

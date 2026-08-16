@@ -88,6 +88,8 @@ export type AccessPolicy = {
   invoices: boolean
   subscriptions: boolean
   billing: boolean
+  issues: boolean
+  notes: boolean
 }
 
 export const DEFAULT_SUBTEAM_POLICY: AccessPolicy = {
@@ -97,6 +99,8 @@ export const DEFAULT_SUBTEAM_POLICY: AccessPolicy = {
   invoices: false,
   subscriptions: false,
   billing: false,
+  issues: true,
+  notes: true,
 }
 
 export type SubTeamContext = {

@@ -138,6 +138,20 @@ const POLICY_DEFINITIONS: PolicyDefinition[] = [
     category: 'commercial',
     icon: CreditCard,
   },
+  {
+    key: 'issues',
+    label: 'Issues Tracker',
+    description: 'Track, view, and report project-specific issues',
+    category: 'execution',
+    icon: ShieldAlert,
+  },
+  {
+    key: 'notes',
+    label: 'Project Notes',
+    description: 'Collaborate using private and shared project notes',
+    category: 'execution',
+    icon: FileText,
+  },
 ]
 
 const DEFAULT_POLICY: AccessPolicy = {
@@ -147,6 +161,8 @@ const DEFAULT_POLICY: AccessPolicy = {
   invoices: false,
   subscriptions: false,
   billing: false,
+  issues: true,
+  notes: true,
 }
 
 function getInitials(name: string): string {
@@ -756,7 +772,7 @@ export default function ClientTeamsManager({ client, projects, initialSubTeams }
                   value={teamName}
                   onChange={(e) => setTeamName(e.target.value)}
                   className="form-input"
-                  style={{ background: '#f8fafc', border: '1px solid var(--border-default)', color: '#0f172a' }}
+                  style={{ background: '#ffffff', border: '1px solid var(--border-default)', color: '#0f172a' }}
                 />
               </div>
 
@@ -768,7 +784,7 @@ export default function ClientTeamsManager({ client, projects, initialSubTeams }
                   value={teamDesc}
                   onChange={(e) => setTeamDesc(e.target.value)}
                   className="form-input"
-                  style={{ background: '#f8fafc', border: '1px solid var(--border-default)', color: '#0f172a' }}
+                  style={{ background: '#ffffff', border: '1px solid var(--border-default)', color: '#0f172a' }}
                 />
               </div>
 
@@ -782,7 +798,7 @@ export default function ClientTeamsManager({ client, projects, initialSubTeams }
                   Select which projects members of this team can see. If none selected, team members can view all client projects.
                 </p>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 180, overflowY: 'auto', background: 'var(--bg-elevated)', padding: 'var(--space-3)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 180, overflowY: 'auto', background: '#ffffff', padding: 'var(--space-3)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
                   {projects.length === 0 ? (
                     <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>No projects created yet for your client account.</div>
                   ) : (
@@ -835,7 +851,7 @@ export default function ClientTeamsManager({ client, projects, initialSubTeams }
                   value={roleName}
                   onChange={(e) => setRoleName(e.target.value)}
                   className="form-input"
-                  style={{ background: '#f8fafc', border: '1px solid var(--border-default)', color: '#0f172a' }}
+                  style={{ background: '#ffffff', border: '1px solid var(--border-default)', color: '#0f172a' }}
                 />
               </div>
 
@@ -847,7 +863,7 @@ export default function ClientTeamsManager({ client, projects, initialSubTeams }
                   value={roleDesc}
                   onChange={(e) => setRoleDesc(e.target.value)}
                   className="form-input"
-                  style={{ background: '#f8fafc', border: '1px solid var(--border-default)', color: '#0f172a' }}
+                  style={{ background: '#ffffff', border: '1px solid var(--border-default)', color: '#0f172a' }}
                 />
               </div>
 
@@ -868,7 +884,7 @@ export default function ClientTeamsManager({ client, projects, initialSubTeams }
                           padding: '6px 12px',
                           borderRadius: 'var(--radius-md)',
                           border: isEnabled ? '1px solid rgba(99, 102, 241, 0.4)' : '1px solid var(--border-subtle)',
-                          background: isEnabled ? 'rgba(99, 102, 241, 0.06)' : 'var(--bg-overlay)',
+                          background: isEnabled ? 'rgba(99, 102, 241, 0.06)' : '#ffffff',
                           cursor: 'pointer',
                         }}
                       >
@@ -911,7 +927,7 @@ export default function ClientTeamsManager({ client, projects, initialSubTeams }
                     value={memberName}
                     onChange={(e) => setMemberName(e.target.value)}
                     className="form-input"
-                    style={{ background: '#f8fafc', border: '1px solid var(--border-default)', color: '#0f172a' }}
+                    style={{ background: '#ffffff', border: '1px solid var(--border-default)', color: '#0f172a' }}
                   />
                 </div>
 
@@ -924,7 +940,7 @@ export default function ClientTeamsManager({ client, projects, initialSubTeams }
                     value={memberEmail}
                     onChange={(e) => setMemberEmail(e.target.value)}
                     className="form-input"
-                    style={{ background: '#f8fafc', border: '1px solid var(--border-default)', color: '#0f172a' }}
+                    style={{ background: '#ffffff', border: '1px solid var(--border-default)', color: '#0f172a' }}
                   />
                 </div>
               </div>
@@ -938,7 +954,7 @@ export default function ClientTeamsManager({ client, projects, initialSubTeams }
                     value={memberDesignation}
                     onChange={(e) => setMemberDesignation(e.target.value)}
                     className="form-input"
-                    style={{ background: '#f8fafc', border: '1px solid var(--border-default)', color: '#0f172a' }}
+                    style={{ background: '#ffffff', border: '1px solid var(--border-default)', color: '#0f172a' }}
                   />
                 </div>
 
@@ -948,7 +964,7 @@ export default function ClientTeamsManager({ client, projects, initialSubTeams }
                     value={memberRoleId}
                     onChange={(e) => setMemberRoleId(e.target.value)}
                     className="form-select"
-                    style={{ background: '#f8fafc', border: '1px solid var(--border-default)', color: '#0f172a' }}
+                    style={{ background: '#ffffff', border: '1px solid var(--border-default)', color: '#0f172a' }}
                   >
                     <option value="">Default Team Role</option>
                     {(teams.find((t) => t.id === memberTeamId)?.roles || []).map((r) => (

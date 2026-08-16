@@ -85,6 +85,14 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    if (leadId) {
+      await prisma.projectMember.upsert({
+        where: { projectId_profileId: { projectId: project.id, profileId: leadId } },
+        create: { projectId: project.id, profileId: leadId, role: 'TEAM_LEAD' },
+        update: { role: 'TEAM_LEAD' },
+      })
+    }
+
     await writeAuditLog({
       actorId: user.id,
       actorEmail: user.email,

@@ -159,18 +159,17 @@ function TaskCard({
         background: 'var(--bg-elevated)',
         border: '1px solid var(--border-subtle)',
         borderRadius: 'var(--radius-md)',
-        padding: 'var(--space-3)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 'var(--space-2)',
+        overflow: 'hidden',
         cursor: 'pointer',
       }}
       onClick={onOpen}
     >
-      <div className="flex items-center justify-between" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-        <span>{task.project?.client?.name} / {task.project?.name}</span>
-        <History size={13} style={{ color: 'var(--text-muted)' }} />
-      </div>
+      <div style={{ height: 70, backgroundImage: `url(${task.project?.banner || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800'})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+      <div style={{ padding: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+        <div className="flex items-center justify-between" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+          <span>{task.project?.client?.name} / {task.project?.name}</span>
+          <History size={13} style={{ color: 'var(--text-muted)' }} />
+        </div>
 
       <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
         {task.title}
@@ -220,6 +219,7 @@ function TaskCard({
           userRole={userRole}
           teamRole={teamRole}
         />
+      </div>
       </div>
     </div>
   )

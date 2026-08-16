@@ -6,7 +6,7 @@ import { ArrowLeft, Building2, Plus, CreditCard } from 'lucide-react'
 import AdminProjectLeadSelector from '@/components/projects/AdminProjectLeadSelector'
 import ProjectTeamManager from '@/components/projects/ProjectTeamManager'
 import PublishUpdateTrigger from '@/components/projects/PublishUpdateTrigger'
-import MilestonesPanel from '@/components/projects/MilestonesPanel'
+import ProjectWorkspaceTabs from '@/components/projects/ProjectWorkspaceTabs'
 import ApprovalsPanel from '@/components/projects/ApprovalsPanel'
 import ProjectBannerUpload from '@/components/projects/ProjectBannerUpload'
 
@@ -37,7 +37,16 @@ export default async function AdminProjectDetailPage({ params }: PageProps) {
       lead: true,
       milestones: {
         orderBy: { sortOrder: 'asc' },
-        include: { assignee: { select: { name: true } } },
+        include: {
+          assignee: { select: { name: true } },
+          tasks: {
+            include: {
+              developer: { select: { name: true } },
+              tester: { select: { name: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+          },
+        },
       },
       members: { include: { profile: true } },
       invoices: { orderBy: { createdAt: 'desc' } },
@@ -52,12 +61,14 @@ export default async function AdminProjectDetailPage({ params }: PageProps) {
 
   const [availableLeads, agencyStaff] = await Promise.all([
     prisma.profile.findMany({
-      where: { isActive: true, OR: [{ role: 'ADMIN' }, { teamRole: 'TEAM_LEAD' }] },
+      where: { isActive: true, role: { in: ['ADMIN', 'TEAM_MEMBER'] } },
       select: { id: true, name: true },
+      orderBy: { name: 'asc' },
     }),
     prisma.profile.findMany({
       where: { isActive: true, role: { in: ['ADMIN', 'TEAM_MEMBER'] } },
       select: { id: true, name: true, teamRole: true, role: true },
+      orderBy: { name: 'asc' },
     }),
   ])
 
@@ -156,11 +167,15 @@ export default async function AdminProjectDetailPage({ params }: PageProps) {
       <div className="grid grid-cols-3 gap-6">
         {/* Main: Milestones + Approvals */}
         <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-          <MilestonesPanel
+          <ProjectWorkspaceTabs
             projectId={id}
-            isLead={isLead}
-            milestones={project.milestones as Parameters<typeof MilestonesPanel>[0]['milestones']}
+            clientId={project.clientId}
+            userRole={user.role}
+            userTeamRole={user.teamRole}
+            userId={user.id}
+            milestones={project.milestones}
             projectMembers={project.members}
+            isLead={isLead}
           />
 
           <ApprovalsPanel

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { ArrowLeft, Sparkles, Clock } from 'lucide-react'
 import CircularProgress from '@/components/ui/CircularProgress'
 import ApprovalsPanel from '@/components/projects/ApprovalsPanel'
+import ProjectWorkspaceTabs from '@/components/projects/ProjectWorkspaceTabs'
 
 function formatDate(date: Date | null): string {
   if (!date) return '—'
@@ -37,7 +38,17 @@ export default async function ClientProjectDetailPage({ params }: { params: Prom
       lead: { select: { name: true } },
       milestones: {
         orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
-        select: { id: true, name: true, description: true, status: true, progress: true, dueDate: true, completedDate: true },
+        include: {
+          assignee: { select: { name: true } },
+          tasks: {
+            where: { clientVisible: true },
+            include: {
+              developer: { select: { name: true } },
+              tester: { select: { name: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+          },
+        },
       },
       updates: {
         where: { clientVisible: true },
@@ -143,86 +154,25 @@ export default async function ClientProjectDetailPage({ params }: { params: Prom
 
         {/* Right 2 cols: Milestones + Approvals + Updates */}
         <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-
-          {/* Project Milestones & Deliverables */}
-          <div className="card">
-            <div className="flex items-center justify-between mb-4">
-              <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', margin: 0 }}>
-                Project Milestones &amp; Deliverables ({project.milestones.length})
-              </h2>
-              <span className="text-xs text-muted">
-                {completedMilestones} of {totalMilestones} Completed
-              </span>
-            </div>
-
-            {project.milestones.length === 0 ? (
-              <div className="empty-state" style={{ padding: 'var(--space-6)' }}>
-                <Clock size={24} />
-                <div className="empty-state__title">No milestones scheduled yet</div>
-                <div className="empty-state__desc">Project milestones will appear here as work is planned.</div>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                {project.milestones.map((m) => {
-                  const isDone = m.status === 'COMPLETED'
-                  const isInProgress = m.status === 'IN_PROGRESS'
-                  const isPlanned = m.status === 'PLANNED'
-
-                  let badgeClass = 'badge--neutral'
-                  if (isDone) badgeClass = 'badge--success'
-                  else if (isInProgress) badgeClass = 'badge--info'
-                  else if (isPlanned) badgeClass = 'badge--warning'
-
-                  return (
-                    <div
-                      key={m.id}
-                      style={{
-                        background: 'var(--bg-elevated)',
-                        border: isDone ? '1px solid rgba(16,185,129,0.3)' : '1px solid var(--border-subtle)',
-                        borderRadius: 'var(--radius-lg)',
-                        padding: 'var(--space-4)',
-                      }}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div style={{ flex: 1 }}>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span style={{ fontSize: 14, color: isDone ? '#10b981' : isInProgress ? '#3b82f6' : 'var(--text-muted)' }}>
-                              {isDone ? '✓' : isInProgress ? '⏳' : '📌'}
-                            </span>
-                            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
-                              {m.name}
-                            </span>
-                            <span className={`badge ${badgeClass}`} style={{ fontSize: 9, textTransform: 'capitalize' }}>
-                              {m.status.replace(/_/g, ' ').toLowerCase()}
-                            </span>
-                          </div>
-                          {m.description && (
-                            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', marginLeft: 22 }}>
-                              {m.description}
-                            </p>
-                          )}
-                        </div>
-
-                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                          {isDone ? (
-                            <span style={{ fontSize: 10, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                              Done {formatDate(m.completedDate)}
-                            </span>
-                          ) : m.dueDate ? (
-                            <span style={{ fontSize: 10, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                              Due {formatDate(m.dueDate)}
-                            </span>
-                          ) : (
-                            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>In progress</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
+          <ProjectWorkspaceTabs
+            projectId={id}
+            clientId={client.id}
+            userRole={user.role}
+            userTeamRole={null}
+            userId={user.id}
+            clientPolicy={
+              subTeamCtx
+                ? {
+                    milestones: subTeamCtx.policy.milestones !== false,
+                    issues: subTeamCtx.policy.issues !== false,
+                    notes: subTeamCtx.policy.notes !== false,
+                  }
+                : { milestones: true, issues: true, notes: true }
+            }
+            milestones={project.milestones}
+            projectMembers={[]}
+            isLead={false}
+          />
 
           {/* Approvals */}
           <ApprovalsPanel

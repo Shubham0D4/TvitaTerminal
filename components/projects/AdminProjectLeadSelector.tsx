@@ -23,9 +23,9 @@ export default function AdminProjectLeadSelector({
     if (!newLeadId) return
 
     setUpdating(true)
-    const res = await apiClient(`/api/team/projects/${projectId}`, {
+    const res = await apiClient(`/api/team/projects/${projectId}/lead`, {
       method: 'PUT',
-      body: JSON.stringify({ projectLeadId: newLeadId }),
+      body: JSON.stringify({ leadId: newLeadId }),
     })
     setUpdating(false)
 
