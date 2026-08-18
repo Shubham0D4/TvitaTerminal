@@ -17,7 +17,7 @@ interface Subscription {
   renewalDate: any
   notes: string | null
   stripeSubId: string | null
-  client: { id: string; name: string }
+  client?: { id: string; name: string }
   plan: {
     id: string
     name: string

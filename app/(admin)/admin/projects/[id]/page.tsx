@@ -120,7 +120,7 @@ export default async function AdminProjectDetailPage({ params }: PageProps) {
         }}
       >
         <div style={{ position: 'absolute', right: 'var(--space-4)', bottom: 'var(--space-4)' }}>
-          <ProjectBannerUpload projectId={project.id} canUpload={isLead} />
+          <ProjectBannerUpload projectId={project.id} canUpload={true} />
         </div>
       </div>
 

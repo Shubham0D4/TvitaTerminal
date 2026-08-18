@@ -9,7 +9,6 @@ import toast from 'react-hot-toast'
 import {
   LayoutDashboard,
   FolderKanban,
-  Boxes,
   CreditCard,
   UserCircle,
   Bell,
@@ -61,7 +60,6 @@ export default function ClientNavbar({ user, isSubTeam: isSubTeamProp = false, s
   const navItems = [
     { label: 'Dashboard', href: '/client/dashboard', icon: <LayoutDashboard size={17} />, show: true },
     { label: 'Projects', href: '/client/projects', icon: <FolderKanban size={17} />, show: !isSubTeam || policy?.projects !== false },
-    { label: 'Subscriptions', href: '/client/subscriptions', icon: <Boxes size={17} />, show: !isSubTeam || Boolean(policy?.subscriptions) },
     { label: 'Billing', href: '/client/invoices', icon: <CreditCard size={17} />, show: !isSubTeam || Boolean(policy?.invoices || policy?.billing) },
     { label: 'Profile', href: '/client/profile', icon: <UserCircle size={17} />, show: true },
   ].filter(item => item.show)

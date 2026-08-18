@@ -181,19 +181,6 @@ export default async function AdminClientsPage({
                       <span>{client._count.invoices} invoices</span>
                     </div>
                   </div>
-                  {activePlan && (
-                    <span
-                      style={{
-                        fontSize: 'var(--text-xs)',
-                        color: 'var(--accent-primary)',
-                        background: 'var(--accent-primary-muted)',
-                        padding: '2px 8px',
-                        borderRadius: 'var(--radius-full)',
-                      }}
-                    >
-                      {activePlan.name}
-                    </span>
-                  )}
                 </div>
               </Link>
             )

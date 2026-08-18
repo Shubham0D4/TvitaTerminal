@@ -226,9 +226,8 @@ export default function MilestonesPanel({ projectId, isLead, milestones: initial
               <label className="form-label" htmlFor="ms-role">Assign Role</label>
               <select id="ms-role" name="assigneeRole" className="form-select">
                 <option value="">— Any Role —</option>
-                <option value="DEVELOPER">Developer</option>
-                <option value="TESTER">Tester</option>
-                <option value="TEAM_LEAD">Lead</option>
+                <option value="MEMBER">Team Member</option>
+                <option value="TEAM_LEAD">Team Lead</option>
               </select>
               <p className="form-hint">Assigned contributor category profile</p>
             </div>
@@ -426,36 +425,18 @@ export default function MilestonesPanel({ projectId, isLead, milestones: initial
                             <option value="URGENT">Urgent Priority</option>
                           </select>
                         </div>
-                        <div>
+                        <div style={{ gridColumn: 'span 2' }}>
                           <select
                             className="form-select"
                             style={{ background: '#ffffff', fontSize: 12, padding: '4px 8px', height: 'auto', width: '100%' }}
                             value={taskDevId}
                             onChange={(e) => setTaskDevId(e.target.value)}
                           >
-                            <option value="">Auto-assign Dev</option>
+                            <option value="">Auto-assign (Least Busy Member)</option>
                             {projectMembers
-                              .filter((member) => member.role === 'DEVELOPER')
                               .map((member) => (
                                 <option key={member.profileId} value={member.profileId}>
-                                  {member.profile.name} (Dev)
-                                </option>
-                              ))}
-                          </select>
-                        </div>
-                        <div>
-                          <select
-                            className="form-select"
-                            style={{ background: '#ffffff', fontSize: 12, padding: '4px 8px', height: 'auto', width: '100%' }}
-                            value={taskTesterId}
-                            onChange={(e) => setTaskTesterId(e.target.value)}
-                          >
-                            <option value="">Auto-assign QA</option>
-                            {projectMembers
-                              .filter((member) => member.role === 'TESTER')
-                              .map((member) => (
-                                <option key={member.profileId} value={member.profileId}>
-                                  {member.profile.name} (QA)
+                                  {member.profile.name} ({member.role})
                                 </option>
                               ))}
                           </select>

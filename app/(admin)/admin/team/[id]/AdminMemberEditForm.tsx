@@ -171,11 +171,9 @@ export default function AdminMemberEditForm({ member }: Props) {
 
           <div className="form-group">
             <label className="form-label" htmlFor="teamRole">Project Sub-Role</label>
-            <select id="teamRole" name="teamRole" className="form-select" defaultValue={member.teamRole ?? ''}>
-              <option value="">Standard Member / None</option>
+            <select id="teamRole" name="teamRole" className="form-select" defaultValue={member.teamRole ?? 'MEMBER'}>
               <option value="TEAM_LEAD">Team Lead</option>
-              <option value="DEVELOPER">Developer</option>
-              <option value="TESTER">Tester</option>
+              <option value="MEMBER">Team Member</option>
             </select>
             <p className="form-hint">Specifies default workspace permission level and auto-assignment queue</p>
           </div>
@@ -197,7 +195,7 @@ export default function AdminMemberEditForm({ member }: Props) {
         </div>
 
         <div style={{ paddingTop: 'var(--space-2)', borderTop: '1px solid var(--border-subtle)', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-          Note: Sub-roles (Team Lead, Developer, Tester) can also be customized within specific project workspaces.
+          Note: Sub-roles (Team Lead, Team Member) can also be customized within specific project workspaces.
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-3)', marginTop: 'var(--space-2)' }}>

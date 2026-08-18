@@ -52,9 +52,14 @@ interface SendEmailOptions {
   to: string
   subject: string
   html: string
+  attachments?: Array<{
+    filename: string
+    content: Buffer | string
+    contentType?: string
+  }>
 }
 
-export async function sendEmail({ to, subject, html }: SendEmailOptions): Promise<boolean> {
+export async function sendEmail({ to, subject, html, attachments }: SendEmailOptions): Promise<boolean> {
   const transporter = await createTransporter()
   if (!transporter) {
     console.warn(`[email] SMTP not configured — skipping email to ${to}: "${subject}"`)
@@ -80,6 +85,7 @@ export async function sendEmail({ to, subject, html }: SendEmailOptions): Promis
       to,
       subject,
       html,
+      attachments,
     })
     console.log(`[email] ✓ Sent "${subject}" to ${to}`)
     return true
@@ -455,5 +461,172 @@ export async function sendPasswordResetEmail({
 `
   return sendEmail({ to, subject, html })
 }
+
+// ─── Invoice PDF Receipt Email ──────────────────────────────────────────────────
+
+interface InvoicePdfEmailOptions {
+  to: string
+  clientName: string
+  invoiceNumber: string
+  planName: string
+  amount: string
+  pdfBuffer: Buffer
+  pdfFilename: string
+  appName?: string
+}
+
+export async function sendInvoicePdfEmail({
+  to,
+  clientName,
+  invoiceNumber,
+  planName,
+  amount,
+  pdfBuffer,
+  pdfFilename,
+  appName = 'Tvita',
+}: InvoicePdfEmailOptions) {
+  const subject = `Tax Invoice & Payment Receipt #${invoiceNumber} — ${appName}`
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Payment Receipt & Invoice</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f8fafc;font-family:'Segoe UI',Arial,sans-serif;">
+  <div style="max-width:560px;margin:40px auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #1e40af;box-shadow:0 4px 12px rgba(0,0,0,0.05);">
+    <div style="background:#1e40af;padding:36px 40px;text-align:center;color:#ffffff;">
+      <h1 style="margin:0;font-size:24px;font-weight:700;letter-spacing:-0.02em;">Payment Receipt & Invoice</h1>
+      <p style="color:#ffffff;margin:8px 0 0;font-size:14px;font-weight:600;">Invoice #${invoiceNumber}</p>
+    </div>
+    <div style="padding:36px 40px;color:#0f172a;">
+      <h2 style="color:#0f172a;font-size:18px;margin:0 0 12px;font-weight:700;">Hello ${clientName},</h2>
+      <p style="color:#0f172a;font-size:14px;line-height:1.7;margin:0 0 20px;">
+        Thank you for your payment! We have processed your purchase for the <strong style="color:#1e40af;">${planName}</strong> package.
+      </p>
+      
+      <div style="background:#ffffff;border-radius:8px;padding:24px;margin:24px 0;border:1px solid #1e40af;">
+        <div style="font-size:12px;color:#1e40af;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">Transaction Details</div>
+        <div style="font-size:14px;color:#0f172a;margin-bottom:6px;"><strong>Invoice Number:</strong> ${invoiceNumber}</div>
+        <div style="font-size:14px;color:#0f172a;margin-bottom:6px;"><strong>Subscription Plan:</strong> ${planName}</div>
+        <div style="font-size:16px;color:#1e40af;font-weight:800;margin-top:10px;"><strong>Total Amount Paid:</strong> ${amount}</div>
+      </div>
+
+      <p style="color:#0f172a;font-size:13px;line-height:1.6;margin:0;">
+        📎 A formal GST-compliant PDF copy of your tax invoice is attached to this email and saved in your billing portal.
+      </p>
+    </div>
+    <div style="background:#ffffff;padding:24px 40px;text-align:center;border-top:1px solid #e2e8f0;">
+      <p style="color:#0f172a;font-size:12px;margin:0;">&copy; ${new Date().getFullYear()} ${appName}. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>
+`
+
+  return sendEmail({
+    to,
+    subject,
+    html,
+    attachments: [
+      {
+        filename: pdfFilename,
+        content: pdfBuffer,
+        contentType: 'application/pdf',
+      },
+    ],
+  })
+}
+
+// ─── New Billing Invoice Email (With PDF Attachment) ────────────────────────────
+
+interface NewBillingInvoiceEmailOptions {
+  to: string
+  clientName: string
+  invoiceNumber: string
+  amount: string
+  dueDate?: string
+  pdfBuffer: Buffer
+  pdfFilename: string
+  appName?: string
+  portalUrl?: string
+}
+
+export async function sendNewBillingInvoiceEmail({
+  to,
+  clientName,
+  invoiceNumber,
+  amount,
+  dueDate,
+  pdfBuffer,
+  pdfFilename,
+  appName = 'Tvita',
+  portalUrl,
+}: NewBillingInvoiceEmailOptions) {
+  const subject = `New Tax Invoice #${invoiceNumber} Issued — ${appName}`
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>New Invoice Issued</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f8fafc;font-family:'Segoe UI',Arial,sans-serif;">
+  <div style="max-width:560px;margin:40px auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #1e40af;box-shadow:0 4px 12px rgba(0,0,0,0.05);">
+    <div style="background:#1e40af;padding:36px 40px;text-align:center;color:#ffffff;">
+      <h1 style="margin:0;font-size:24px;font-weight:700;letter-spacing:-0.02em;">New Tax Invoice Issued</h1>
+      <p style="color:#ffffff;margin:8px 0 0;font-size:14px;font-weight:600;">Invoice #${invoiceNumber}</p>
+    </div>
+    <div style="padding:36px 40px;color:#0f172a;">
+      <h2 style="color:#0f172a;font-size:18px;margin:0 0 12px;font-weight:700;">Hello ${clientName},</h2>
+      <p style="color:#0f172a;font-size:14px;line-height:1.7;margin:0 0 20px;">
+        A new GST-compliant tax invoice has been generated and issued to your account on <strong style="color:#1e40af;">${appName}</strong>.
+      </p>
+      
+      <div style="background:#ffffff;border-radius:8px;padding:24px;margin:24px 0;border:1px solid #1e40af;">
+        <div style="font-size:12px;color:#1e40af;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">Invoice Breakdown</div>
+        <div style="font-size:14px;color:#0f172a;margin-bottom:6px;"><strong>Invoice Number:</strong> ${invoiceNumber}</div>
+        ${dueDate ? `<div style="font-size:14px;color:#dc2626;margin-bottom:6px;"><strong>Payment Due Date:</strong> ${dueDate}</div>` : ''}
+        <div style="font-size:16px;color:#1e40af;font-weight:800;margin-top:10px;"><strong>Total Amount:</strong> ${amount}</div>
+      </div>
+
+      <p style="color:#0f172a;font-size:13px;line-height:1.6;">
+        📎 A formal GST-compliant PDF copy of your tax invoice is attached to this email. You can also view and download it anytime from your client portal.
+      </p>
+
+      ${
+        portalUrl
+          ? `
+      <div style="text-align:center;margin:32px 0 10px;">
+        <a href="${portalUrl}" style="display:inline-block;background:#1e40af;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:14px;font-weight:700;letter-spacing:0.02em;">
+          View Invoice in Portal
+        </a>
+      </div>
+      `
+          : ''
+      }
+    </div>
+    <div style="background:#ffffff;padding:24px 40px;text-align:center;border-top:1px solid #e2e8f0;">
+      <p style="color:#0f172a;font-size:12px;margin:0;">&copy; ${new Date().getFullYear()} ${appName}. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>
+`
+
+  return sendEmail({
+    to,
+    subject,
+    html,
+    attachments: [
+      {
+        filename: pdfFilename,
+        content: pdfBuffer,
+        contentType: 'application/pdf',
+      },
+    ],
+  })
+}
+
 
 

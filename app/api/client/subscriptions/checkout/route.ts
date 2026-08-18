@@ -21,10 +21,12 @@ export async function POST(request: NextRequest) {
       return Errors.VALIDATION('planId is required')
     }
 
-    const result = await SubscriptionService.checkoutMockSubscription(
+    const originUrl = request.headers.get('origin') || undefined
+    const result = await SubscriptionService.checkoutSubscription(
       planId,
       user,
-      subTeamCtx?.clientId
+      subTeamCtx?.clientId,
+      originUrl
     )
 
     return apiSuccess(result)

@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     if (role) where.role = role
     if (teamRole) where.teamRole = teamRole
 
-    const [members, totalCount, adminCount, teamLeadCount, devCount, testerCount] = await Promise.all([
+    const [members, totalCount, adminCount, teamLeadCount, memberCount] = await Promise.all([
       prisma.profile.findMany({
         where,
         orderBy: { createdAt: 'desc' },
@@ -43,8 +43,7 @@ export async function GET(request: NextRequest) {
       prisma.profile.count(),
       prisma.profile.count({ where: { role: 'ADMIN' } }),
       prisma.profile.count({ where: { teamRole: 'TEAM_LEAD' } }),
-      prisma.profile.count({ where: { teamRole: 'DEVELOPER' } }),
-      prisma.profile.count({ where: { teamRole: 'TESTER' } }),
+      prisma.profile.count({ where: { teamRole: 'MEMBER' } }),
     ])
 
     return apiSuccess({
@@ -53,8 +52,7 @@ export async function GET(request: NextRequest) {
         totalCount,
         adminCount,
         teamLeadCount,
-        devCount,
-        testerCount,
+        memberCount,
       },
     })
   } catch (error) {

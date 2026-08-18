@@ -12,15 +12,18 @@ export async function GET(request: NextRequest) {
 
   try {
     const subTeamCtx = await AuthService.getSubTeamContext(user.id)
+    let clientId: string | null = null
+
     if (subTeamCtx) {
-      return Errors.FORBIDDEN('Only primary client can manage sub-teams')
+      clientId = subTeamCtx.clientId
+    } else {
+      const client = await ClientService.getClientByUserId(user.id, user.email)
+      if (!client) return Errors.NOT_FOUND('Client account')
+      clientId = client.id
     }
 
-    const client = await ClientService.getClientByUserId(user.id, user.email)
-    if (!client) return Errors.NOT_FOUND('Client account')
-
     const subTeams = await ClientRepository.findSubTeams(
-      { clientId: client.id },
+      { clientId, ...(subTeamCtx ? { id: subTeamCtx.subTeamId } : {}) },
       {
         profile: { select: { email: true, name: true, isActive: true } },
         roles: true,

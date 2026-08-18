@@ -39,12 +39,10 @@ async function runAuditTests() {
     // 2. Team Member Sub-Roles Check
     console.log('\n[2/5] Testing Team Member Sub-Roles & Auth Setup...')
     const teamLeads = await prisma.profile.count({ where: { teamRole: 'TEAM_LEAD' } })
-    const developers = await prisma.profile.count({ where: { teamRole: 'DEVELOPER' } })
-    const testers = await prisma.profile.count({ where: { teamRole: 'TESTER' } })
+    const teamMembers = await prisma.profile.count({ where: { teamRole: 'MEMBER' } })
 
     assert(teamLeads > 0 || profilesCount > 0, `Team Lead profiles verified (${teamLeads} leads)`)
-    assert(developers > 0 || profilesCount > 0, `Developer profiles verified (${developers} devs)`)
-    assert(testers > 0 || profilesCount > 0, `QA Tester profiles verified (${testers} testers)`)
+    assert(teamMembers > 0 || profilesCount > 0, `Team Member profiles verified (${teamMembers} members)`)
 
     // 3. Tax & GST Calculation Test
     console.log('\n[3/5] Testing GST Calculation Engine Logic...')

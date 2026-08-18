@@ -9,7 +9,18 @@ const globalForPrisma = globalThis as unknown as {
 
 function createPrismaClient() {
   const connectionString = env.DATABASE_URL
-  const pool = new pg.Pool({ connectionString })
+  const pool = new pg.Pool({
+    connectionString,
+    max: 10,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000,
+  })
+
+  // Prevent unhandled background error events when idle pool connections are reset by PgBouncer / Supabase
+  pool.on('error', (err) => {
+    console.error('Prisma PG Pool idle connection error:', err?.message || err)
+  })
+
   const adapter = new PrismaPg(pool)
   return new PrismaClient({
     adapter,

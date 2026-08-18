@@ -58,20 +58,26 @@ async function recalcProgress(projectId: string) {
 }
 
 async function findLeastBusyMember(projectId: string, role?: string) {
+  const project = await prisma.project.findUnique({ where: { id: projectId }, select: { leadId: true } })
   const members = await prisma.projectMember.findMany({
     where: { projectId, ...(role ? { role } : {}) },
     select: { profileId: true },
   })
 
-  if (members.length === 0) return null
+  const candidateIds = new Set(members.map((m) => m.profileId))
+  if (project?.leadId && (!role || role === 'TEAM_LEAD')) {
+    candidateIds.add(project.leadId)
+  }
 
-  // Count in-progress milestones per member
+  if (candidateIds.size === 0) return null
+
+  // Count in-progress milestones per candidate
   const counts = await Promise.all(
-    members.map(async (m) => {
+    Array.from(candidateIds).map(async (profileId) => {
       const count = await prisma.milestone.count({
-        where: { assigneeId: m.profileId, status: 'IN_PROGRESS' },
+        where: { assigneeId: profileId, status: 'IN_PROGRESS' },
       })
-      return { profileId: m.profileId, count }
+      return { profileId, count }
     })
   )
   counts.sort((a, b) => a.count - b.count)

@@ -128,11 +128,9 @@ export default function TeamMemberForm() {
 
           <div className="form-group">
             <label className="form-label" htmlFor="teamRole">Project Sub-Role</label>
-            <select id="teamRole" name="teamRole" className="form-select" defaultValue="">
-              <option value="">Standard Member / None</option>
+            <select id="teamRole" name="teamRole" className="form-select" defaultValue="MEMBER">
               <option value="TEAM_LEAD">Team Lead</option>
-              <option value="DEVELOPER">Developer</option>
-              <option value="TESTER">Tester</option>
+              <option value="MEMBER">Team Member</option>
             </select>
             <p className="form-hint">Specifies default workspace permission level and auto-assignment queue</p>
           </div>

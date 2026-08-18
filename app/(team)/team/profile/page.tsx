@@ -41,9 +41,7 @@ export default async function TeamProfilePage() {
 
   const roleStyles: Record<string, { bg: string; color: string }> = {
     TEAM_LEAD: { bg: 'rgba(139,92,246,0.15)', color: '#8b5cf6' },
-    DEVELOPER: { bg: 'rgba(59,130,246,0.15)', color: '#3b82f6' },
-    TESTER: { bg: 'rgba(16,185,129,0.15)', color: '#10b981' },
-    MEMBER: { bg: 'rgba(107,114,128,0.12)', color: '#64748b' },
+    MEMBER: { bg: 'rgba(59,130,246,0.15)', color: '#3b82f6' },
   }
 
   return (

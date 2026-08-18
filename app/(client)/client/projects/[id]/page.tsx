@@ -6,6 +6,7 @@ import { ArrowLeft, Sparkles, Clock } from 'lucide-react'
 import CircularProgress from '@/components/ui/CircularProgress'
 import ApprovalsPanel from '@/components/projects/ApprovalsPanel'
 import ProjectWorkspaceTabs from '@/components/projects/ProjectWorkspaceTabs'
+import ProjectBannerUpload from '@/components/projects/ProjectBannerUpload'
 
 function formatDate(date: Date | null): string {
   if (!date) return '—'
@@ -111,7 +112,11 @@ export default async function ClientProjectDetailPage({ params }: { params: Prom
           backgroundPosition: 'center',
           border: '1px solid var(--border-subtle)'
         }}
-      />
+      >
+        <div style={{ position: 'absolute', right: 'var(--space-4)', bottom: 'var(--space-4)' }}>
+          <ProjectBannerUpload projectId={project.id} canUpload={true} />
+        </div>
+      </div>
 
       <div className="grid grid-cols-3 gap-6">
         {/* Left: circular ring + completion info */}

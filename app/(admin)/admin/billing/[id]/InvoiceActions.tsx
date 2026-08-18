@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { apiClient } from '@/shared/utilities/api-client'
 import toast from 'react-hot-toast'
-import { CheckCircle2, Printer, ArrowLeft, Mail } from 'lucide-react'
+import { Download, Printer, ArrowLeft, Mail, RefreshCw, CheckCircle2, Clock } from 'lucide-react'
 import Link from 'next/link'
 
 interface InvoiceActionsProps {
@@ -11,37 +11,57 @@ interface InvoiceActionsProps {
   status: string
 }
 
-export default function InvoiceActions({ invoiceId, status }: InvoiceActionsProps) {
-  const [isPending, setIsPending] = useState(false)
+const INVOICE_STATUSES = [
+  { value: 'PAID', label: 'Paid' },
+  { value: 'PENDING', label: 'Pending' },
+  { value: 'OVERDUE', label: 'Overdue' },
+  { value: 'CANCELLED', label: 'Cancelled' },
+  { value: 'DRAFT', label: 'Draft' },
+]
+
+export default function InvoiceActions({ invoiceId, status: currentStatus }: InvoiceActionsProps) {
+  const [status, setStatus] = useState(currentStatus)
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
   const [reminderPending, setReminderPending] = useState(false)
 
-  const handleSendReminder = async () => {
-    setReminderPending(true)
-    const res = await apiClient(`/api/admin/billing/invoices/${invoiceId}/reminder`, {
-      method: 'POST',
-    })
-    setReminderPending(false)
+  const handleStatusChange = async (newStatus: string) => {
+    if (newStatus === status) return
+    setIsUpdatingStatus(true)
+    try {
+      const res = await apiClient(`/api/admin/billing/invoices/${invoiceId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: newStatus }),
+      })
 
-    if (res.success) {
-      toast.success('Payment reminder sent to client.')
-    } else {
-      toast.error(res.error?.message || 'Failed to send payment reminder')
+      if (res.success) {
+        setStatus(newStatus)
+        toast.success(`Invoice status updated to ${newStatus}`)
+        window.location.reload()
+      } else {
+        toast.error(res.error?.message || 'Failed to update invoice status')
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update invoice status')
+    } finally {
+      setIsUpdatingStatus(false)
     }
   }
 
-  const handleMarkPaid = async () => {
-    setIsPending(true)
-    const res = await apiClient(`/api/admin/billing/invoices/${invoiceId}`, {
-      method: 'PUT',
-      body: JSON.stringify({ status: 'PAID' }),
-    })
-    setIsPending(false)
-
-    if (res.success) {
-      toast.success('Invoice marked as paid.')
-      window.location.reload()
-    } else {
-      toast.error(res.error?.message || 'Failed to mark invoice as paid')
+  const handleSendReminder = async () => {
+    setReminderPending(true)
+    try {
+      const res = await apiClient(`/api/admin/billing/invoices/${invoiceId}/reminder`, {
+        method: 'POST',
+      })
+      if (res.success) {
+        toast.success('Payment reminder sent to client.')
+      } else {
+        toast.error(res.error?.message || 'Failed to send payment reminder')
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send reminder')
+    } finally {
+      setReminderPending(false)
     }
   }
 
@@ -71,41 +91,96 @@ export default function InvoiceActions({ invoiceId, status }: InvoiceActionsProp
   }
 
   return (
-    <div className="no-print flex items-center justify-between mb-6">
-      <Link href="/admin/billing" className="btn btn--ghost">
+    <div className="no-print flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 mb-6">
+      <Link href="/admin/billing" className="btn btn--ghost align-self-start">
         <ArrowLeft size={16} />
         Back to Invoices
       </Link>
 
-      <div className="flex items-center gap-3">
-        <button type="button" onClick={handlePrint} className="btn btn--secondary">
-          <Printer size={16} />
-          Print / Save PDF
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Direct PDF Download */}
+        <a
+          href={`/api/invoices/${invoiceId}/pdf`}
+          target="_blank"
+          rel="noreferrer"
+          className="btn btn--primary btn--sm"
+          title="Download PDF File"
+        >
+          <Download size={15} />
+          Download PDF
+        </a>
+
+        {/* Print Button */}
+        <button type="button" onClick={handlePrint} className="btn btn--secondary btn--sm">
+          <Printer size={15} />
+          Print Document
         </button>
 
-        {status === 'PENDING' && (
-          <>
-            <button
-              type="button"
-              onClick={handleSendReminder}
-              className={`btn btn--secondary${reminderPending ? ' btn--loading' : ''}`}
-              disabled={reminderPending}
-            >
-              <Mail size={16} />
-              Send Reminder
-            </button>
-
-            <button
-              type="button"
-              onClick={handleMarkPaid}
-              className={`btn btn--primary${isPending ? ' btn--loading' : ''}`}
-              disabled={isPending}
-            >
-              <CheckCircle2 size={16} />
-              Mark as Paid
-            </button>
-          </>
+        {/* Quick Mark Paid / Pending Buttons */}
+        {status !== 'PAID' ? (
+          <button
+            type="button"
+            onClick={() => handleStatusChange('PAID')}
+            className="btn btn--secondary btn--sm"
+            style={{ color: 'var(--color-success, #10b981)' }}
+            disabled={isUpdatingStatus}
+          >
+            <CheckCircle2 size={15} />
+            Mark as Paid
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => handleStatusChange('PENDING')}
+            className="btn btn--secondary btn--sm"
+            style={{ color: 'var(--color-warning, #f59e0b)' }}
+            disabled={isUpdatingStatus}
+          >
+            <Clock size={15} />
+            Mark as Pending
+          </button>
         )}
+
+        {/* Send Reminder */}
+        {status === 'PENDING' && (
+          <button
+            type="button"
+            onClick={handleSendReminder}
+            className={`btn btn--secondary btn--sm${reminderPending ? ' btn--loading' : ''}`}
+            disabled={reminderPending}
+          >
+            <Mail size={15} />
+            Send Reminder
+          </button>
+        )}
+
+        {/* Admin Status Dropdown Selector */}
+        <div className="flex items-center gap-2" style={{ background: 'var(--bg-surface)', padding: '4px 8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-medium)', color: 'var(--text-muted)' }}>
+            Status:
+          </span>
+          <select
+            value={status}
+            onChange={(e) => handleStatusChange(e.target.value)}
+            disabled={isUpdatingStatus}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              fontSize: 'var(--text-xs)',
+              fontWeight: 'var(--font-semibold)',
+              color: 'var(--text-primary)',
+              cursor: 'pointer',
+              outline: 'none',
+            }}
+          >
+            {INVOICE_STATUSES.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+          {isUpdatingStatus && <RefreshCw size={12} className="animate-spin text-muted" />}
+        </div>
       </div>
     </div>
   )

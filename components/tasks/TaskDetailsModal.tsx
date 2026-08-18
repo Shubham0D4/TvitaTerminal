@@ -69,8 +69,7 @@ export default function TaskDetailsModal({
     }
   }
 
-  const developers = projectMembers.filter((m) => m.profile.teamRole === 'DEVELOPER')
-  const testers = projectMembers.filter((m) => m.profile.teamRole === 'TESTER')
+  const teamMembers = projectMembers.filter((m) => m.profile.teamRole === 'MEMBER' || m.role === 'MEMBER')
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -116,11 +115,11 @@ export default function TaskDetailsModal({
           {isLeadOrAdmin && (
             <div style={{ background: 'var(--bg-surface)', padding: 'var(--space-4)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
               <div style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)', color: 'var(--text-muted)', marginBottom: 8 }}>
-                ASSIGN TEAM MEMBERS (LEAD OVERRIDE)
+                ASSIGN TEAM MEMBER (LEAD OVERRIDE)
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 <div>
-                  <label className="form-label" style={{ fontSize: 'var(--text-xs)' }}>Developer</label>
+                  <label className="form-label" style={{ fontSize: 'var(--text-xs)' }}>Assigned Team Member</label>
                   <select
                     className="form-select"
                     value={devId}
@@ -128,22 +127,8 @@ export default function TaskDetailsModal({
                     style={{ fontSize: 'var(--text-xs)' }}
                   >
                     <option value="">Unassigned</option>
-                    {developers.map((d) => (
-                      <option key={d.profile.id} value={d.profile.id}>{d.profile.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="form-label" style={{ fontSize: 'var(--text-xs)' }}>QA Tester</label>
-                  <select
-                    className="form-select"
-                    value={testerId}
-                    onChange={(e) => setTesterId(e.target.value)}
-                    style={{ fontSize: 'var(--text-xs)' }}
-                  >
-                    <option value="">Unassigned</option>
-                    {testers.map((t) => (
-                      <option key={t.profile.id} value={t.profile.id}>{t.profile.name}</option>
+                    {projectMembers.map((d) => (
+                      <option key={d.profile.id} value={d.profile.id}>{d.profile.name} ({d.role})</option>
                     ))}
                   </select>
                 </div>
@@ -155,7 +140,7 @@ export default function TaskDetailsModal({
                 className="btn btn--secondary btn--xs"
                 style={{ marginTop: 8 }}
               >
-                {savingAssignments ? 'Saving...' : 'Update Assignments'}
+                {savingAssignments ? 'Saving...' : 'Update Assignment'}
               </button>
             </div>
           )}

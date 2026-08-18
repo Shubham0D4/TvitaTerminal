@@ -120,13 +120,13 @@ async function main() {
     { email: 'lead1@tvita.dev',   name: 'Rahul Sharma',  role: 'TEAM_MEMBER', teamRole: 'TEAM_LEAD',  phone: '+91 98111 11111' },
     { email: 'lead2@tvita.dev',   name: 'Priya Mehta',   role: 'TEAM_MEMBER', teamRole: 'TEAM_LEAD',  phone: '+91 98222 22222' },
     { email: 'lead3@tvita.dev',   name: 'Vikram Singh',  role: 'TEAM_MEMBER', teamRole: 'TEAM_LEAD',  phone: '+91 98333 33333' },
-    { email: 'dev1@tvita.dev',    name: 'Amit Patel',    role: 'TEAM_MEMBER', teamRole: 'DEVELOPER',  phone: '+91 98444 44444' },
-    { email: 'dev2@tvita.dev',    name: 'Sneha Reddy',   role: 'TEAM_MEMBER', teamRole: 'DEVELOPER',  phone: '+91 98555 55555' },
-    { email: 'dev3@tvita.dev',    name: 'Arjun Nair',    role: 'TEAM_MEMBER', teamRole: 'DEVELOPER',  phone: '+91 98666 66666' },
-    { email: 'dev4@tvita.dev',    name: 'Pooja Verma',   role: 'TEAM_MEMBER', teamRole: 'DEVELOPER',  phone: '+91 98777 77777' },
-    { email: 'dev5@tvita.dev',    name: 'Karan Joshi',   role: 'TEAM_MEMBER', teamRole: 'DEVELOPER',  phone: '+91 98888 88888' },
-    { email: 'tester1@tvita.dev', name: 'Neha Gupta',    role: 'TEAM_MEMBER', teamRole: 'TESTER',     phone: '+91 98999 99999' },
-    { email: 'tester2@tvita.dev', name: 'Ravi Kumar',    role: 'TEAM_MEMBER', teamRole: 'TESTER',     phone: '+91 98000 00000' },
+    { email: 'dev1@tvita.dev',    name: 'Amit Patel',    role: 'TEAM_MEMBER', teamRole: 'MEMBER',     phone: '+91 98444 44444' },
+    { email: 'dev2@tvita.dev',    name: 'Sneha Reddy',   role: 'TEAM_MEMBER', teamRole: 'MEMBER',     phone: '+91 98555 55555' },
+    { email: 'dev3@tvita.dev',    name: 'Arjun Nair',    role: 'TEAM_MEMBER', teamRole: 'MEMBER',     phone: '+91 98666 66666' },
+    { email: 'dev4@tvita.dev',    name: 'Pooja Verma',   role: 'TEAM_MEMBER', teamRole: 'MEMBER',     phone: '+91 98777 77777' },
+    { email: 'dev5@tvita.dev',    name: 'Karan Joshi',   role: 'TEAM_MEMBER', teamRole: 'MEMBER',     phone: '+91 98888 88888' },
+    { email: 'tester1@tvita.dev', name: 'Neha Gupta',    role: 'TEAM_MEMBER', teamRole: 'MEMBER',     phone: '+91 98999 99999' },
+    { email: 'tester2@tvita.dev', name: 'Ravi Kumar',    role: 'TEAM_MEMBER', teamRole: 'MEMBER',     phone: '+91 98000 00000' },
   ]
 
   const teamProfiles: Record<string, string> = {}
@@ -657,27 +657,27 @@ async function main() {
   const PROJECT_ASSIGNMENTS = [
     // TechVision Redesign
     { projectId: p1.id, profileId: LEAD_1_ID, role: 'TEAM_LEAD' },
-    { projectId: p1.id, profileId: DEV_1_ID,  role: 'DEVELOPER' },
-    { projectId: p1.id, profileId: DEV_2_ID,  role: 'DEVELOPER' },
-    { projectId: p1.id, profileId: TESTER_1_ID, role: 'TESTER' },
+    { projectId: p1.id, profileId: DEV_1_ID,  role: 'MEMBER' },
+    { projectId: p1.id, profileId: DEV_2_ID,  role: 'MEMBER' },
+    { projectId: p1.id, profileId: TESTER_1_ID, role: 'MEMBER' },
 
     // Greenleaf Store
     { projectId: p2.id, profileId: LEAD_2_ID, role: 'TEAM_LEAD' },
-    { projectId: p2.id, profileId: DEV_3_ID,  role: 'DEVELOPER' },
-    { projectId: p2.id, profileId: DEV_4_ID,  role: 'DEVELOPER' },
-    { projectId: p2.id, profileId: TESTER_2_ID, role: 'TESTER' },
+    { projectId: p2.id, profileId: DEV_3_ID,  role: 'MEMBER' },
+    { projectId: p2.id, profileId: DEV_4_ID,  role: 'MEMBER' },
+    { projectId: p2.id, profileId: TESTER_2_ID, role: 'MEMBER' },
 
     // Aerocraft VFX Portal
     { projectId: p3.id, profileId: LEAD_3_ID, role: 'TEAM_LEAD' },
-    { projectId: p3.id, profileId: DEV_5_ID,  role: 'DEVELOPER' },
-    { projectId: p3.id, profileId: TESTER_1_ID, role: 'TESTER' },
+    { projectId: p3.id, profileId: DEV_5_ID,  role: 'MEMBER' },
+    { projectId: p3.id, profileId: TESTER_1_ID, role: 'MEMBER' },
 
     // Zenitech Inventory System
     { projectId: p4.id, profileId: LEAD_1_ID, role: 'TEAM_LEAD' },
-    { projectId: p4.id, profileId: DEV_1_ID,  role: 'DEVELOPER' },
-    { projectId: p4.id, profileId: DEV_2_ID,  role: 'DEVELOPER' },
-    { projectId: p4.id, profileId: DEV_3_ID,  role: 'DEVELOPER' },
-    { projectId: p4.id, profileId: TESTER_2_ID, role: 'TESTER' },
+    { projectId: p4.id, profileId: DEV_1_ID,  role: 'MEMBER' },
+    { projectId: p4.id, profileId: DEV_2_ID,  role: 'MEMBER' },
+    { projectId: p4.id, profileId: DEV_3_ID,  role: 'MEMBER' },
+    { projectId: p4.id, profileId: TESTER_2_ID, role: 'MEMBER' },
   ]
 
   for (const pa of PROJECT_ASSIGNMENTS) {

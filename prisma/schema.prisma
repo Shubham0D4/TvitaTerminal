@@ -21,8 +21,7 @@ enum Role {
 
 enum TeamRole {
   TEAM_LEAD
-  DEVELOPER
-  TESTER
+  MEMBER
 }
 
 enum ClientStatus {
@@ -686,6 +685,16 @@ model Invoice {
   notes       String?
   lineItems   Json?         @map("line_items")
   pdfUrl      String?       @map("pdf_url")
+  poNumber       String?  @map("po_number")
+  discountAmount Decimal  @default(0) @map("discount_amount") @db.Decimal(12, 2)
+  taxType        String   @default("INTRA_STATE") @map("tax_type")
+  cgstAmount     Decimal? @default(0) @map("cgst_amount") @db.Decimal(12, 2)
+  sgstAmount     Decimal? @default(0) @map("sgst_amount") @db.Decimal(12, 2)
+  igstAmount     Decimal? @default(0) @map("igst_amount") @db.Decimal(12, 2)
+  placeOfSupply  String?  @map("place_of_supply")
+  reverseCharge  Boolean  @default(false) @map("reverse_charge")
+  amountPaid     Decimal  @default(0) @map("amount_paid") @db.Decimal(12, 2)
+  amountDue      Decimal  @default(0) @map("amount_due") @db.Decimal(12, 2)
   createdById String?       @map("created_by") @db.Uuid
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
@@ -788,6 +797,9 @@ model AppSettings {
   bankAccount    String? @map("bank_account")
   bankIfsc       String? @map("bank_ifsc")
   bankBranch     String? @map("bank_branch")
+  bankUpiId      String? @map("bank_upi_id")
+  companyStateCode String? @map("company_state_code")
+  defaultSacCode String? @default("998314") @map("default_sac_code")
   invoicePrefix  String  @default("INV") @map("invoice_prefix")
   invoiceFooter  String? @map("invoice_footer")
   currency       String  @default("INR")

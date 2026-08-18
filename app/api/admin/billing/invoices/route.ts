@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    let { clientId, projectId, issuedDate, dueDate, notes, taxRate = 18, lineItems, lineItemsJson, currency } = body
+    let { clientId, projectId, issuedDate, dueDate, notes, taxRate = 18, lineItems, lineItemsJson, currency, poNumber, discountAmount, taxType, placeOfSupply, reverseCharge, status } = body
 
     if (!lineItems && typeof lineItemsJson === 'string') {
       try {
@@ -48,6 +48,12 @@ export async function POST(request: NextRequest) {
         taxRate,
         lineItems,
         currency,
+        poNumber,
+        discountAmount,
+        taxType,
+        placeOfSupply,
+        reverseCharge,
+        status,
       },
       user
     )

@@ -22,19 +22,27 @@ export class TaskService {
     return progress
   }
 
-  static async autoAssignLeastBusyMember(projectId: string, targetTeamRole: 'DEVELOPER' | 'TESTER'): Promise<string | null> {
+  static async autoAssignLeastBusyMember(projectId: string, targetTeamRole: 'MEMBER' | 'TEAM_LEAD' = 'MEMBER'): Promise<string | null> {
+    const project = await prisma.project.findUnique({ where: { id: projectId }, select: { leadId: true } })
     const projectMembers = await prisma.projectMember.findMany({
       where: { projectId },
       include: { profile: true },
     })
 
-    const eligibleProfiles = projectMembers
+    let eligibleProfiles = projectMembers
       .map((pm) => pm.profile)
-      .filter((p) => p.isActive && p.teamRole === targetTeamRole)
+      .filter((p) => p.isActive)
+
+    if (project?.leadId) {
+      const leadProfile = await prisma.profile.findUnique({ where: { id: project.leadId } })
+      if (leadProfile && leadProfile.isActive && !eligibleProfiles.some((p) => p.id === leadProfile.id)) {
+        eligibleProfiles.push(leadProfile)
+      }
+    }
 
     if (eligibleProfiles.length === 0) {
       const globalProfiles = await prisma.profile.findMany({
-        where: { isActive: true, role: 'TEAM_MEMBER', teamRole: targetTeamRole },
+        where: { isActive: true, role: 'TEAM_MEMBER' },
       })
       if (globalProfiles.length === 0) return null
       eligibleProfiles.push(...globalProfiles)
@@ -117,10 +125,7 @@ export class TaskService {
     let assignedTesterId = testerId || null
 
     if (!assignedDevId) {
-      assignedDevId = await this.autoAssignLeastBusyMember(projectId, 'DEVELOPER')
-    }
-    if (!assignedTesterId) {
-      assignedTesterId = await this.autoAssignLeastBusyMember(projectId, 'TESTER')
+      assignedDevId = await this.autoAssignLeastBusyMember(projectId, 'MEMBER')
     }
 
     const task = await TaskRepository.create({
@@ -319,23 +324,6 @@ export class TaskService {
     currentStatus: TaskStatus,
     targetStatus: TaskStatus
   ): boolean {
-    if (role === 'ADMIN' || teamRole === 'TEAM_LEAD') return true
-
-    if (teamRole === 'DEVELOPER') {
-      if (currentStatus === 'TODO' && targetStatus === 'IN_PROGRESS') return true
-      if (currentStatus === 'IN_PROGRESS' && (targetStatus === 'READY_FOR_TESTING' || targetStatus === 'BLOCKED')) return true
-      if (currentStatus === 'CHANGES_REQUIRED' && (targetStatus === 'IN_PROGRESS' || targetStatus === 'READY_FOR_TESTING')) return true
-      if (targetStatus === 'BLOCKED') return true
-      return false
-    }
-
-    if (teamRole === 'TESTER') {
-      if (currentStatus === 'READY_FOR_TESTING' && targetStatus === 'IN_TESTING') return true
-      if (currentStatus === 'IN_TESTING' && (targetStatus === 'COMPLETED' || targetStatus === 'CHANGES_REQUIRED')) return true
-      if (targetStatus === 'BLOCKED') return true
-      return false
-    }
-
     return true
   }
 

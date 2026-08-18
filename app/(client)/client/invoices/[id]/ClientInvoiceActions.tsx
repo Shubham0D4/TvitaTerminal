@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowLeft, Printer } from 'lucide-react'
+import { ArrowLeft, Download, Printer } from 'lucide-react'
 import Link from 'next/link'
 
 interface Props {
@@ -45,13 +45,27 @@ export default function ClientInvoiceActions({ invoiceId, invoiceNo }: Props) {
         <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
           {invoiceNo}
         </span>
+
+        {/* Direct PDF Download button */}
+        <a
+          href={`/api/invoices/${invoiceId}/pdf`}
+          target="_blank"
+          rel="noreferrer"
+          className="btn btn--primary btn--sm"
+          title="Download PDF File"
+        >
+          <Download size={15} />
+          Download PDF
+        </a>
+
+        {/* Print button */}
         <button
           type="button"
           onClick={handlePrint}
-          className="btn btn--primary"
+          className="btn btn--secondary btn--sm"
         >
-          <Printer size={16} />
-          Download PDF
+          <Printer size={15} />
+          Print
         </button>
       </div>
     </div>

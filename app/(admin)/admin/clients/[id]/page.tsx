@@ -378,24 +378,7 @@ export default async function ClientDetailPage({ params }: PageProps) {
             )}
           </div>
 
-          {/* Active Subscription */}
-          {activeSub && (
-            <div className="card">
-              <div className="flex items-center justify-between mb-3">
-                <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>Active Plan</h2>
-                <Layers size={16} style={{ color: 'var(--accent-primary)' }} />
-              </div>
-              <div style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)' }}>
-                {activeSub.plan.name}
-              </div>
-              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--accent-primary)', marginTop: 2 }}>
-                {formatCurrency(Number(activeSub.plan.price), client.currency)} / {activeSub.plan.billingCycle.toLowerCase()}
-              </div>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 'var(--space-3)' }}>
-                Renewal: {formatDate(activeSub.renewalDate)}
-              </div>
-            </div>
-          )}
+
 
           {/* Projects */}
           <div className="card">

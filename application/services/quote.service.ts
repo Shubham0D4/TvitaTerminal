@@ -5,12 +5,12 @@ import { writeAuditLog } from '@/lib/audit'
 
 export class QuoteService {
   static async validateClientAccess(clientId: string, user: AuthUser) {
-    if (user.role === 'ADMIN') return true
+    if (user.role === 'ADMIN' || user.role === 'TEAM_MEMBER') return true
 
     if (user.role === 'CLIENT') {
       const subteam = await getClientSubTeamContext(user.id)
       const userClientId = subteam ? subteam.clientId : (await prisma.client.findFirst({
-        where: { profileId: user.id },
+        where: { OR: [{ profileId: user.id }, { email: user.email }] },
         select: { id: true }
       }))?.id
 

@@ -365,32 +365,6 @@ export default async function ClientDashboardPage() {
             Projects overview and pending items.
           </p>
         </div>
-
-        {activePlan && canSeeBilling && (
-          <div
-            className="card"
-            style={{
-              padding: 'var(--space-3) var(--space-5)',
-              flexShrink: 0,
-              backgroundColor: '#ffffff',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-lg)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-            }}
-          >
-            <div>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 2 }}>Current Plan</div>
-              <div style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-bold)', color: 'var(--accent-primary)' }}>
-                {activePlan.name}
-              </div>
-            </div>
-            <a href="/client/subscriptions" className="btn btn--ghost btn--xs" style={{ color: 'var(--accent-primary)' }}>
-              Manage
-            </a>
-          </div>
-        )}
       </div>
 
       {/* ─────────────────────────────────────────────

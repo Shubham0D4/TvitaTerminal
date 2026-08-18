@@ -30,10 +30,10 @@ const DEFAULT_PASSWORD = 'Password123!'
 const NEW_USERS = [
   { email: 'lead2@tvita.dev',   name: 'Priya Mehta',       role: 'TEAM_MEMBER', teamRole: 'TEAM_LEAD',  key: 'LEAD_2' },
   { email: 'lead3@tvita.dev',   name: 'Vikram Singh',      role: 'TEAM_MEMBER', teamRole: 'TEAM_LEAD',  key: 'LEAD_3' },
-  { email: 'dev2@tvita.dev',    name: 'Sneha Reddy',       role: 'TEAM_MEMBER', teamRole: 'DEVELOPER',  key: 'DEV_2' },
-  { email: 'dev3@tvita.dev',    name: 'Arjun Nair',        role: 'TEAM_MEMBER', teamRole: 'DEVELOPER',  key: 'DEV_3' },
-  { email: 'dev4@tvita.dev',    name: 'Pooja Verma',       role: 'TEAM_MEMBER', teamRole: 'DEVELOPER',  key: 'DEV_4' },
-  { email: 'tester2@tvita.dev', name: 'Ravi Kumar',        role: 'TEAM_MEMBER', teamRole: 'TESTER',     key: 'TESTER_2' },
+  { email: 'dev2@tvita.dev',    name: 'Sneha Reddy',       role: 'TEAM_MEMBER', teamRole: 'MEMBER',     key: 'DEV_2' },
+  { email: 'dev3@tvita.dev',    name: 'Arjun Nair',        role: 'TEAM_MEMBER', teamRole: 'MEMBER',     key: 'DEV_3' },
+  { email: 'dev4@tvita.dev',    name: 'Pooja Verma',       role: 'TEAM_MEMBER', teamRole: 'MEMBER',     key: 'DEV_4' },
+  { email: 'tester2@tvita.dev', name: 'Ravi Kumar',        role: 'TEAM_MEMBER', teamRole: 'MEMBER',     key: 'TESTER_2' },
   { email: 'client2@tvita.dev', name: 'Anita Patel',       role: 'CLIENT',      teamRole: null,         key: 'CLIENT_2' },
   { email: 'client3@tvita.dev', name: 'Vikram Kapoor',     role: 'CLIENT',      teamRole: null,         key: 'CLIENT_3' },
   { email: 'client4@tvita.dev', name: 'Deepa Sharma',      role: 'CLIENT',      teamRole: null,         key: 'CLIENT_4' },
@@ -101,8 +101,8 @@ async function main() {
   console.log('\n👥 Syncing profiles...')
   await prisma.profile.update({ where: { id: IDS.ADMIN }, data: { name: 'Shubham Verma', teamRole: null, passwordHash } })
   await prisma.profile.update({ where: { id: IDS.LEAD_1 }, data: { name: 'Rahul Sharma', teamRole: 'TEAM_LEAD', phone: '+91 98001 11111', passwordHash } })
-  await prisma.profile.update({ where: { id: IDS.DEV_1 }, data: { name: 'Amit Patel', teamRole: 'DEVELOPER', phone: '+91 98001 22222', passwordHash } })
-  await prisma.profile.update({ where: { id: IDS.TESTER_1 }, data: { name: 'Neha Gupta', teamRole: 'TESTER', phone: '+91 98001 33333', passwordHash } })
+  await prisma.profile.update({ where: { id: IDS.DEV_1 }, data: { name: 'Amit Patel', teamRole: 'MEMBER', phone: '+91 98001 22222', passwordHash } })
+  await prisma.profile.update({ where: { id: IDS.TESTER_1 }, data: { name: 'Neha Gupta', teamRole: 'MEMBER', phone: '+91 98001 33333', passwordHash } })
   await prisma.profile.update({ where: { id: IDS.CLIENT_1 }, data: { name: 'Rajesh Kumar', teamRole: null, passwordHash } })
 
   console.log('  ✓ Profiles synced\n')
@@ -300,24 +300,24 @@ async function main() {
 
   // --- Project Members ---
   const memberships = [
-    { pid: pTV1.id, uid: IDS.DEV_1,   role: 'DEVELOPER' },
-    { pid: pTV1.id, uid: DEV_2,       role: 'DEVELOPER' },
-    { pid: pTV1.id, uid: IDS.TESTER_1,role: 'TESTER' },
-    { pid: pTV2.id, uid: DEV_3,       role: 'DEVELOPER' },
-    { pid: pTV2.id, uid: TESTER_2,    role: 'TESTER' },
-    { pid: pGL1.id, uid: IDS.DEV_1,   role: 'DEVELOPER' },
-    { pid: pGL1.id, uid: DEV_4,       role: 'DEVELOPER' },
-    { pid: pGL1.id, uid: IDS.TESTER_1,role: 'TESTER' },
-    { pid: pGL2.id, uid: DEV_2,       role: 'DEVELOPER' },
-    { pid: pGL2.id, uid: TESTER_2,    role: 'TESTER' },
-    { pid: pAC2.id, uid: DEV_3,       role: 'DEVELOPER' },
-    { pid: pAC2.id, uid: IDS.TESTER_1,role: 'TESTER' },
-    { pid: pZT1.id, uid: IDS.DEV_1,   role: 'DEVELOPER' },
-    { pid: pZT1.id, uid: DEV_4,       role: 'DEVELOPER' },
-    { pid: pZT1.id, uid: TESTER_2,    role: 'TESTER' },
-    { pid: pZT2.id, uid: DEV_2,       role: 'DEVELOPER' },
-    { pid: pZT2.id, uid: DEV_4,       role: 'DEVELOPER' },
-    { pid: pZT2.id, uid: IDS.TESTER_1,role: 'TESTER' },
+    { pid: pTV1.id, uid: IDS.DEV_1,   role: 'MEMBER' },
+    { pid: pTV1.id, uid: DEV_2,       role: 'MEMBER' },
+    { pid: pTV1.id, uid: IDS.TESTER_1,role: 'MEMBER' },
+    { pid: pTV2.id, uid: DEV_3,       role: 'MEMBER' },
+    { pid: pTV2.id, uid: TESTER_2,    role: 'MEMBER' },
+    { pid: pGL1.id, uid: IDS.DEV_1,   role: 'MEMBER' },
+    { pid: pGL1.id, uid: DEV_4,       role: 'MEMBER' },
+    { pid: pGL1.id, uid: IDS.TESTER_1,role: 'MEMBER' },
+    { pid: pGL2.id, uid: DEV_2,       role: 'MEMBER' },
+    { pid: pGL2.id, uid: TESTER_2,    role: 'MEMBER' },
+    { pid: pAC2.id, uid: DEV_3,       role: 'MEMBER' },
+    { pid: pAC2.id, uid: IDS.TESTER_1,role: 'MEMBER' },
+    { pid: pZT1.id, uid: IDS.DEV_1,   role: 'MEMBER' },
+    { pid: pZT1.id, uid: DEV_4,       role: 'MEMBER' },
+    { pid: pZT1.id, uid: TESTER_2,    role: 'MEMBER' },
+    { pid: pZT2.id, uid: DEV_2,       role: 'MEMBER' },
+    { pid: pZT2.id, uid: DEV_4,       role: 'MEMBER' },
+    { pid: pZT2.id, uid: IDS.TESTER_1,role: 'MEMBER' },
   ]
 
   for (const m of memberships) {

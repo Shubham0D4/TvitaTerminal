@@ -14,7 +14,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Building2,
-  Boxes,
   UserCircle,
   ScrollText,
 } from 'lucide-react'
@@ -30,9 +29,7 @@ const ADMIN_NAV: NavItem[] = [
   { label: 'Clients', href: '/admin/clients', icon: <Building2 size={18} /> },
   { label: 'Projects', href: '/admin/projects', icon: <FolderKanban size={18} /> },
   { label: 'Members', href: '/admin/team', icon: <Users size={18} /> },
-  { label: 'Subscriptions', href: '/admin/subscriptions', icon: <Boxes size={18} /> },
   { label: 'Billing', href: '/admin/billing', icon: <CreditCard size={18} /> },
-  { label: 'Audit Log', href: '/admin/audit-logs', icon: <ScrollText size={18} /> },
   { label: 'Settings', href: '/admin/settings', icon: <Settings size={18} /> },
 ]
 
@@ -46,7 +43,6 @@ const TEAM_NAV: NavItem[] = [
 const CLIENT_NAV: NavItem[] = [
   { label: 'Dashboard', href: '/client/dashboard', icon: <LayoutDashboard size={18} /> },
   { label: 'Projects', href: '/client/projects', icon: <FolderKanban size={18} /> },
-  { label: 'Subscription', href: '/client/subscriptions', icon: <Boxes size={18} /> },
   { label: 'Billing', href: '/client/invoices', icon: <CreditCard size={18} /> },
   { label: 'Profile', href: '/client/profile', icon: <UserCircle size={18} /> },
 ]

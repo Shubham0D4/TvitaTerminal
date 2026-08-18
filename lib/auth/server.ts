@@ -68,11 +68,11 @@ export function isTeamLead(user: AuthUser | null): boolean {
 }
 
 export function isDeveloper(user: AuthUser | null): boolean {
-  return user?.teamRole === 'DEVELOPER'
+  return user?.teamRole === 'MEMBER'
 }
 
 export function isTester(user: AuthUser | null): boolean {
-  return user?.teamRole === 'TESTER'
+  return user?.teamRole === 'MEMBER'
 }
 
 export function canManageDocuments(user: AuthUser | null): boolean {
@@ -120,6 +120,26 @@ export type SubTeamContext = {
  */
 export async function getClientSubTeamContext(userId: string): Promise<SubTeamContext | null> {
   try {
+    // 0. Primary client organization owner has full unrestricted access
+    const profile = await prisma.profile.findUnique({
+      where: { id: userId },
+      select: { email: true },
+    })
+
+    if (profile) {
+      const primaryClient = await prisma.client.findFirst({
+        where: {
+          OR: [
+            { profileId: userId },
+            { email: profile.email },
+          ],
+        },
+      })
+      if (primaryClient) {
+        return null
+      }
+    }
+
     // 1. Check if user is an individual member of a sub-team
     const member = await prisma.clientSubTeamMember.findUnique({
       where: { profileId: userId },

@@ -1,8 +1,8 @@
 import { apiSuccess, Errors } from '@/shared/utilities/api-response'
 import { getServerUser } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
+import { uploadToSupabaseStorage } from '@/infrastructure/supabase/storage'
 import { NextRequest } from 'next/server'
-import fs from 'fs/promises'
 import path from 'path'
 
 export async function POST(
@@ -27,8 +27,9 @@ export async function POST(
 
     const isProjectLead = project.leadId === user.id
     const isAdmin = user.role === 'ADMIN'
+    const isClient = user.role === 'CLIENT'
 
-    if (!isAdmin && !isProjectLead) {
+    if (!isAdmin && !isProjectLead && !isClient) {
       return Errors.UNAUTHORIZED()
     }
 
@@ -37,23 +38,27 @@ export async function POST(
       return Errors.VALIDATION('base64Data is required')
     }
 
-    const buffer = Buffer.from(base64Data.split(',')[1] || base64Data, 'base64')
-
-    const dir = path.join(process.cwd(), 'public', 'banners')
-    await fs.mkdir(dir, { recursive: true })
+    const matches = base64Data.match(/^data:(.+);base64,(.+)$/)
+    const contentType = matches ? matches[1] : 'image/png'
+    const rawData = matches ? matches[2] : base64Data
+    const buffer = Buffer.from(rawData, 'base64')
 
     const ext = path.extname(filename || 'banner.png') || '.png'
-    const bannerPath = `/banners/${id}${ext}`
-    const fullPath = path.join(process.cwd(), 'public', bannerPath)
+    const storagePath = `banners/${id}${ext}`
 
-    await fs.writeFile(fullPath, buffer)
+    const bannerUrl = await uploadToSupabaseStorage({
+      filePath: storagePath,
+      fileBuffer: buffer,
+      contentType,
+      bucketName: 'banners',
+    })
 
     const updated = await prisma.project.update({
       where: { id },
-      data: { banner: bannerPath },
+      data: { banner: bannerUrl },
     })
 
-    return apiSuccess({ bannerUrl: bannerPath, project: updated })
+    return apiSuccess({ bannerUrl, project: updated })
   } catch (error) {
     console.error('Upload project banner error:', error)
     return Errors.INTERNAL('Failed to upload project banner')

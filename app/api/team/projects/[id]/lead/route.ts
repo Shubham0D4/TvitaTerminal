@@ -8,11 +8,21 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const user = await getServerUser()
-  if (!user || (!isAdmin(user) && !isTeamLead(user))) {
+  if (!user) {
     return Errors.UNAUTHORIZED()
   }
 
   const { id: projectId } = await params
+
+  const project = await prisma.project.findUnique({ where: { id: projectId }, select: { leadId: true } })
+  if (!project) {
+    return Errors.NOT_FOUND('Project')
+  }
+
+  const isLeadOrAdmin = isAdmin(user) || isTeamLead(user) || project.leadId === user.id
+  if (!isLeadOrAdmin) {
+    return Errors.UNAUTHORIZED()
+  }
 
   try {
     const body = await request.json()

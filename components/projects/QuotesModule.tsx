@@ -50,15 +50,18 @@ export default function QuotesModule({ clientId, userRole, userId }: Props) {
   const isClient = userRole === 'CLIENT'
 
   useEffect(() => {
-    if (!clientId) return
+    if (!clientId) {
+      setLoading(false)
+      return
+    }
     apiClient.get<Quote[]>(`/api/quotes?clientId=${clientId}`)
       .then((res) => {
-        setQuotes(res)
+        setQuotes(Array.isArray(res) ? res : [])
         setLoading(false)
       })
       .catch((err) => {
-        console.error(err)
-        toast.error('Failed to load quotes')
+        console.warn('Quotes fetch fallback:', err?.message || err)
+        setQuotes([])
         setLoading(false)
       })
   }, [clientId])

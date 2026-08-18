@@ -34,7 +34,7 @@ export async function POST(
       return Errors.NOT_FOUND('Profile')
     }
 
-    const memberRole = role || targetProfile.teamRole || 'DEVELOPER'
+    const memberRole = role || targetProfile.teamRole || 'MEMBER'
 
     const member = await prisma.projectMember.upsert({
       where: { projectId_profileId: { projectId, profileId } },

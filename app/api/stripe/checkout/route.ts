@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
-import { stripe } from '@/infrastructure/stripe'
-import { getServerUser } from '@/lib/auth/server'
-import { prisma } from '@/lib/prisma'
+import { getServerUser, getClientSubTeamContext } from '@/lib/auth/server'
+import { SubscriptionService } from '@/application/services/subscription.service'
 
 export async function POST(req: Request) {
   try {
@@ -10,51 +9,25 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { planId, billingCycle } = await req.json()
-
-    const client = await prisma.client.findFirst({
-      where: {
-        OR: [{ profileId: user.id }, { email: user.email }],
-      },
-    })
-
-    if (!client) {
-      return NextResponse.json({ error: 'Client account not found' }, { status: 404 })
+    const { planId } = await req.json()
+    if (!planId) {
+      return NextResponse.json({ error: 'planId is required' }, { status: 400 })
     }
 
-    // Mock pricing mapping for subscription tiers
-    const priceAmount = planId === 'ENTERPRISE' ? 149900 : planId === 'PRO' ? 49900 : 19900
+    const subTeamCtx = await getClientSubTeamContext(user.id)
+    if (subTeamCtx && !subTeamCtx.policy.subscriptions) {
+      return NextResponse.json({ error: 'Sub-team is not authorized to manage subscriptions' }, { status: 403 })
+    }
 
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      mode: 'subscription',
-      line_items: [
-        {
-          price_data: {
-            currency: 'usd',
-            product_data: {
-              name: `Tvita Agency ${planId} Subscription`,
-              description: `${billingCycle === 'ANNUAL' ? 'Annual' : 'Monthly'} Agency Plan`,
-            },
-            unit_amount: priceAmount,
-            recurring: {
-              interval: billingCycle === 'ANNUAL' ? 'year' : 'month',
-            },
-          },
-          quantity: 1,
-        },
-      ],
-      customer_email: client.email || user.email,
-      metadata: {
-        clientId: client.id,
-        planId,
-        billingCycle,
-      },
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/client/billing?success=true`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/client/billing?canceled=true`,
-    })
+    const originUrl = req.headers.get('origin') || undefined
+    const result = await SubscriptionService.checkoutSubscription(
+      planId,
+      user,
+      subTeamCtx?.clientId,
+      originUrl
+    )
 
-    return NextResponse.json({ sessionId: session.id, url: session.url })
+    return NextResponse.json({ data: result, sessionId: null, url: result.checkoutUrl })
   } catch (err: any) {
     console.error('Stripe Checkout Error:', err)
     return NextResponse.json({ error: err.message || 'Internal Server Error' }, { status: 500 })

@@ -22,7 +22,7 @@ interface SubscriptionDetailModalProps {
     renewalDate: any
     notes: string | null
     stripeSubId: string | null
-    client: { id: string; name: string }
+    client?: { id: string; name: string }
     plan: {
       id: string
       name: string
@@ -218,10 +218,12 @@ export default function SubscriptionDetailModal({ isOpen, onClose, subscription,
 
           {/* Client & Stripe details */}
           <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-sm)' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Client Account:</span>
-              <strong style={{ color: 'var(--text-primary)' }}>{subscription.client.name}</strong>
-            </div>
+            {subscription.client?.name && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-sm)' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Client Account:</span>
+                <strong style={{ color: 'var(--text-primary)' }}>{subscription.client?.name}</strong>
+              </div>
+            )}
             {subscription.stripeSubId && (
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-sm)' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Stripe Subscription Ref:</span>

@@ -135,9 +135,14 @@ export default async function ClientInvoicesPage() {
                       </span>
                     </td>
                     <td>
-                      <Link href={`/client/invoices/${inv.id}`} className="btn btn--ghost btn--xs">
-                        View &amp; Download
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        <Link href={`/client/invoices/${inv.id}`} className="btn btn--ghost btn--xs">
+                          View
+                        </Link>
+                        <a href={`/api/invoices/${inv.id}/pdf`} target="_blank" rel="noreferrer" className="btn btn--secondary btn--xs">
+                          Download PDF
+                        </a>
+                      </div>
                     </td>
                   </tr>
                 ))}

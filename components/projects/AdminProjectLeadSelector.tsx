@@ -23,17 +23,21 @@ export default function AdminProjectLeadSelector({
     if (!newLeadId) return
 
     setUpdating(true)
-    const res = await apiClient(`/api/team/projects/${projectId}/lead`, {
-      method: 'PUT',
-      body: JSON.stringify({ leadId: newLeadId }),
-    })
-    setUpdating(false)
-
-    if (res.success) {
-      toast.success('Project lead updated.')
-      window.location.reload()
-    } else {
-      toast.error(res.error?.message || 'Failed to update project lead.')
+    try {
+      const res = await apiClient(`/api/team/projects/${projectId}/lead`, {
+        method: 'PUT',
+        body: JSON.stringify({ leadId: newLeadId }),
+      })
+      if (res.success) {
+        toast.success('Project lead updated.')
+        window.location.reload()
+      } else {
+        toast.error(res.error?.message || 'Failed to update project lead.')
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update project lead.')
+    } finally {
+      setUpdating(false)
     }
   }
 

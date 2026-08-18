@@ -30,7 +30,7 @@ export default async function ClientTeamsPage() {
           members: {
             include: {
               role: true,
-              profile: { select: { email: true, name: true, isActive: true } },
+              profile: { select: { email: true, name: true, isActive: true, passwordHash: true } },
             },
           },
         },

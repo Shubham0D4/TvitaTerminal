@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Mail, FolderKanban } from 'lucide-react'
 import ChangePasswordForm from '@/components/profile/ChangePasswordForm'
+import ProfileAvatarUpload from '@/components/profile/ProfileAvatarUpload'
 
 export const metadata = {
   title: 'My Profile — Tvita Client Portal',
@@ -29,6 +30,11 @@ export default async function ClientProfilePage() {
     },
   })
 
+  const userProfile = await prisma.profile.findUnique({
+    where: { id: user.id },
+    select: { avatarUrl: true },
+  })
+
   return (
     <div>
       <div className="page-header">
@@ -45,23 +51,7 @@ export default async function ClientProfilePage() {
         <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
           <div className="card">
             <div className="flex items-center gap-4 mb-6">
-              <div
-                style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: '50%',
-                  background: 'var(--accent-gradient)',
-                  color: '#fff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 'var(--text-xl)',
-                  fontWeight: 'var(--font-bold)',
-                  flexShrink: 0,
-                }}
-              >
-                {user.name.charAt(0).toUpperCase()}
-              </div>
+              <ProfileAvatarUpload currentAvatarUrl={userProfile?.avatarUrl} userName={user.name} />
               <div>
                 <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)' }}>
                   {user.name}

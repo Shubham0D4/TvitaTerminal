@@ -45,9 +45,7 @@ export default async function AdminMemberDetailPage({ params }: PageProps) {
   const projectRoleColor = (role: string) => {
     switch (role) {
       case 'TEAM_LEAD': return { bg: 'rgba(139,92,246,0.15)', color: '#8b5cf6' }
-      case 'DEVELOPER': return { bg: 'rgba(59,130,246,0.15)', color: '#3b82f6' }
-      case 'TESTER': return { bg: 'rgba(16,185,129,0.15)', color: '#10b981' }
-      default: return { bg: 'rgba(107,114,128,0.12)', color: '#64748b' }
+      default: return { bg: 'rgba(59,130,246,0.15)', color: '#3b82f6' }
     }
   }
 

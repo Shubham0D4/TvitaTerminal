@@ -17,7 +17,7 @@ export default async function NewInvoicePage({
 
   const [clients, projects] = await Promise.all([
     prisma.client.findMany({
-      select: { id: true, name: true, gstin: true },
+      select: { id: true, name: true, gstin: true, country: true },
       orderBy: { name: 'asc' },
     }),
     prisma.project.findMany({

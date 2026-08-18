@@ -156,10 +156,10 @@ export default async function AdminTeamPage({
                       {m.teamRole ? (
                         <span className="badge" style={{
                           fontSize: 10,
-                          background: m.teamRole === 'TEAM_LEAD' ? 'rgba(139,92,246,0.15)' : m.teamRole === 'DEVELOPER' ? 'rgba(59,130,246,0.15)' : 'rgba(16,185,129,0.15)',
-                          color: m.teamRole === 'TEAM_LEAD' ? '#8b5cf6' : m.teamRole === 'DEVELOPER' ? '#3b82f6' : '#10b981',
+                          background: m.teamRole === 'TEAM_LEAD' ? 'rgba(139,92,246,0.15)' : 'rgba(59,130,246,0.15)',
+                          color: m.teamRole === 'TEAM_LEAD' ? '#8b5cf6' : '#3b82f6',
                         }}>
-                          {m.teamRole.replace('_', ' ')}
+                          {m.teamRole === 'TEAM_LEAD' ? 'TEAM LEAD' : 'TEAM MEMBER'}
                         </span>
                       ) : <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>—</span>}
                     </td>
@@ -170,12 +170,18 @@ export default async function AdminTeamPage({
                     <td style={{ color: 'var(--text-muted)' }}>{m._count.projectsLed}</td>
                     <td style={{ color: 'var(--text-muted)' }}>{m._count.tasksAssigned}</td>
                     <td>
-                      <span className={`badge badge--${m.isActive ? 'active' : 'inactive'}`}>
-                        {m.isActive ? 'Active' : 'Inactive'}
-                      </span>
+                      {!m.passwordHash ? (
+                        <span className="badge badge--pending" title="Invitation sent, awaiting password setup">
+                          Invited (Pending)
+                        </span>
+                      ) : (
+                        <span className={`badge badge--${m.isActive ? 'active' : 'inactive'}`}>
+                          {m.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      )}
                     </td>
                     <td>
-                      <TeamRowActions memberId={m.id} isActive={m.isActive} />
+                      <TeamRowActions memberId={m.id} isActive={m.isActive} hasPassword={Boolean(m.passwordHash)} email={m.email} />
                     </td>
                   </tr>
                 ))}

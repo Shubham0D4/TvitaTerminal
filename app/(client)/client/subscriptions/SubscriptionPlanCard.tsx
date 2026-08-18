@@ -42,6 +42,12 @@ export default function SubscriptionPlanCard({ plan, isCurrent }: PlanCardProps)
         throw new Error(data.error?.message || 'Failed to process subscription checkout')
       }
 
+      if (data.data?.checkoutUrl) {
+        toast.loading('Redirecting to Stripe Checkout...')
+        window.location.href = data.data.checkoutUrl
+        return
+      }
+
       toast.success(`Successfully subscribed to ${plan.name}!`)
       router.refresh()
     } catch (err: any) {

@@ -26,9 +26,11 @@ import {
   ChevronUp,
   UserCheck,
   Briefcase,
-  KeyRound,
   Layers,
+  KeyRound,
+  Send,
 } from 'lucide-react'
+import TeamAvatarUpload from '@/components/teams/TeamAvatarUpload'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
@@ -62,6 +64,12 @@ type MemberItem = {
   status: 'ACTIVE' | 'INACTIVE'
   createdAt: string
   role?: RoleItem | null
+  profile?: {
+    email?: string
+    name?: string
+    isActive?: boolean
+    passwordHash?: string | null
+  } | null
 }
 
 type TeamItem = {
@@ -375,9 +383,36 @@ export default function ClientTeamsManager({ client, projects, initialSubTeams }
     }
   }
 
+  const handleResendMemberInvite = async (teamId: string, member: MemberItem) => {
+    try {
+      const res = await apiClient<{ message: string; inviteLink?: string }>(
+        `/api/client/team/${teamId}/members/${member.id}/resend-invite`,
+        { method: 'POST' }
+      )
+      if (res.success && res.data) {
+        if (res.data.inviteLink && typeof navigator !== 'undefined' && navigator.clipboard) {
+          try {
+            await navigator.clipboard.writeText(res.data.inviteLink)
+            setCopiedId(member.id)
+            setTimeout(() => setCopiedId(null), 3000)
+          } catch (clipErr) {
+            console.warn('Clipboard write error:', clipErr)
+          }
+        }
+        toast.success(res.data.message || `Magic link invitation resent to ${member.email}!`)
+      } else {
+        toast.error(res.error?.message || 'Failed to resend invitation')
+      }
+    } catch (err: unknown) {
+      toast.error((err as Error)?.message || 'Failed to resend invitation')
+    }
+  }
+
   const copyMagicLink = (email: string, id: string) => {
     const url = `${window.location.origin}/login?email=${encodeURIComponent(email)}`
-    navigator.clipboard.writeText(url)
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(url).catch((clipErr) => console.warn('Clipboard write error:', clipErr))
+    }
     setCopiedId(id)
     toast.success('Magic login link copied to clipboard!')
     setTimeout(() => setCopiedId(null), 3000)
@@ -481,32 +516,21 @@ export default function ClientTeamsManager({ client, projects, initialSubTeams }
                 <div
                   style={{
                     padding: 'var(--space-4) var(--space-6)',
-                    background: isExpanded ? 'var(--bg-elevated)' : '#ffffff',
+                    background: isExpanded ? 'var(--bg-elevated)' : 'var(--bg-surface)',
                     borderBottom: isExpanded ? '1px solid var(--border-subtle)' : 'none',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     cursor: 'pointer',
                   }}
-                  onClick={() => router.push(`/client/teams/${team.id}`)}
+                  onClick={() => setExpandedTeamId(isExpanded ? null : team.id)}
                 >
                   <div className="flex items-center gap-3">
-                    <div
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 'var(--radius-md)',
-                        background: 'linear-gradient(135deg, var(--accent-primary) 0%, #8b5cf6 100%)',
-                        color: '#fff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 'var(--font-bold)',
-                        fontSize: 'var(--text-sm)',
-                      }}
-                    >
-                      {getInitials(team.name)}
-                    </div>
+                    <TeamAvatarUpload
+                      teamId={team.id}
+                      teamName={team.name}
+                      currentAvatarUrl={(team.accessPolicy as any)?.avatarUrl}
+                    />
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)', margin: 0 }}>
@@ -582,7 +606,7 @@ export default function ClientTeamsManager({ client, projects, initialSubTeams }
 
                 {/* Team Details Panel (Expanded) */}
                 {isExpanded && (
-                  <div style={{ padding: 'var(--space-6)', background: '#ffffff', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+                  <div style={{ padding: 'var(--space-6)', background: 'var(--bg-surface)', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
                     
                     {/* Sub-Team Actions Toolbar */}
                     <div className="flex items-center justify-between pb-3" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
@@ -716,6 +740,18 @@ export default function ClientTeamsManager({ client, projects, initialSubTeams }
                                     </td>
                                     <td>
                                       <div className="flex items-center gap-2">
+                                        {!m.profile?.passwordHash && (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleResendMemberInvite(team.id, m)}
+                                            className="btn btn--secondary btn--xs"
+                                            style={{ gap: 4, background: 'rgba(99, 102, 241, 0.15)', color: 'var(--accent-primary)', border: '1px solid rgba(99, 102, 241, 0.3)' }}
+                                            title="Resend Magic Link Invitation Email"
+                                          >
+                                            <Send size={12} /> Resend Invite
+                                          </button>
+                                        )}
+
                                         <button
                                           type="button"
                                           onClick={() => copyMagicLink(m.email, m.id)}
@@ -753,18 +789,18 @@ export default function ClientTeamsManager({ client, projects, initialSubTeams }
 
       {/* --- MODAL 1: Create / Edit Team (with Project-Level Access) --- */}
       {showTeamModal && (
-        <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(8px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div className="modal-content" style={{ maxWidth: 700, width: '95%', background: '#ffffff', borderRadius: 'var(--radius-xl)', overflow: 'hidden' }}>
-            <div className="modal-header" style={{ background: '#f8fafc', padding: 'var(--space-4) var(--space-6)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-bold)', color: '#0f172a' }}>
+        <div className="modal-backdrop">
+          <div className="modal-content" style={{ maxWidth: 700, width: '95%' }}>
+            <div className="modal-header">
+              <h2 className="modal-title">
                 {editingTeam ? 'Edit Team & Project Access' : 'Create New Client Sub-Team'}
               </h2>
               <button type="button" onClick={() => setShowTeamModal(false)} className="btn btn--ghost btn--icon"><X size={18} /></button>
             </div>
 
-            <form onSubmit={handleSaveTeam} style={{ padding: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+            <form onSubmit={handleSaveTeam} className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
               <div className="form-group">
-                <label className="form-label" style={{ fontWeight: 600, color: '#334155' }}>Team Name *</label>
+                <label className="form-label">Team Name *</label>
                 <input
                   type="text"
                   required
@@ -772,19 +808,17 @@ export default function ClientTeamsManager({ client, projects, initialSubTeams }
                   value={teamName}
                   onChange={(e) => setTeamName(e.target.value)}
                   className="form-input"
-                  style={{ background: '#ffffff', border: '1px solid var(--border-default)', color: '#0f172a' }}
                 />
               </div>
 
               <div className="form-group">
-                <label className="form-label" style={{ fontWeight: 600, color: '#334155' }}>Description (Optional)</label>
+                <label className="form-label">Description (Optional)</label>
                 <input
                   type="text"
                   placeholder="e.g. Internal QA department for mobile apps"
                   value={teamDesc}
                   onChange={(e) => setTeamDesc(e.target.value)}
                   className="form-input"
-                  style={{ background: '#ffffff', border: '1px solid var(--border-default)', color: '#0f172a' }}
                 />
               </div>
 
@@ -834,16 +868,16 @@ export default function ClientTeamsManager({ client, projects, initialSubTeams }
 
       {/* --- MODAL 2: Create Custom Team Role --- */}
       {showRoleModal && (
-        <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(8px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div className="modal-content" style={{ maxWidth: 650, width: '95%', background: '#ffffff', borderRadius: 'var(--radius-xl)', overflow: 'hidden' }}>
-            <div className="modal-header" style={{ background: '#f8fafc', padding: 'var(--space-4) var(--space-6)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-bold)', color: '#0f172a' }}>Add Custom Role to Team</h2>
+        <div className="modal-backdrop">
+          <div className="modal-content" style={{ maxWidth: 650, width: '95%' }}>
+            <div className="modal-header">
+              <h2 className="modal-title">Add Custom Role to Team</h2>
               <button type="button" onClick={() => setShowRoleModal(false)} className="btn btn--ghost btn--icon"><X size={18} /></button>
             </div>
 
-            <form onSubmit={handleSaveRole} style={{ padding: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+            <form onSubmit={handleSaveRole} className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
               <div className="form-group">
-                <label className="form-label" style={{ fontWeight: 600, color: '#334155' }}>Role Name *</label>
+                <label className="form-label">Role Name *</label>
                 <input
                   type="text"
                   required
@@ -851,19 +885,17 @@ export default function ClientTeamsManager({ client, projects, initialSubTeams }
                   value={roleName}
                   onChange={(e) => setRoleName(e.target.value)}
                   className="form-input"
-                  style={{ background: '#ffffff', border: '1px solid var(--border-default)', color: '#0f172a' }}
                 />
               </div>
 
               <div className="form-group">
-                <label className="form-label" style={{ fontWeight: 600, color: '#334155' }}>Role Description</label>
+                <label className="form-label">Role Description</label>
                 <input
                   type="text"
                   placeholder="e.g. Can review and approve project milestones"
                   value={roleDesc}
                   onChange={(e) => setRoleDesc(e.target.value)}
                   className="form-input"
-                  style={{ background: '#ffffff', border: '1px solid var(--border-default)', color: '#0f172a' }}
                 />
               </div>
 
@@ -909,17 +941,17 @@ export default function ClientTeamsManager({ client, projects, initialSubTeams }
 
       {/* --- MODAL 3: Invite Team Member --- */}
       {showMemberModal && (
-        <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(8px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div className="modal-content" style={{ maxWidth: 650, width: '95%', background: '#ffffff', borderRadius: 'var(--radius-xl)', overflow: 'hidden' }}>
-            <div className="modal-header" style={{ background: '#f8fafc', padding: 'var(--space-4) var(--space-6)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-bold)', color: '#0f172a' }}>Invite Team Member</h2>
+        <div className="modal-backdrop">
+          <div className="modal-content" style={{ maxWidth: 650, width: '95%' }}>
+            <div className="modal-header">
+              <h2 className="modal-title">Invite Team Member</h2>
               <button type="button" onClick={() => setShowMemberModal(false)} className="btn btn--ghost btn--icon"><X size={18} /></button>
             </div>
 
-            <form onSubmit={handleSaveMember} style={{ padding: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+            <form onSubmit={handleSaveMember} className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
               <div className="grid grid-cols-2 gap-4">
                 <div className="form-group">
-                  <label className="form-label" style={{ fontWeight: 600, color: '#334155' }}>Member Name *</label>
+                  <label className="form-label">Member Name *</label>
                   <input
                     type="text"
                     required
@@ -927,12 +959,11 @@ export default function ClientTeamsManager({ client, projects, initialSubTeams }
                     value={memberName}
                     onChange={(e) => setMemberName(e.target.value)}
                     className="form-input"
-                    style={{ background: '#ffffff', border: '1px solid var(--border-default)', color: '#0f172a' }}
                   />
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label" style={{ fontWeight: 600, color: '#334155' }}>Email Address *</label>
+                  <label className="form-label">Email Address *</label>
                   <input
                     type="email"
                     required
@@ -940,31 +971,28 @@ export default function ClientTeamsManager({ client, projects, initialSubTeams }
                     value={memberEmail}
                     onChange={(e) => setMemberEmail(e.target.value)}
                     className="form-input"
-                    style={{ background: '#ffffff', border: '1px solid var(--border-default)', color: '#0f172a' }}
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="form-group">
-                  <label className="form-label" style={{ fontWeight: 600, color: '#334155' }}>Designation</label>
+                  <label className="form-label">Designation</label>
                   <input
                     type="text"
                     placeholder="e.g. Senior QA Engineer"
                     value={memberDesignation}
                     onChange={(e) => setMemberDesignation(e.target.value)}
                     className="form-input"
-                    style={{ background: '#ffffff', border: '1px solid var(--border-default)', color: '#0f172a' }}
                   />
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label" style={{ fontWeight: 600, color: '#334155' }}>Assign Custom Role</label>
+                  <label className="form-label">Assign Custom Role</label>
                   <select
                     value={memberRoleId}
                     onChange={(e) => setMemberRoleId(e.target.value)}
                     className="form-select"
-                    style={{ background: '#ffffff', border: '1px solid var(--border-default)', color: '#0f172a' }}
                   >
                     <option value="">Default Team Role</option>
                     {(teams.find((t) => t.id === memberTeamId)?.roles || []).map((r) => (

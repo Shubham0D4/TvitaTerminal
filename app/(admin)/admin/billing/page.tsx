@@ -11,6 +11,8 @@ import {
   FileText,
 } from 'lucide-react'
 
+import AdminInvoiceStatusToggle from './AdminInvoiceStatusToggle'
+
 export const metadata = {
   title: 'Invoices & Billing — Tvita Admin',
   description: 'Manage agency invoices, track payments, and monitor revenue.',
@@ -161,6 +163,7 @@ export default async function AdminBillingPage({
                   <th>Due Date</th>
                   <th>Amount</th>
                   <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -195,9 +198,23 @@ export default async function AdminBillingPage({
                       {formatCurrency(Number(inv.amount))}
                     </td>
                     <td>
-                      <span className={`badge badge--${inv.status.toLowerCase()}`}>
-                        {inv.status}
-                      </span>
+                      <AdminInvoiceStatusToggle invoiceId={inv.id} currentStatus={inv.status} />
+                    </td>
+                    <td>
+                      <div className="flex items-center gap-2">
+                        <Link href={`/admin/billing/${inv.id}`} className="btn btn--ghost btn--xs">
+                          View
+                        </Link>
+                        <a
+                          href={`/api/invoices/${inv.id}/pdf`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn btn--secondary btn--xs"
+                          title="Download PDF Invoice"
+                        >
+                          Download PDF
+                        </a>
+                      </div>
                     </td>
                   </tr>
                 ))}

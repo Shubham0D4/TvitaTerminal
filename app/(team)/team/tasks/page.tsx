@@ -21,17 +21,10 @@ export default async function TeamTasksPage() {
   const tasks = await prisma.task.findMany({
     where: isLeadOrAdmin
       ? {}
-      : profile.teamRole === 'TESTER'
-      ? {
-          OR: [
-            { testerId: user.id },
-            { status: 'READY_FOR_TESTING' },
-            { status: 'IN_TESTING' },
-          ],
-        }
       : {
           OR: [
             { developerId: user.id },
+            { testerId: user.id },
             { assigneeId: user.id },
           ],
         },
@@ -84,14 +77,12 @@ export default async function TeamTasksPage() {
       <div className="page-header flex items-center justify-between">
         <div>
           <h1 className="page-header__title">
-            {profile.teamRole === 'DEVELOPER'
-              ? 'Developer Queue'
-              : profile.teamRole === 'TESTER'
-              ? 'QA Testing Queue'
-              : 'Tasks & Deliverables Workflow'}
+            {profile.teamRole === 'TEAM_LEAD'
+              ? 'Team Lead Task Board'
+              : 'My Tasks & Workflow'}
           </h1>
           <p className="page-header__subtitle">
-            {tasks.length} active tasks in your queue ({profile.teamRole || profile.role}). Click any card to inspect Activity History Trail.
+            {tasks.length} active tasks in your queue. Click any card to inspect Activity History Trail.
           </p>
         </div>
       </div>

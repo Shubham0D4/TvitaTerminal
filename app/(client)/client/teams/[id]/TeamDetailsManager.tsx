@@ -22,6 +22,7 @@ import {
   CreditCard,
   Sparkles,
   Settings,
+  Send,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { apiClient } from '@/shared/utilities/api-client'
@@ -52,6 +53,12 @@ type MemberItem = {
   status: 'ACTIVE' | 'INACTIVE'
   createdAt: string
   role?: RoleItem | null
+  profile?: {
+    email?: string
+    name?: string
+    isActive?: boolean
+    passwordHash?: string | null
+  } | null
 }
 
 type SubTeamDetail = {
@@ -74,7 +81,6 @@ const ACCESS_COMPONENTS: { key: keyof AccessPolicy; label: string; description: 
   { key: 'milestones', label: 'Milestones & Tasks', description: 'View project timelines and milestone status', icon: ShieldCheck },
   { key: 'approvals', label: 'Deliverable Approvals', description: 'Review and approve milestone deliverables', icon: Check },
   { key: 'invoices', label: 'Billing & Invoices', description: 'View invoices and payment receipts', icon: CreditCard },
-  { key: 'subscriptions', label: 'Subscriptions & Plans', description: 'View subscription plan details', icon: Sparkles },
   { key: 'billing', label: 'Payment Settings', description: 'View payment methods and billing info', icon: CreditCard },
   { key: 'issues', label: 'Issue Tracking', description: 'View and report project issues', icon: ShieldAlert },
   { key: 'notes', label: 'Notes System', description: 'View and create project notes', icon: FileText },
@@ -116,6 +122,21 @@ export default function TeamDetailsManager({
     notes: true,
   })
 
+  // Add Custom Role Modal
+  const [showRoleModal, setShowRoleModal] = useState(false)
+  const [roleName, setRoleName] = useState('')
+  const [roleDesc, setRoleDesc] = useState('')
+  const [rolePolicy, setRolePolicy] = useState<AccessPolicy>({
+    projects: true,
+    milestones: true,
+    approvals: true,
+    invoices: false,
+    subscriptions: false,
+    billing: false,
+    issues: true,
+    notes: true,
+  })
+
   // Edit Member Access Scope Modal
   const [editingMember, setEditingMember] = useState<MemberItem | null>(null)
   const [editMemberPolicy, setEditMemberPolicy] = useState<AccessPolicy>({
@@ -130,6 +151,55 @@ export default function TeamDetailsManager({
   })
 
   // --- Handlers ---
+
+  const handleCreateRole = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!roleName.trim()) {
+      toast.error('Role name is required')
+      return
+    }
+
+    setIsPending(true)
+    try {
+      const created = await apiClient.post<RoleItem>(`/api/client/team/${team.id}/roles`, {
+        name: roleName.trim(),
+        description: roleDesc.trim() || null,
+        permissions: rolePolicy,
+      })
+
+      setTeam((prev) => ({
+        ...prev,
+        roles: [created, ...(prev.roles || [])],
+      }))
+
+      toast.success(`Custom role "${roleName.trim()}" created successfully`)
+      setShowRoleModal(false)
+      setRoleName('')
+      setRoleDesc('')
+    } catch (err: unknown) {
+      toast.error((err as Error)?.message || 'Failed to create role')
+    } finally {
+      setIsPending(false)
+    }
+  }
+
+  const handleDeleteRole = async (role: RoleItem) => {
+    if (!confirm(`Delete custom role "${role.name}"?\n\nMembers assigned to this role will preserve their active permissions.`)) return
+
+    setIsPending(true)
+    try {
+      await apiClient.delete(`/api/client/team/${team.id}/roles/${role.id}`)
+      setTeam((prev) => ({
+        ...prev,
+        roles: (prev.roles || []).filter((r) => r.id !== role.id),
+      }))
+      toast.success(`Role "${role.name}" deleted`)
+    } catch (err: unknown) {
+      toast.error((err as Error)?.message || 'Failed to delete role')
+    } finally {
+      setIsPending(false)
+    }
+  }
 
   const handleUpdateTeamSettings = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -273,6 +343,33 @@ export default function TeamDetailsManager({
     }
   }
 
+  const handleResendInvite = async (m: MemberItem) => {
+    setIsPending(true)
+    try {
+      const res = await apiClient<{ message: string; inviteLink?: string }>(
+        `/api/client/team/${team.id}/members/${m.id}/resend-invite`,
+        { method: 'POST' }
+      )
+
+      if (res.success && res.data) {
+        if (res.data.inviteLink && typeof navigator !== 'undefined' && navigator.clipboard) {
+          try {
+            await navigator.clipboard.writeText(res.data.inviteLink)
+          } catch (clipErr) {
+            console.warn('Clipboard write error:', clipErr)
+          }
+        }
+        toast.success(res.data.message || `Magic link invitation resent to ${m.email}`)
+      } else {
+        toast.error(res.error?.message || 'Failed to resend invitation')
+      }
+    } catch (err: unknown) {
+      toast.error((err as Error)?.message || 'Failed to resend invitation')
+    } finally {
+      setIsPending(false)
+    }
+  }
+
   const handleDeleteMember = async (m: MemberItem) => {
     if (!confirm(`Soft remove member "${m.name}" from this team?\n\nTheir history and activity logs will be preserved. You can re-invite them to any team later.`)) return
 
@@ -386,6 +483,68 @@ export default function TeamDetailsManager({
         </div>
       </div>
 
+      {/* Custom Team Roles Section */}
+      <div className="card">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-md font-semibold text-primary flex items-center gap-2">
+              <ShieldCheck size={18} style={{ color: 'var(--accent-primary)' }} /> Custom Team Roles ({team.roles?.length || 0})
+            </h2>
+            <p className="text-xs text-secondary mt-1">
+              Define reusable roles with custom component access scopes to assign to team members.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowRoleModal(true)}
+            className="btn btn--secondary btn--sm"
+          >
+            <ShieldCheck size={15} /> Add Custom Role
+          </button>
+        </div>
+
+        {!team.roles || team.roles.length === 0 ? (
+          <div className="empty-state" style={{ padding: 'var(--space-6) 0' }}>
+            <ShieldCheck size={28} style={{ color: 'var(--text-muted)' }} />
+            <div className="empty-state__title" style={{ fontSize: 'var(--text-xs)' }}>No custom roles created for this team</div>
+            <div className="empty-state__desc" style={{ fontSize: 11 }}>
+              Click &quot;Add Custom Role&quot; to create reusable permission sets like QA Reviewer or Finance Manager.
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {team.roles.map((r) => {
+              const perms = (r.permissions as Record<string, boolean> | null) || {}
+              const activeCount = ACCESS_COMPONENTS.filter((comp) => Boolean(perms[comp.key])).length
+
+              return (
+                <div key={r.id} className="p-3 rounded-lg border flex items-start justify-between gap-3" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
+                  <div>
+                    <div className="font-semibold text-primary text-xs flex items-center gap-2">
+                      {r.name}
+                      <span className="badge" style={{ background: 'rgba(99, 102, 241, 0.15)', color: 'var(--accent-primary)', fontSize: 9 }}>
+                        {activeCount} / {ACCESS_COMPONENTS.length} Scope Modules
+                      </span>
+                    </div>
+                    {r.description && <div className="text-xs text-secondary mt-1">{r.description}</div>}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteRole(r)}
+                    className="btn btn--ghost btn--xs text-danger"
+                    disabled={isPending}
+                    title="Delete Role"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Team Members List Section */}
       <div className="card">
         <div className="flex items-center justify-between mb-4">
@@ -398,13 +557,22 @@ export default function TeamDetailsManager({
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setShowAddMemberModal(true)}
-            className="btn btn--primary btn--sm"
-          >
-            <UserPlus size={15} /> Add Team Member
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowRoleModal(true)}
+              className="btn btn--secondary btn--sm"
+            >
+              <ShieldCheck size={15} /> Add Custom Role
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAddMemberModal(true)}
+              className="btn btn--primary btn--sm"
+            >
+              <UserPlus size={15} /> Add Team Member
+            </button>
+          </div>
         </div>
 
         {!team.members || team.members.length === 0 ? (
@@ -448,39 +616,100 @@ export default function TeamDetailsManager({
                         <span className="text-xs text-secondary">{m.designation || '—'}</span>
                       </td>
                       <td>
-                        <div className="flex flex-wrap gap-1" style={{ maxWidth: 260 }}>
-                          {activePerms.map((p) => {
-                            const Icon = p.icon
-                            return (
+                        <div style={{ maxWidth: 220, overflow: 'hidden' }}>
+                          {activePerms.length === ACCESS_COMPONENTS.length ? (
+                            <span className="badge badge--success" style={{ fontSize: 9, gap: 4, display: 'inline-flex', alignItems: 'center' }}>
+                              <ShieldCheck size={10} /> Full Scope ({ACCESS_COMPONENTS.length})
+                            </span>
+                          ) : activePerms.length > 2 ? (
+                            <div className="flex items-center gap-1">
+                              {activePerms.slice(0, 2).map((p) => {
+                                const Icon = p.icon
+                                return (
+                                  <span
+                                    key={p.key}
+                                    className="badge"
+                                    style={{
+                                      background: 'var(--bg-overlay)',
+                                      color: 'var(--text-secondary)',
+                                      fontSize: 9,
+                                      padding: '1px 6px',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 3,
+                                    }}
+                                  >
+                                    <Icon size={10} /> {p.label}
+                                  </span>
+                                )
+                              })}
                               <span
-                                key={p.key}
                                 className="badge"
                                 style={{
                                   background: 'var(--bg-overlay)',
-                                  color: 'var(--text-secondary)',
+                                  color: 'var(--text-muted)',
                                   fontSize: 9,
                                   padding: '1px 6px',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: 3,
                                 }}
+                                title={activePerms.slice(2).map((p) => p.label).join(', ')}
                               >
-                                <Icon size={10} /> {p.label}
+                                +{activePerms.length - 2} more
                               </span>
-                            )
-                          })}
-                          {activePerms.length === 0 && (
+                            </div>
+                          ) : activePerms.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {activePerms.map((p) => {
+                                const Icon = p.icon
+                                return (
+                                  <span
+                                    key={p.key}
+                                    className="badge"
+                                    style={{
+                                      background: 'var(--bg-overlay)',
+                                      color: 'var(--text-secondary)',
+                                      fontSize: 9,
+                                      padding: '1px 6px',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 3,
+                                    }}
+                                  >
+                                    <Icon size={10} /> {p.label}
+                                  </span>
+                                )
+                              })}
+                            </div>
+                          ) : (
                             <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Inherit Team Scope</span>
                           )}
                         </div>
                       </td>
                       <td>
-                        <span className={`badge badge--${m.status === 'ACTIVE' ? 'success' : 'warning'}`}>
-                          {m.status === 'ACTIVE' ? 'Active' : 'Revoked'}
-                        </span>
+                        {!m.profile?.passwordHash ? (
+                          <span className="badge badge--warning" title="Invitation sent, awaiting password setup">
+                            Invited (Pending)
+                          </span>
+                        ) : (
+                          <span className={`badge badge--${m.status === 'ACTIVE' ? 'success' : 'warning'}`}>
+                            {m.status === 'ACTIVE' ? 'Active' : 'Revoked'}
+                          </span>
+                        )}
                       </td>
                       <td>
                         <div className="flex justify-end gap-2">
+                          {!m.profile?.passwordHash && (
+                            <button
+                              type="button"
+                              onClick={() => handleResendInvite(m)}
+                              className="btn btn--secondary btn--xs"
+                              style={{ gap: 4, background: 'rgba(99, 102, 241, 0.15)', color: 'var(--accent-primary)', border: '1px solid rgba(99, 102, 241, 0.3)' }}
+                              disabled={isPending}
+                              title="Resend Magic Link Invitation Email"
+                            >
+                              <Send size={12} /> Resend Invite
+                            </button>
+                          )}
+
                           <button
                             type="button"
                             onClick={() => handleOpenEditMemberAccess(m)}
@@ -552,7 +781,6 @@ export default function TeamDetailsManager({
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
                     className="form-input"
-                    style={{ background: '#ffffff', color: '#0f172a' }}
                   />
                 </div>
 
@@ -563,7 +791,6 @@ export default function TeamDetailsManager({
                     value={editDescription}
                     onChange={(e) => setEditDescription(e.target.value)}
                     className="form-input"
-                    style={{ background: '#ffffff', color: '#0f172a' }}
                     placeholder="e.g. QA testing & deliverable review team"
                   />
                 </div>
@@ -669,7 +896,6 @@ export default function TeamDetailsManager({
                     value={memberName}
                     onChange={(e) => setMemberName(e.target.value)}
                     className="form-input"
-                    style={{ background: '#ffffff', color: '#0f172a' }}
                   />
                 </div>
 
@@ -682,7 +908,6 @@ export default function TeamDetailsManager({
                     value={memberEmail}
                     onChange={(e) => setMemberEmail(e.target.value)}
                     className="form-input"
-                    style={{ background: '#ffffff', color: '#0f172a' }}
                   />
                   <p className="form-hint">
                     A personalized login magic link will be automatically sent to this email address.
@@ -697,7 +922,6 @@ export default function TeamDetailsManager({
                     value={memberDesignation}
                     onChange={(e) => setMemberDesignation(e.target.value)}
                     className="form-input"
-                    style={{ background: '#ffffff', color: '#0f172a' }}
                   />
                 </div>
 
@@ -775,7 +999,7 @@ export default function TeamDetailsManager({
                         className="flex items-start gap-3 p-3 rounded-lg border cursor-pointer"
                         style={{
                           borderColor: isChecked ? 'var(--accent-primary)' : 'var(--border-subtle)',
-                          background: isChecked ? 'rgba(99, 102, 241, 0.06)' : '#ffffff',
+                          background: isChecked ? 'rgba(99, 102, 241, 0.06)' : 'var(--bg-surface)',
                         }}
                       >
                         <input
@@ -808,6 +1032,84 @@ export default function TeamDetailsManager({
                 </button>
                 <button type="submit" disabled={isPending} className="btn btn--primary">
                   {isPending ? 'Saving...' : 'Update Member Scope'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* MODAL 4: Create Custom Sub-Team Role */}
+      {showRoleModal && (
+        <div className="modal-backdrop">
+          <div className="modal-content" style={{ maxWidth: 520 }}>
+            <div className="modal-header">
+              <h2 className="modal-title">Create Custom Sub-Team Role</h2>
+              <button type="button" onClick={() => setShowRoleModal(false)} className="btn btn--ghost btn--icon">
+                <X size={16} />
+              </button>
+            </div>
+            <form onSubmit={handleCreateRole}>
+              <div className="modal-body space-y-4">
+                <div className="form-group">
+                  <label className="form-label">Role Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. QA Auditor / Reviewer"
+                    value={roleName}
+                    onChange={(e) => setRoleName(e.target.value)}
+                    className="form-input"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Description</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Can view milestones and approve deliverables"
+                    value={roleDesc}
+                    onChange={(e) => setRoleDesc(e.target.value)}
+                    className="form-input"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label mb-2" style={{ display: 'block' }}>Role Component Access Scope</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {ACCESS_COMPONENTS.map((comp) => {
+                      const Icon = comp.icon
+                      const isChecked = Boolean(rolePolicy[comp.key])
+                      return (
+                        <label
+                          key={comp.key}
+                          className="flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer text-xs font-medium"
+                          style={{
+                            borderColor: isChecked ? 'var(--accent-primary)' : 'var(--border-subtle)',
+                            background: isChecked ? 'rgba(99, 102, 241, 0.08)' : 'var(--bg-surface)',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) =>
+                              setRolePolicy((prev) => ({ ...prev, [comp.key]: e.target.checked }))
+                            }
+                          />
+                          <Icon size={14} style={{ color: 'var(--accent-primary)' }} />
+                          <span className="text-primary">{comp.label}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button type="button" onClick={() => setShowRoleModal(false)} className="btn btn--secondary">
+                  Cancel
+                </button>
+                <button type="submit" disabled={isPending} className="btn btn--primary">
+                  {isPending ? 'Creating Role...' : 'Create Role'}
                 </button>
               </div>
             </form>

@@ -12,7 +12,6 @@ const PERMISSION_TAGS: { key: keyof AccessPolicy; label: string; icon: typeof Fo
   { key: 'milestones', label: 'Milestones', icon: ShieldCheck },
   { key: 'approvals', label: 'Approvals', icon: ShieldCheck },
   { key: 'invoices', label: 'Invoices', icon: CreditCard },
-  { key: 'subscriptions', label: 'Subscriptions', icon: Sparkles },
   { key: 'billing', label: 'Billing', icon: CreditCard },
 ]
 

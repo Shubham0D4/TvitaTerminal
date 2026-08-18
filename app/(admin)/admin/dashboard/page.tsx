@@ -18,6 +18,7 @@ import {
   Activity,
   Check,
   ExternalLink,
+  Receipt,
 } from 'lucide-react'
 
 export const metadata = {
@@ -372,6 +373,9 @@ export default async function AdminDashboardPage() {
           >
             Admin
           </span>
+          <a href="/admin/settings#tax-financial" className="btn btn--secondary btn--sm">
+            <Receipt size={14} /> Tax &amp; Financial Settings
+          </a>
           <a href="/admin/clients/new" className="btn btn--secondary btn--sm">
             <Plus size={14} /> Add Client
           </a>

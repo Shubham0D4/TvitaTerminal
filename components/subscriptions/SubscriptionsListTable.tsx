@@ -61,9 +61,13 @@ export default function SubscriptionsListTable({ subscriptions }: { subscription
                   className="hover:bg-slate-50 dark:hover:bg-slate-800"
                 >
                   <td style={{ fontWeight: 'var(--font-medium)', color: 'var(--text-primary)' }} onClick={(e) => e.stopPropagation()}>
-                    <Link href={`/admin/clients/${sub.client.id}`} style={{ color: 'var(--accent-primary)' }}>
-                      {sub.client.name}
-                    </Link>
+                    {sub.client?.id ? (
+                      <Link href={`/admin/clients/${sub.client.id}`} style={{ color: 'var(--accent-primary)' }}>
+                        {sub.client.name}
+                      </Link>
+                    ) : (
+                      <span>{sub.client?.name || '—'}</span>
+                    )}
                   </td>
                   <td style={{ fontWeight: 'var(--font-medium)', color: 'var(--text-primary)' }}>
                     {sub.plan.name}

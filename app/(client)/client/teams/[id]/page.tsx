@@ -38,7 +38,7 @@ export default async function SubTeamDetailPage({ params }: { params: Promise<{ 
         orderBy: { createdAt: 'desc' },
         include: {
           role: true,
-          profile: { select: { email: true, name: true, isActive: true } },
+          profile: { select: { email: true, name: true, isActive: true, passwordHash: true } },
         },
       },
     },
