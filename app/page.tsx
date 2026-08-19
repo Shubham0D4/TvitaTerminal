@@ -18,4 +18,5 @@ export default async function RootPage() {
     default:
       redirect('/login')
   }
+
 }

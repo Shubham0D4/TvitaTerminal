@@ -4,6 +4,7 @@ import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import toast from 'react-hot-toast'
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 function LoginForm() {
   const router = useRouter()
@@ -43,6 +44,7 @@ function LoginForm() {
 
   return (
     <div className="auth-page">
+      <SpeedInsights />
       <div className="auth-card">
         {/* Logo */}
         <div className="auth-logo">
