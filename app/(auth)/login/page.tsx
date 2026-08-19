@@ -44,7 +44,6 @@ function LoginForm() {
 
   return (
     <div className="auth-page">
-      <SpeedInsights />
       <div className="auth-card">
         {/* Logo */}
         <div className="auth-logo">
