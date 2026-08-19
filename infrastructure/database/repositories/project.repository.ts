@@ -74,31 +74,4 @@ export class ProjectRepository {
       orderBy: { createdAt: 'desc' },
     })
   }
-
-  // Approvals
-  static async createApproval(data: Prisma.ClientApprovalUncheckedCreateInput) {
-    return prisma.clientApproval.create({ data })
-  }
-
-  static async updateApproval(id: string, data: Prisma.ClientApprovalUncheckedUpdateInput) {
-    return prisma.clientApproval.update({
-      where: { id },
-      data,
-    })
-  }
-
-  static async findApprovalById(id: string, include?: Prisma.ClientApprovalInclude) {
-    return prisma.clientApproval.findUnique({
-      where: { id },
-      include,
-    })
-  }
-
-  static async findApprovals(where?: Prisma.ClientApprovalWhereInput, include?: Prisma.ClientApprovalInclude) {
-    return prisma.clientApproval.findMany({
-      where,
-      include,
-      orderBy: { createdAt: 'desc' },
-    })
-  }
 }

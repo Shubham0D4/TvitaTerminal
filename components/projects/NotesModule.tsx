@@ -1,19 +1,15 @@
 'use client'
 
-import { useState, useEffect, useTransition } from 'react'
-import { Plus, X, Lock, Eye, Trash2, Users, Check } from 'lucide-react'
+import { useState, useEffect, useRef, useTransition } from 'react'
+import { Send, Lock, Eye, Trash2, Paperclip, FileText, X, Download, Image as ImageIcon } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { apiClient } from '@/shared/utilities/api-client'
 
-interface ProfileItem {
-  id: string
+interface Attachment {
   name: string
-  role: string
-}
-
-interface SubTeamItem {
-  id: string
-  name: string
+  url: string
+  mimeType: string
+  size: number
 }
 
 interface Note {
@@ -25,6 +21,7 @@ interface Note {
   creator: { id: string; name: string; role: string }
   allowedProfileIds: string[]
   allowedSubTeamIds: string[]
+  attachments: Attachment[]
   createdAt: string
 }
 
@@ -37,61 +34,109 @@ interface Props {
   hasAccess: boolean
 }
 
-export default function NotesModule({ projectId, clientId, userRole, userTeamRole, userId, hasAccess }: Props) {
+// Allowed file types (no executables, no zip)
+const ACCEPT_TYPES = [
+  '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+  '.txt', '.md', '.csv',
+  '.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg',
+].join(',')
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function isImage(mimeType: string) {
+  return mimeType.startsWith('image/')
+}
+
+function FileChip({ file, onRemove }: { file: File; onRemove: () => void }) {
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      background: 'rgba(99,102,241,0.08)',
+      border: '1px solid rgba(99,102,241,0.2)',
+      borderRadius: 8,
+      padding: '4px 10px',
+      fontSize: 12,
+      maxWidth: 200,
+    }}>
+      {isImage(file.type) ? <ImageIcon size={12} style={{ color: '#6366f1', flexShrink: 0 }} /> : <FileText size={12} style={{ color: '#6366f1', flexShrink: 0 }} />}
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)' }}>
+        {file.name}
+      </span>
+      <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>{formatFileSize(file.size)}</span>
+      <button type="button" onClick={onRemove} style={{ color: 'var(--text-muted)', cursor: 'pointer', padding: 0, background: 'none', border: 'none', display: 'flex' }}>
+        <X size={11} />
+      </button>
+    </div>
+  )
+}
+
+function AttachmentLink({ att }: { att: Attachment }) {
+  return (
+    <a
+      href={att.url}
+      target="_blank"
+      rel="noreferrer noopener"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        background: 'rgba(99,102,241,0.07)',
+        border: '1px solid rgba(99,102,241,0.2)',
+        borderRadius: 8,
+        padding: '4px 10px',
+        fontSize: 11,
+        color: 'var(--accent-primary)',
+        textDecoration: 'none',
+        maxWidth: 220,
+      }}
+    >
+      {isImage(att.mimeType) ? <ImageIcon size={11} style={{ flexShrink: 0 }} /> : <FileText size={11} style={{ flexShrink: 0 }} />}
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.name}</span>
+      <Download size={10} style={{ flexShrink: 0, opacity: 0.6 }} />
+    </a>
+  )
+}
+
+export default function NotesModule({ projectId, userRole, userTeamRole, userId, hasAccess }: Props) {
   const [notes, setNotes] = useState<Note[]>([])
   const [loading, setLoading] = useState(true)
-  const [showCreate, setShowCreate] = useState(false)
-  const [editingAccessNote, setEditingAccessNote] = useState<Note | null>(null)
+  const [activeChannel, setActiveChannel] = useState<'ALL' | 'INTERNAL_TEAM' | 'EXTERNAL_CLIENT'>('ALL')
+  const [content, setContent] = useState('')
+  const [messageType, setMessageType] = useState<'INTERNAL_TEAM' | 'EXTERNAL_CLIENT'>('EXTERNAL_CLIENT')
+  const [pendingFiles, setPendingFiles] = useState<File[]>([])
+  const [uploading, setUploading] = useState(false)
   const [isPending, startTransition] = useTransition()
 
-  // Sharing option lists
-  const [teamMembers, setTeamMembers] = useState<ProfileItem[]>([])
-  const [clientSubTeams, setClientSubTeams] = useState<SubTeamItem[]>([])
-
-  // Form states
-  const [title, setTitle] = useState('')
-  const [content, setContent] = useState('')
-  const [type, setType] = useState<'INTERNAL_TEAM' | 'EXTERNAL_CLIENT'>('INTERNAL_TEAM')
-  const [selectedProfileIds, setSelectedProfileIds] = useState<string[]>([])
-  const [selectedSubTeamIds, setSelectedSubTeamIds] = useState<string[]>([])
+  const chatEndRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const isClient = userRole === 'CLIENT'
+  const isLeadOrAdmin = userRole === 'ADMIN' || userTeamRole === 'TEAM_LEAD'
 
   useEffect(() => {
     if (!hasAccess) return
-
-    // Fetch notes
     apiClient.get<Note[]>(`/api/projects/${projectId}/notes`)
       .then((res) => {
-        setNotes(res)
+        const sorted = [...(res || [])].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+        setNotes(sorted)
         setLoading(false)
       })
-      .catch((err) => {
-        console.error(err)
-        toast.error('Failed to load notes')
+      .catch(() => {
+        toast.error('Failed to load messages')
         setLoading(false)
       })
+  }, [projectId, hasAccess])
 
-    // Fetch project team members for internal sharing
-    apiClient.get<{ members: { profile: ProfileItem }[] }>(`/api/team/projects/${projectId}`)
-      .then((res) => {
-        if (res?.members) {
-          setTeamMembers(res.members.map((m) => m.profile))
-        }
-      })
-      .catch((err) => console.error('Failed to load project members:', err))
-
-    // Fetch client subteams
-    if (isClient) {
-      apiClient.get<SubTeamItem[]>(`/api/client/teams`)
-        .then((res) => setClientSubTeams(res || []))
-        .catch((err) => console.error('Failed to load client subteams:', err))
-    } else {
-      apiClient.get<SubTeamItem[]>(`/api/admin/clients/${clientId}/subteams`)
-        .then((res) => setClientSubTeams(res || []))
-        .catch((err) => console.error('Failed to load client subteams:', err))
-    }
-  }, [projectId, clientId, hasAccess, isClient])
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [notes, activeChannel])
 
   if (!hasAccess) {
     return (
@@ -101,281 +146,398 @@ export default function NotesModule({ projectId, clientId, userRole, userTeamRol
     )
   }
 
-  const handleCreate = (e: React.FormEvent) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    // Filter only allowed types and max 20MB each
+    const valid = files.filter(f => f.size <= 20 * 1024 * 1024)
+    const invalid = files.filter(f => f.size > 20 * 1024 * 1024)
+    if (invalid.length > 0) toast.error('Some files exceed 20MB and were excluded')
+    setPendingFiles(prev => [...prev, ...valid].slice(0, 5)) // max 5 files
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const removeFile = (idx: number) => {
+    setPendingFiles(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  const uploadFiles = async (): Promise<Attachment[]> => {
+    const uploaded: Attachment[] = []
+    for (const file of pendingFiles) {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch(`/api/projects/${projectId}/notes/attachments`, {
+        method: 'POST',
+        body: formData,
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(text || `Failed to upload ${file.name}`)
+      }
+      const data = await res.json()
+      uploaded.push(data.data || data)
+    }
+    return uploaded
+  }
+
+  const handleSend = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!title || !content) return
+    if (!content.trim() && pendingFiles.length === 0) return
 
     startTransition(async () => {
+      setUploading(true)
       try {
+        let attachments: Attachment[] = []
+        if (pendingFiles.length > 0) {
+          attachments = await uploadFiles()
+        }
+
         const newNote = await apiClient.post<Note>(`/api/projects/${projectId}/notes`, {
-          title,
-          content,
-          type: isClient ? 'EXTERNAL_CLIENT' : type,
-          allowedProfileIds: selectedProfileIds,
-          allowedSubTeamIds: selectedSubTeamIds,
+          content: content.trim() || '📎 Shared a file',
+          type: isClient ? 'EXTERNAL_CLIENT' : messageType,
+          attachments,
         })
-        setNotes((prev) => [newNote, ...prev])
-        toast.success('Note created successfully')
-        setShowCreate(false)
-        setTitle('')
+        setNotes(prev => [...prev, newNote])
         setContent('')
-        setSelectedProfileIds([])
-        setSelectedSubTeamIds([])
+        setPendingFiles([])
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Failed to create note'
-        toast.error(msg)
+        toast.error(err instanceof Error ? err.message : 'Failed to send message')
+      } finally {
+        setUploading(false)
       }
     })
   }
 
   const handleDelete = (noteId: string) => {
-    if (!confirm('Are you sure you want to delete this note?')) return
-
+    if (!confirm('Delete this message?')) return
     startTransition(async () => {
       try {
         await apiClient.delete(`/api/projects/notes/${noteId}`)
-        setNotes((prev) => prev.filter((n) => n.id !== noteId))
-        toast.success('Note deleted successfully')
+        setNotes(prev => prev.filter(n => n.id !== noteId))
+        toast.success('Message deleted')
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Failed to delete note'
-        toast.error(msg)
+        toast.error(err instanceof Error ? err.message : 'Failed to delete')
       }
     })
   }
 
-  const handleSaveAccess = (noteId: string) => {
-    if (!editingAccessNote) return
-
-    startTransition(async () => {
-      try {
-        const updated = await apiClient.patch<Note>(`/api/projects/notes/${noteId}`, {
-          allowedProfileIds: selectedProfileIds,
-          allowedSubTeamIds: selectedSubTeamIds,
-        })
-        setNotes((prev) => prev.map((n) => n.id === noteId ? updated : n))
-        toast.success('Sharing access updated')
-        setEditingAccessNote(null)
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Failed to update sharing access'
-        toast.error(msg)
-      }
-    })
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSend(e as unknown as React.FormEvent)
+    }
   }
 
-  const toggleProfileSharing = (profileId: string) => {
-    setSelectedProfileIds((prev) =>
-      prev.includes(profileId) ? prev.filter((id) => id !== profileId) : [...prev, profileId]
-    )
-  }
-
-  const toggleSubTeamSharing = (subTeamId: string) => {
-    setSelectedSubTeamIds((prev) =>
-      prev.includes(subTeamId) ? prev.filter((id) => id !== subTeamId) : [...prev, subTeamId]
-    )
-  }
+  const filteredNotes = notes.filter(n => {
+    if (activeChannel === 'ALL') return true
+    return n.type === activeChannel
+  })
 
   if (loading) {
-    return <div className="card text-center py-6"><p style={{ color: 'var(--text-muted)' }}>Loading notes...</p></div>
+    return (
+      <div className="card text-center py-8">
+        <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)' }}>Loading messages...</p>
+      </div>
+    )
   }
 
   return (
-    <div className="card">
-      <div className="flex items-center justify-between mb-4">
-        <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
-          Project Notes
-        </h2>
-        <button type="button" onClick={() => {
-          setShowCreate(!showCreate)
-          setEditingAccessNote(null)
-        }} className="btn btn--ghost btn--sm">
-          {showCreate ? <><X size={14} /> Cancel</> : <><Plus size={14} /> Add Note</>}
-        </button>
+    <div
+      style={{
+        backgroundColor: '#ffffff',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--radius-lg)',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        height: 580,
+      }}
+    >
+      {/* Header */}
+      <div style={{
+        padding: '12px 16px',
+        borderBottom: '1px solid var(--border-subtle)',
+        backgroundColor: 'var(--bg-elevated)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+        flexShrink: 0,
+      }}>
+        <div>
+          <h2 style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)', margin: 0 }}>
+            Notes & Chat
+          </h2>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+            {filteredNotes.length} message{filteredNotes.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+
+        {/* Channel filter — Lead/Admin only */}
+        {isLeadOrAdmin && (
+          <div style={{ display: 'flex', gap: 4 }}>
+            {([
+              { key: 'ALL' as const, label: 'All', icon: null },
+              { key: 'INTERNAL_TEAM' as const, label: 'Internal', icon: <Lock size={10} /> },
+              { key: 'EXTERNAL_CLIENT' as const, label: 'Client', icon: <Eye size={10} /> },
+            ]).map(tab => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveChannel(tab.key)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 3,
+                  fontSize: 11,
+                  padding: '3px 10px',
+                  borderRadius: 20,
+                  border: '1px solid',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  transition: 'all 0.15s',
+                  backgroundColor: activeChannel === tab.key ? 'var(--accent-primary)' : 'transparent',
+                  borderColor: activeChannel === tab.key ? 'var(--accent-primary)' : 'var(--border-subtle)',
+                  color: activeChannel === tab.key ? '#fff' : 'var(--text-muted)',
+                }}
+              >
+                {tab.icon}{tab.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {showCreate && (
-        <form onSubmit={handleCreate} style={{ marginBottom: 'var(--space-4)', padding: 'var(--space-4)', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-default)' }}>
-          <div className="form-group mb-3">
-            <label className="form-label" htmlFor="nt-title">Note Title *</label>
-            <input id="nt-title" value={title} onChange={(e) => setTitle(e.target.value)} className="form-input" placeholder="Title..." required />
+      {/* Messages */}
+      <div style={{
+        flex: 1,
+        overflowY: 'auto',
+        padding: '12px 16px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+        background: '#fafafa',
+      }}>
+        {filteredNotes.length === 0 ? (
+          <div style={{ margin: 'auto', textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>
+            <p style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-medium)', margin: 0 }}>No messages yet.</p>
+            <p style={{ fontSize: 'var(--text-xs)', marginTop: 4 }}>Send a message below to start the conversation.</p>
           </div>
-          <div className="form-group mb-3">
-            <label className="form-label" htmlFor="nt-content">Content *</label>
-            <textarea id="nt-content" value={content} onChange={(e) => setContent(e.target.value)} className="form-textarea" rows={4} placeholder="Note content..." required />
-          </div>
+        ) : filteredNotes.map(note => {
+          const isMe = note.creatorId === userId
+          const canDelete = isMe || isLeadOrAdmin
 
-          {!isClient && (
-            <div className="form-group mb-3">
-              <label className="form-label">Note Type</label>
-              <div style={{ display: 'flex', gap: 'var(--space-4)', marginTop: 4 }}>
-                <label className="flex items-center gap-2" style={{ fontSize: 'var(--text-sm)' }}>
-                  <input type="radio" checked={type === 'INTERNAL_TEAM'} onChange={() => setType('INTERNAL_TEAM')} />
-                  Internal Team Note
-                </label>
-                <label className="flex items-center gap-2" style={{ fontSize: 'var(--text-sm)' }}>
-                  <input type="radio" checked={type === 'EXTERNAL_CLIENT'} onChange={() => setType('EXTERNAL_CLIENT')} />
-                  Shared with Client
-                </label>
+          return (
+            <div
+              key={note.id}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: isMe ? 'flex-end' : 'flex-start',
+                maxWidth: '78%',
+                alignSelf: isMe ? 'flex-end' : 'flex-start',
+              }}
+            >
+              {/* Meta */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3, fontSize: 11, color: 'var(--text-muted)' }}>
+                {!isMe && (
+                  <div style={{
+                    width: 22, height: 22, borderRadius: '50%',
+                    background: 'var(--accent-primary)',
+                    color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 10, fontWeight: 700, flexShrink: 0,
+                  }}>
+                    {note.creator.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <span style={{ fontWeight: 600, color: isMe ? 'var(--accent-primary)' : 'var(--text-primary)' }}>
+                  {isMe ? 'You' : note.creator.name}
+                </span>
+                {isLeadOrAdmin && (
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 9,
+                    background: note.type === 'INTERNAL_TEAM' ? 'rgba(139,92,246,0.12)' : 'rgba(16,185,129,0.12)',
+                    color: note.type === 'INTERNAL_TEAM' ? '#8b5cf6' : '#10b981',
+                    padding: '1px 5px', borderRadius: 8, fontWeight: 600,
+                  }}>
+                    {note.type === 'INTERNAL_TEAM' ? <><Lock size={8} /> Internal</> : <><Eye size={8} /> Client</>}
+                  </span>
+                )}
+                <span>·</span>
+                <span>{new Intl.DateTimeFormat('en-IN', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }).format(new Date(note.createdAt))}</span>
+              </div>
+
+              {/* Bubble */}
+              <div style={{
+                background: isMe ? 'rgba(99,102,241,0.09)' : '#ffffff',
+                border: `1px solid ${isMe ? 'rgba(99,102,241,0.22)' : 'var(--border-subtle)'}`,
+                borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                padding: '8px 12px',
+                position: 'relative',
+                width: '100%',
+              }}>
+                {/* Content */}
+                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
+                  {note.content}
+                </div>
+
+                {/* Attachments */}
+                {Array.isArray(note.attachments) && note.attachments.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                    {note.attachments.map((att, i) => (
+                      <AttachmentLink key={i} att={att} />
+                    ))}
+                  </div>
+                )}
+
+                {/* Delete button */}
+                {canDelete && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(note.id)}
+                      style={{
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        color: 'var(--text-muted)', opacity: 0.6, padding: '1px 3px',
+                        borderRadius: 4, fontSize: 10,
+                      }}
+                      title="Delete message"
+                    >
+                      <Trash2 size={11} />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
-          )}
+          )
+        })}
+        <div ref={chatEndRef} />
+      </div>
 
-          {/* Access Control Checkboxes */}
-          <div style={{ padding: 'var(--space-3)', background: 'var(--bg-overlay)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-3)' }}>
-            <h4 style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-semibold)', color: 'var(--text-secondary)', marginBottom: 8 }}>
-              Restrict Access (Defaults to all if none selected)
-            </h4>
-            
-            {/* Show team sharing options if team note */}
-            {(isClient || type === 'EXTERNAL_CLIENT') && clientSubTeams.length > 0 && (
-              <div className="mb-3">
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Allowed Client Sub-Teams:</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-                  {clientSubTeams.map((sub) => (
-                    <label key={sub.id} className="flex items-center gap-1.5" style={{ fontSize: 'var(--text-xs)' }}>
-                      <input type="checkbox" checked={selectedSubTeamIds.includes(sub.id)} onChange={() => toggleSubTeamSharing(sub.id)} />
-                      {sub.name}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {!isClient && type === 'INTERNAL_TEAM' && teamMembers.length > 0 && (
-              <div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Allowed Team Members:</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-                  {teamMembers.map((m) => (
-                    <label key={m.id} className="flex items-center gap-1.5" style={{ fontSize: 'var(--text-xs)' }}>
-                      <input type="checkbox" checked={selectedProfileIds.includes(m.id)} onChange={() => toggleProfileSharing(m.id)} />
-                      {m.name}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button type="submit" className="btn btn--primary btn--sm" disabled={isPending}>
-              Create Note
-            </button>
-          </div>
-        </form>
-      )}
-
-      {/* Editing note sharing settings inline */}
-      {editingAccessNote && (
-        <div style={{ marginBottom: 'var(--space-4)', padding: 'var(--space-4)', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-default)' }}>
-          <div className="flex items-center justify-between mb-3">
-            <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
-              Edit Sharing settings: &quot;{editingAccessNote.title}&quot;
-            </h3>
-            <button onClick={() => setEditingAccessNote(null)} className="btn btn--ghost btn--sm btn--icon">
-              <X size={14} />
-            </button>
-          </div>
-
-          <div style={{ padding: 'var(--space-3)', background: 'var(--bg-overlay)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-3)' }}>
-            {editingAccessNote.type === 'EXTERNAL_CLIENT' && clientSubTeams.length > 0 && (
-              <div className="mb-3">
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Allowed Client Sub-Teams:</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-                  {clientSubTeams.map((sub) => (
-                    <label key={sub.id} className="flex items-center gap-1.5" style={{ fontSize: 'var(--text-xs)' }}>
-                      <input type="checkbox" checked={selectedSubTeamIds.includes(sub.id)} onChange={() => toggleSubTeamSharing(sub.id)} />
-                      {sub.name}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {editingAccessNote.type === 'INTERNAL_TEAM' && teamMembers.length > 0 && (
-              <div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Allowed Team Members:</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-                  {teamMembers.map((m) => (
-                    <label key={m.id} className="flex items-center gap-1.5" style={{ fontSize: 'var(--text-xs)' }}>
-                      <input type="checkbox" checked={selectedProfileIds.includes(m.id)} onChange={() => toggleProfileSharing(m.id)} />
-                      {m.name}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
-            <button onClick={() => setEditingAccessNote(null)} className="btn btn--secondary btn--sm">
-              Cancel
-            </button>
-            <button onClick={() => handleSaveAccess(editingAccessNote.id)} className="btn btn--primary btn--sm" disabled={isPending}>
-              Save Sharing Rules
-            </button>
-          </div>
+      {/* Pending file chips */}
+      {pendingFiles.length > 0 && (
+        <div style={{
+          padding: '8px 16px',
+          borderTop: '1px solid var(--border-subtle)',
+          display: 'flex', flexWrap: 'wrap', gap: 6,
+          background: '#fff',
+        }}>
+          {pendingFiles.map((f, i) => (
+            <FileChip key={i} file={f} onRemove={() => removeFile(i)} />
+          ))}
         </div>
       )}
 
-      {notes.length === 0 ? (
-        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>No notes found.</p>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-          {notes.map((note) => {
-            const isCreator = note.creatorId === userId
-            const isLeadOrAdmin = userRole === 'ADMIN' || userTeamRole === 'TEAM_LEAD'
-            const isClientEditor = isClient && note.type === 'EXTERNAL_CLIENT'
+      {/* Composer */}
+      <form onSubmit={handleSend} style={{
+        padding: '10px 12px',
+        borderTop: '1px solid var(--border-subtle)',
+        background: '#fff',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8,
+        flexShrink: 0,
+      }}>
+        {/* Type selector — Lead/Admin only */}
+        {isLeadOrAdmin && (
+          <div style={{ display: 'flex', gap: 8, fontSize: 11 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+              <input
+                type="radio"
+                checked={messageType === 'EXTERNAL_CLIENT'}
+                onChange={() => setMessageType('EXTERNAL_CLIENT')}
+              />
+              <Eye size={11} style={{ color: '#10b981' }} />
+              <span style={{ color: 'var(--text-secondary)' }}>Shared with Client</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+              <input
+                type="radio"
+                checked={messageType === 'INTERNAL_TEAM'}
+                onChange={() => setMessageType('INTERNAL_TEAM')}
+              />
+              <Lock size={11} style={{ color: '#8b5cf6' }} />
+              <span style={{ color: 'var(--text-secondary)' }}>Internal Team Only</span>
+            </label>
+          </div>
+        )}
 
-            return (
-              <div key={note.id} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-4)' }}>
-                <div className="flex items-start justify-between gap-4">
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                      {note.type === 'INTERNAL_TEAM' ? (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, background: 'rgba(139,92,246,0.15)', color: '#8b5cf6', padding: '2px 8px', borderRadius: 20, fontWeight: 700 }}>
-                          <Lock size={10} /> Internal Team
-                        </span>
-                      ) : (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, background: 'rgba(16,185,129,0.15)', color: '#10b981', padding: '2px 8px', borderRadius: 20, fontWeight: 700 }}>
-                          <Eye size={10} /> Shared with Client
-                        </span>
-                      )}
-                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                        By {note.creator.name} · {new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short' }).format(new Date(note.createdAt))}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>{note.title}</div>
-                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', marginTop: 4, whiteSpace: 'pre-wrap' }}>{note.content}</p>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+          {/* File attach button */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={pendingFiles.length >= 5}
+            title="Attach file (PDF, DOC, image, etc.)"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 36, height: 36, borderRadius: 8,
+              background: pendingFiles.length > 0 ? 'rgba(99,102,241,0.1)' : 'var(--bg-elevated)',
+              border: '1px solid var(--border-subtle)',
+              cursor: pendingFiles.length >= 5 ? 'not-allowed' : 'pointer',
+              color: pendingFiles.length > 0 ? 'var(--accent-primary)' : 'var(--text-muted)',
+              flexShrink: 0,
+            }}
+          >
+            <Paperclip size={16} />
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept={ACCEPT_TYPES}
+            onChange={handleFileSelect}
+            style={{ display: 'none' }}
+          />
 
-                    {(note.allowedProfileIds.length > 0 || note.allowedSubTeamIds.length > 0) && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8, fontSize: 10, color: 'var(--text-muted)' }}>
-                        <Users size={11} /> Restricted Sharing Enabled
-                      </div>
-                    )}
-                  </div>
+          {/* Message textarea */}
+          <textarea
+            ref={textareaRef}
+            placeholder="Type a message... (Enter to send, Shift+Enter for new line)"
+            value={content}
+            onChange={e => setContent(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={isPending || uploading}
+            rows={1}
+            style={{
+              flex: 1,
+              resize: 'none',
+              borderRadius: 10,
+              border: '1px solid var(--border-subtle)',
+              padding: '8px 12px',
+              fontSize: 'var(--text-sm)',
+              lineHeight: 1.5,
+              fontFamily: 'inherit',
+              background: '#fff',
+              color: 'var(--text-primary)',
+              outline: 'none',
+              minHeight: 36,
+              maxHeight: 100,
+              overflowY: 'auto',
+            }}
+          />
 
-                  <div style={{ display: 'flex', gap: 'var(--space-1)' }}>
-                    {(isCreator || isLeadOrAdmin || isClientEditor) && (
-                      <button onClick={() => {
-                        setEditingAccessNote(note)
-                        setSelectedProfileIds(note.allowedProfileIds)
-                        setSelectedSubTeamIds(note.allowedSubTeamIds)
-                        setShowCreate(false)
-                      }} title="Edit Sharing" className="btn btn--secondary btn--sm btn--icon">
-                        Share
-                      </button>
-                    )}
-                    {(isCreator || isLeadOrAdmin) && (
-                      <button onClick={() => handleDelete(note.id)} title="Delete" className="btn btn--ghost btn--sm btn--icon" style={{ color: 'var(--color-danger)' }}>
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )
-          })}
+          {/* Send button */}
+          <button
+            type="submit"
+            disabled={isPending || uploading || (!content.trim() && pendingFiles.length === 0)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              padding: '0 16px', height: 36,
+              borderRadius: 10,
+              background: 'var(--accent-primary)',
+              color: '#fff', border: 'none',
+              cursor: 'pointer',
+              fontSize: 'var(--text-sm)',
+              fontWeight: 600,
+              flexShrink: 0,
+              opacity: (isPending || uploading || (!content.trim() && pendingFiles.length === 0)) ? 0.5 : 1,
+            }}
+          >
+            <Send size={14} />
+            {uploading ? 'Uploading...' : 'Send'}
+          </button>
         </div>
-      )}
+      </form>
     </div>
   )
 }

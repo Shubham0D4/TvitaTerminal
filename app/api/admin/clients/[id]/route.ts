@@ -191,7 +191,6 @@ export async function DELETE(
       await prisma.task.deleteMany({ where: { projectId: { in: projectIds } } })
       await prisma.milestone.deleteMany({ where: { projectId: { in: projectIds } } })
       await prisma.projectUpdate.deleteMany({ where: { projectId: { in: projectIds } } })
-      await prisma.clientApproval.deleteMany({ where: { projectId: { in: projectIds } } })
       await prisma.project.deleteMany({ where: { clientId: id } })
     }
 
@@ -209,7 +208,6 @@ export async function DELETE(
     // Delete subscriptions and other client collections
     await prisma.subscription.deleteMany({ where: { clientId: id } })
     await prisma.clientContact.deleteMany({ where: { clientId: id } })
-    await prisma.clientApproval.deleteMany({ where: { clientId: id } })
 
     // Find and delete the profile if the client had a portal login profile
     if (client.profileId) {

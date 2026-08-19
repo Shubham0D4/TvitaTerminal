@@ -20,38 +20,33 @@ export async function GET(request: NextRequest) {
           ],
         }
 
-    // 1. Fetch Projects
-    const projects = await prisma.project.findMany({
-      where: projectWhere,
-      orderBy: { updatedAt: 'desc' },
-      include: {
-        client: { select: { id: true, name: true } },
-        lead: { select: { id: true, name: true, email: true } },
-        members: {
-          include: {
-            profile: { select: { id: true, name: true, email: true, teamRole: true } },
-          },
-        },
-        milestones: {
-          orderBy: { dueDate: 'asc' },
-          take: 3,
-        },
-      },
-    })
-
-    const projectIds = projects.map((p) => p.id)
-
-    // 2. Fetch Tasks, Approvals, Issues, Tickets, Activities concurrently
+    // 1. Fetch all dashboard data concurrently
     const [
+      projects,
       allTasks,
-      clientApprovals,
-      openIssues,
       supportTickets,
       recentUpdates,
       taskActivities,
     ] = await Promise.all([
+      prisma.project.findMany({
+        where: projectWhere,
+        orderBy: { updatedAt: 'desc' },
+        include: {
+          client: { select: { id: true, name: true } },
+          lead: { select: { id: true, name: true, email: true } },
+          members: {
+            include: {
+              profile: { select: { id: true, name: true, email: true, teamRole: true } },
+            },
+          },
+          milestones: {
+            orderBy: { dueDate: 'asc' },
+            take: 3,
+          },
+        },
+      }),
       prisma.task.findMany({
-        where: { projectId: { in: projectIds } },
+        where: { project: projectWhere },
         orderBy: [{ priority: 'desc' }, { dueDate: 'asc' }],
         include: {
           project: { select: { id: true, name: true } },
@@ -60,30 +55,20 @@ export async function GET(request: NextRequest) {
           tester: { select: { id: true, name: true, email: true } },
         },
       }),
-      prisma.clientApproval.findMany({
-        where: { projectId: { in: projectIds }, status: 'PENDING' },
-        orderBy: { createdAt: 'desc' },
-        include: { project: { select: { name: true } } },
-      }),
-      prisma.issue.findMany({
-        where: { projectId: { in: projectIds }, status: { in: ['OPEN', 'IN_PROGRESS'] } },
-        orderBy: { createdAt: 'desc' },
-        include: { project: { select: { name: true } } },
-      }),
       prisma.ticket.findMany({
-        where: { projectId: { in: projectIds } },
+        where: { project: projectWhere },
         orderBy: { createdAt: 'desc' },
         take: 5,
         include: { project: { select: { name: true } } },
       }),
       prisma.projectUpdate.findMany({
-        where: { projectId: { in: projectIds } },
+        where: { project: projectWhere },
         orderBy: { createdAt: 'desc' },
         take: 5,
         include: { project: { select: { name: true } }, author: { select: { name: true } } },
       }),
       prisma.taskActivity.findMany({
-        where: { task: { projectId: { in: projectIds } } },
+        where: { task: { project: projectWhere } },
         orderBy: { createdAt: 'desc' },
         take: 8,
         include: {
@@ -92,6 +77,7 @@ export async function GET(request: NextRequest) {
         },
       }),
     ])
+
 
     // Calculate Operational Metrics
     const now = new Date()
@@ -114,7 +100,7 @@ export async function GET(request: NextRequest) {
         activeProjectsCount,
         openTasksCount: openTasks.length,
         overdueTasksCount: overdueTasks.length,
-        blockedTasksCount: blockedTasks.length + openIssues.length,
+        blockedTasksCount: blockedTasks.length,
         totalTasksCount: allTasks.length,
       },
       taskBreakdown,
@@ -122,8 +108,6 @@ export async function GET(request: NextRequest) {
       allTasks,
       overdueTasks,
       blockedTasks,
-      clientApprovals,
-      openIssues,
       supportTickets,
       recentUpdates,
       taskActivities,

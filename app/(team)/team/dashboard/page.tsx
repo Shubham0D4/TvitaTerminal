@@ -126,39 +126,34 @@ export default async function TeamDashboardPage() {
         ],
       }
 
-  // 2. Fetch Projects
-  const projects = await prisma.project.findMany({
-    where: projectWhere,
-    orderBy: { updatedAt: 'desc' },
-    include: {
-      client: { select: { id: true, name: true } },
-      lead: { select: { id: true, name: true, email: true } },
-      members: {
-        include: {
-          profile: { select: { id: true, name: true, email: true, teamRole: true } },
-        },
-      },
-      milestones: {
-        orderBy: { dueDate: 'asc' },
-        take: 3,
-      },
-    },
-  })
-
-  const projectIds = projects.map((p) => p.id)
-
-  // 3. Fetch Operational Data Concurrently
+  // 2. Fetch all dashboard data concurrently
   const [
+    projects,
     allTasks,
-    clientApprovals,
-    openIssues,
     supportTickets,
     projectUpdates,
     taskActivities,
     upcomingMilestones,
   ] = await Promise.all([
+    prisma.project.findMany({
+      where: projectWhere,
+      orderBy: { updatedAt: 'desc' },
+      include: {
+        client: { select: { id: true, name: true } },
+        lead: { select: { id: true, name: true, email: true } },
+        members: {
+          include: {
+            profile: { select: { id: true, name: true, email: true, teamRole: true } },
+          },
+        },
+        milestones: {
+          orderBy: { dueDate: 'asc' },
+          take: 3,
+        },
+      },
+    }),
     prisma.task.findMany({
-      where: { projectId: { in: projectIds } },
+      where: { project: projectWhere },
       orderBy: [{ priority: 'desc' }, { dueDate: 'asc' }],
       include: {
         project: { select: { id: true, name: true } },
@@ -167,30 +162,20 @@ export default async function TeamDashboardPage() {
         tester: { select: { id: true, name: true, email: true } },
       },
     }),
-    prisma.clientApproval.findMany({
-      where: { projectId: { in: projectIds }, status: 'PENDING' },
-      orderBy: { createdAt: 'desc' },
-      include: { project: { select: { name: true } } },
-    }),
-    prisma.issue.findMany({
-      where: { projectId: { in: projectIds }, status: { in: ['OPEN', 'IN_PROGRESS'] } },
-      orderBy: { createdAt: 'desc' },
-      include: { project: { select: { name: true } } },
-    }),
     prisma.ticket.findMany({
-      where: { projectId: { in: projectIds }, status: { in: ['OPEN', 'IN_PROGRESS'] } },
+      where: { project: projectWhere, status: { in: ['OPEN', 'IN_PROGRESS'] } },
       orderBy: { createdAt: 'desc' },
       take: 5,
       include: { project: { select: { name: true } } },
     }),
     prisma.projectUpdate.findMany({
-      where: { projectId: { in: projectIds } },
+      where: { project: projectWhere },
       orderBy: { createdAt: 'desc' },
       take: 5,
       include: { project: { select: { name: true } }, author: { select: { name: true } } },
     }),
     prisma.taskActivity.findMany({
-      where: { task: { projectId: { in: projectIds } } },
+      where: { task: { project: projectWhere } },
       orderBy: { createdAt: 'desc' },
       take: 8,
       include: {
@@ -199,12 +184,13 @@ export default async function TeamDashboardPage() {
       },
     }),
     prisma.milestone.findMany({
-      where: { projectId: { in: projectIds }, status: { in: ['PLANNED', 'IN_PROGRESS'] } },
+      where: { project: projectWhere, status: { in: ['PLANNED', 'IN_PROGRESS'] } },
       orderBy: { dueDate: 'asc' },
       take: 5,
       include: { project: { select: { name: true } } },
     }),
   ])
+
 
   // 4. Calculate Operational Metrics
   const now = new Date()
@@ -298,15 +284,13 @@ export default async function TeamDashboardPage() {
     })
   }
 
-  // Blocked Tasks / Issues Item
-  if (blockedTasks.length > 0 || openIssues.length > 0) {
+  // Blocked Tasks Item
+  if (blockedTasks.length > 0) {
     actionQueueItems.push({
       id: 'queue-blocked',
       category: 'BLOCKED',
-      title: `${blockedTasks.length + openIssues.length} blocked task(s) or open issue(s)`,
-      subtitle: blockedTasks[0]
-        ? `Task: "${blockedTasks[0].title}" (${blockedTasks[0].project.name})`
-        : `Issue: "${openIssues[0]?.title}" (${openIssues[0]?.project.name})`,
+      title: `${blockedTasks.length} blocked task(s)`,
+      subtitle: `Task: "${blockedTasks[0].title}" (${blockedTasks[0].project.name})`,
       badge: { text: 'Blocked', bg: 'rgba(239,68,68,0.12)', color: '#dc2626' },
       ctaText: 'Resolve Blockers',
       href: '/team/tasks',
@@ -338,19 +322,6 @@ export default async function TeamDashboardPage() {
       href: '/team/tasks',
     })
   }
-
-  // Pending Client Approvals
-  clientApprovals.forEach((app) => {
-    actionQueueItems.push({
-      id: `queue-app-${app.id}`,
-      category: 'APPROVAL',
-      title: `Approval "${app.title}" awaiting client sign-off`,
-      subtitle: `Project: ${app.project.name}`,
-      badge: { text: 'Client Approval', bg: 'rgba(124,58,237,0.12)', color: '#7c3aed' },
-      ctaText: 'View Approval',
-      href: `/team/projects/${app.projectId}`,
-    })
-  })
 
   // Open Client Tickets
   supportTickets.forEach((t) => {
@@ -449,7 +420,7 @@ export default async function TeamDashboardPage() {
         <div
           className="stat-card"
           style={{
-            borderLeft: blockedTasks.length + openIssues.length > 0 ? '4px solid var(--color-orange)' : '1px solid var(--border-subtle)',
+            borderLeft: blockedTasks.length > 0 ? '4px solid var(--color-orange)' : '1px solid var(--border-subtle)',
           }}
         >
           <div className="stat-card__icon stat-card__icon--orange">
@@ -457,9 +428,9 @@ export default async function TeamDashboardPage() {
           </div>
           <div>
             <div className="stat-card__value" style={{ color: blockedTasks.length > 0 ? '#ea580c' : undefined }}>
-              {blockedTasks.length + openIssues.length}
+              {blockedTasks.length}
             </div>
-            <div className="stat-card__label">Blocked / Issues</div>
+            <div className="stat-card__label">Blocked Tasks</div>
           </div>
         </div>
 
@@ -503,8 +474,7 @@ export default async function TeamDashboardPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
             {projects.map((project) => {
               const projectTasksList = allTasks.filter((t) => t.projectId === project.id)
-              const projectIssuesCount = openIssues.filter((i) => i.projectId === project.id).length
-              const health = getLeadProjectHealth(project, projectTasksList, projectIssuesCount)
+              const health = getLeadProjectHealth(project, projectTasksList)
               const nextMilestone = Array.isArray(project.milestones) ? project.milestones[0] : null
               const projectOverdueCount = projectTasksList.filter((t) => t.dueDate && new Date(t.dueDate) < now && t.status !== 'COMPLETED').length
               const projectBlockedCount = projectTasksList.filter((t) => t.status === 'BLOCKED').length
@@ -890,37 +860,15 @@ export default async function TeamDashboardPage() {
             <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
               Client Activity
             </h2>
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Approvals &amp; Tickets</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Support Tickets</span>
           </div>
 
-          {clientApprovals.length === 0 && supportTickets.length === 0 ? (
+          {supportTickets.length === 0 ? (
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', padding: 'var(--space-4) 0' }}>
-              No pending client approvals or open support requests.
+              No open support requests.
             </p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-              {clientApprovals.map((app) => (
-                <div
-                  key={app.id}
-                  style={{
-                    padding: 'var(--space-3)',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'var(--bg-elevated)',
-                    border: '1px solid var(--border-subtle)',
-                  }}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-primary)' }}>
-                      Client Approval Requested
-                    </span>
-                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{formatShortDate(app.createdAt)}</span>
-                  </div>
-                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-medium)', color: 'var(--text-primary)' }}>
-                    {app.title}
-                  </div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Project: {app.project.name}</div>
-                </div>
-              ))}
 
               {supportTickets.map((t) => (
                 <div

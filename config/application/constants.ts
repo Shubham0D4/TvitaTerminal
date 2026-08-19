@@ -10,8 +10,7 @@ export const ROLES = {
 
 export const DEFAULT_ACCESS_COMPONENTS = [
   { key: 'projects', label: 'Projects & Workspaces' },
-  { key: 'milestones', label: 'Milestones & Roadmaps' },
-  { key: 'approvals', label: 'Deliverable Approvals' },
+  { key: 'milestones', label: 'Process & Roadmaps' },
   { key: 'updates', label: 'Project Feed & Updates' },
   { key: 'invoices', label: 'Billing & Invoices' },
   { key: 'subscriptions', label: 'Subscription Plans' },
@@ -20,7 +19,6 @@ export const DEFAULT_ACCESS_COMPONENTS = [
 export const DEFAULT_FULL_POLICY = {
   projects: true,
   milestones: true,
-  approvals: true,
   updates: true,
   invoices: true,
   subscriptions: true,

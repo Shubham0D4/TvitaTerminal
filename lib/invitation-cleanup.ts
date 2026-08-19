@@ -1,8 +1,18 @@
 import { prisma } from '@/lib/prisma'
 import { createSupabaseAdminClient } from '@/infrastructure/supabase/server'
 
+let lastCleanupTime = 0
+const CLEANUP_THROTTLE_MS = 60 * 60 * 1000 // 1 hour
+
 export async function cleanupExpiredInvitations() {
+  const now = Date.now()
+  if (now - lastCleanupTime < CLEANUP_THROTTLE_MS) {
+    return { cleanedCount: 0, skipped: true }
+  }
+  lastCleanupTime = now
+
   try {
+
     const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000)
 
     const expiredProfiles = await prisma.profile.findMany({

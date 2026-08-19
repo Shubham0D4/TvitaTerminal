@@ -1,9 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Landmark, AlertCircle, FileText, Calendar, ShieldAlert, Award } from 'lucide-react'
+import { Landmark, AlertCircle, FileText, Calendar, Layers } from 'lucide-react'
 import MilestonesPanel from './MilestonesPanel'
-import IssuesModule from './IssuesModule'
 import NotesModule from './NotesModule'
 import TicketsModule from './TicketsModule'
 import MeetingsModule from './MeetingsModule'
@@ -34,7 +33,6 @@ interface Props {
   userId: string
   clientPolicy?: {
     milestones: boolean
-    issues: boolean
     notes: boolean
   }
   milestones: MilestoneWithAssignee[]
@@ -48,18 +46,17 @@ export default function ProjectWorkspaceTabs({
   userRole,
   userTeamRole,
   userId,
-  clientPolicy = { milestones: true, issues: true, notes: true },
+  clientPolicy = { milestones: true, notes: true },
   milestones,
   projectMembers,
   isLead,
 }: Props) {
-  const [activeTab, setActiveTab] = useState<'milestones' | 'issues' | 'notes' | 'tickets' | 'meetings' | 'quotes'>('milestones')
+  const [activeTab, setActiveTab] = useState<'milestones' | 'notes' | 'tickets' | 'meetings' | 'quotes'>('milestones')
 
   const isClient = userRole === 'CLIENT'
 
   // Granular Access Policies for Client Sub-Teams
   const canSeeMilestones = !isClient || clientPolicy.milestones !== false
-  const canSeeIssues = !isClient || clientPolicy.issues !== false
   const canSeeNotes = !isClient || clientPolicy.notes !== false
 
   // All roles can see tickets and meetings by default
@@ -68,8 +65,7 @@ export default function ProjectWorkspaceTabs({
   const canSeeQuotes = true
 
   const tabs = [
-    { id: 'milestones', label: 'Milestones', icon: Award, visible: canSeeMilestones },
-    { id: 'issues', label: 'Issues', icon: ShieldAlert, visible: canSeeIssues },
+    { id: 'milestones', label: 'Process', icon: Layers, visible: canSeeMilestones },
     { id: 'notes', label: 'Notes', icon: FileText, visible: canSeeNotes },
     { id: 'tickets', label: 'Tickets', icon: AlertCircle, visible: canSeeTickets },
     { id: 'meetings', label: 'Meetings', icon: Calendar, visible: canSeeMeetings },
@@ -122,16 +118,6 @@ export default function ProjectWorkspaceTabs({
             isLead={isLead}
             milestones={milestones}
             projectMembers={projectMembers}
-          />
-        )}
-
-        {activeTab === 'issues' && canSeeIssues && (
-          <IssuesModule
-            projectId={projectId}
-            userRole={userRole}
-            userTeamRole={userTeamRole}
-            userId={userId}
-            hasAccess={canSeeIssues}
           />
         )}
 

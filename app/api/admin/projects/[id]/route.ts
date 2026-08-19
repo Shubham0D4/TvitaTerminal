@@ -34,7 +34,6 @@ export async function GET(
           orderBy: { createdAt: 'desc' },
           include: { author: { select: { name: true } } },
         },
-        approvals: { orderBy: { createdAt: 'desc' } },
       },
     })
 

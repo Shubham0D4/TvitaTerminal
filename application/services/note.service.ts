@@ -102,12 +102,13 @@ export class NoteService {
       type?: NoteType
       allowedProfileIds?: string[]
       allowedSubTeamIds?: string[]
+      attachments?: { name: string; url: string; mimeType: string; size: number }[]
     },
     user: AuthUser
   ) {
-    const { projectId, title, content, type = NoteType.INTERNAL_TEAM, allowedProfileIds = [], allowedSubTeamIds = [] } = body
-    if (!title || !content) {
-      throw new ValidationError('Title and content are required')
+    const { projectId, title, content, type = NoteType.INTERNAL_TEAM, allowedProfileIds = [], allowedSubTeamIds = [], attachments = [] } = body
+    if (!content) {
+      throw new ValidationError('Message content is required')
     }
     await this.validateProjectAccess(projectId, user)
 
@@ -116,15 +117,18 @@ export class NoteService {
       noteType = NoteType.EXTERNAL_CLIENT
     }
 
+    const autoTitle = title?.trim() || (content.length > 40 ? content.slice(0, 40) + '...' : content)
+
     const note = await prisma.note.create({
       data: {
         projectId,
-        title,
+        title: autoTitle,
         content,
         type: noteType,
         creatorId: user.id,
         allowedProfileIds,
         allowedSubTeamIds,
+        attachments,
       },
       include: {
         creator: { select: { id: true, name: true, role: true } }
@@ -138,7 +142,7 @@ export class NoteService {
       action: 'CREATE',
       entityType: 'note',
       entityId: note.id,
-      entityLabel: title,
+      entityLabel: autoTitle,
       newValue: { projectId, type: noteType },
     })
 

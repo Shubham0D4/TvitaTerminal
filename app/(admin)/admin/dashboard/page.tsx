@@ -155,8 +155,6 @@ export default async function AdminDashboardPage() {
     projects,
     allInvoices,
     allTasks,
-    allIssues,
-    pendingApprovals,
     recentAuditLogs,
     recentClients,
     teamRolesGroup,
@@ -171,27 +169,41 @@ export default async function AdminDashboardPage() {
     prisma.profile.count({ where: { role: 'TEAM_MEMBER', isActive: false, magicLinkToken: { not: null } } }),
     prisma.project.findMany({
       orderBy: { updatedAt: 'desc' },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        progress: true,
+        endDate: true,
+        leadId: true,
+        clientId: true,
+        updatedAt: true,
         client: { select: { id: true, name: true } },
         lead: { select: { id: true, name: true, email: true } },
-        milestones: { take: 2, orderBy: { dueDate: 'asc' } },
       },
     }),
     prisma.invoice.findMany({
       orderBy: { createdAt: 'desc' },
-      include: { client: { select: { id: true, name: true } } },
+      select: {
+        id: true,
+        invoiceNo: true,
+        amount: true,
+        currency: true,
+        status: true,
+        dueDate: true,
+        client: { select: { id: true, name: true } },
+      },
     }),
     prisma.task.findMany({
       where: { status: { notIn: ['COMPLETED', 'CANCELLED'] } },
-      include: { project: { select: { id: true, name: true } } },
-    }),
-    prisma.issue.findMany({
-      where: { status: { in: ['OPEN', 'IN_PROGRESS'] } },
-      include: { project: { select: { name: true } } },
-    }),
-    prisma.clientApproval.findMany({
-      where: { status: 'PENDING' },
-      include: { project: { select: { name: true } } },
+      select: {
+        id: true,
+        projectId: true,
+        title: true,
+        status: true,
+        dueDate: true,
+        project: { select: { name: true } },
+      },
     }),
     prisma.auditLog.findMany({
       orderBy: { createdAt: 'desc' },
@@ -244,7 +256,7 @@ export default async function AdminDashboardPage() {
   const atRiskCount = atRiskProjects.length
   const delayedCount = delayedProjects.length
   const blockedCount = projects.filter((p) => {
-    const health = getOrgProjectHealth(p, allTasks.filter((t) => t.projectId === p.id), allIssues.filter((i) => i.projectId === p.id).length)
+    const health = getOrgProjectHealth(p, allTasks.filter((t) => t.projectId === p.id))
     return health.label === 'Blocked'
   }).length
   const plannedCount = projects.filter((p) => p.status === 'PLANNED').length
@@ -252,7 +264,7 @@ export default async function AdminDashboardPage() {
   // Build Organization "NEEDS ATTENTION" Exceptions Queue
   const adminExceptionsQueue: Array<{
     id: string
-    category: 'OVERDUE' | 'DELAYED' | 'UNASSIGNED' | 'INVITE' | 'APPROVAL' | 'FINANCE'
+    category: 'OVERDUE' | 'DELAYED' | 'UNASSIGNED' | 'INVITE' | 'FINANCE'
     title: string
     subtitle: string
     badge: { text: string; bg: string; color: string }
@@ -312,18 +324,7 @@ export default async function AdminDashboardPage() {
     })
   }
 
-  // 5. Pending Client Approvals
-  if (pendingApprovals.length > 0) {
-    adminExceptionsQueue.push({
-      id: 'exc-approvals',
-      category: 'APPROVAL',
-      title: `${pendingApprovals.length} pending client approval(s)`,
-      subtitle: `e.g., "${pendingApprovals[0].title}" (${pendingApprovals[0].project.name})`,
-      badge: { text: 'Pending Approvals', bg: 'rgba(124,58,237,0.12)', color: '#7c3aed' },
-      ctaText: 'View Approvals',
-      href: '/admin/projects',
-    })
-  }
+
 
   // 6. Overdue Invoices
   if (overdueInvoices.length > 0) {
@@ -478,15 +479,7 @@ export default async function AdminDashboardPage() {
           </div>
         </div>
 
-        <div className="stat-card">
-          <div className="stat-card__icon stat-card__icon--blue">
-            <CheckCircle2 size={20} />
-          </div>
-          <div>
-            <div className="stat-card__value">{pendingApprovals.length}</div>
-            <div className="stat-card__label">Pending Approvals</div>
-          </div>
-        </div>
+
 
         <div
           className="stat-card"
@@ -761,8 +754,7 @@ export default async function AdminDashboardPage() {
               <tbody>
                 {projects.slice(0, 6).map((project) => {
                   const projectTasksList = allTasks.filter((t) => t.projectId === project.id)
-                  const projectIssuesCount = allIssues.filter((i) => i.projectId === project.id).length
-                  const health = getOrgProjectHealth(project, projectTasksList, projectIssuesCount)
+                  const health = getOrgProjectHealth(project, projectTasksList)
 
                   return (
                     <tr key={project.id}>

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Toaster } from 'react-hot-toast'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -25,6 +26,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         {children}
+        <SpeedInsights />
         <Toaster
           position="top-right"
           toastOptions={{
@@ -50,3 +52,4 @@ export default function RootLayout({
     </html>
   )
 }
+

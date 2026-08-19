@@ -4,7 +4,6 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Sparkles, Clock } from 'lucide-react'
 import CircularProgress from '@/components/ui/CircularProgress'
-import ApprovalsPanel from '@/components/projects/ApprovalsPanel'
 import ProjectWorkspaceTabs from '@/components/projects/ProjectWorkspaceTabs'
 import ProjectBannerUpload from '@/components/projects/ProjectBannerUpload'
 
@@ -55,9 +54,6 @@ export default async function ClientProjectDetailPage({ params }: { params: Prom
         where: { clientVisible: true },
         orderBy: { createdAt: 'desc' },
       },
-      approvals: {
-        orderBy: { createdAt: 'desc' },
-      },
     },
   })
 
@@ -68,8 +64,6 @@ export default async function ClientProjectDetailPage({ params }: { params: Prom
   const totalMilestones = allMilestones.length
   const completedMilestones = allMilestones.filter((m) => m.status === 'COMPLETED').length
   const progressPct = totalMilestones > 0 ? Math.round((completedMilestones / totalMilestones) * 100) : project.progress
-
-  const pendingApprovals = project.approvals.filter((a) => a.status === 'PENDING').length
 
   return (
     <div>
@@ -85,11 +79,6 @@ export default async function ClientProjectDetailPage({ params }: { params: Prom
               <span className={`badge badge--${project.status.toLowerCase().replace(/_/g, '-')}`}>
                 {project.status.replace(/_/g, ' ')}
               </span>
-              {pendingApprovals > 0 && (
-                <span style={{ fontSize: 11, background: 'rgba(245,158,11,0.15)', color: '#f59e0b', padding: '2px 10px', borderRadius: 20, fontWeight: 700 }}>
-                  {pendingApprovals} approval{pendingApprovals !== 1 ? 's' : ''} pending
-                </span>
-              )}
             </div>
             <p className="page-header__subtitle">
               Lead: {project.lead?.name ?? '—'} · {formatDate(project.startDate)} → {formatDate(project.endDate)}
@@ -169,22 +158,13 @@ export default async function ClientProjectDetailPage({ params }: { params: Prom
               subTeamCtx
                 ? {
                     milestones: subTeamCtx.policy.milestones !== false,
-                    issues: subTeamCtx.policy.issues !== false,
                     notes: subTeamCtx.policy.notes !== false,
                   }
-                : { milestones: true, issues: true, notes: true }
+                : { milestones: true, notes: true }
             }
             milestones={project.milestones}
             projectMembers={[]}
             isLead={false}
-          />
-
-          {/* Approvals */}
-          <ApprovalsPanel
-            projectId={id}
-            isLead={false}
-            isClient={true}
-            approvals={project.approvals}
           />
 
           {/* Project Updates */}

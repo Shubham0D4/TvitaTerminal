@@ -165,11 +165,6 @@ export async function DELETE(
       data: { updatedById: null }
     })
 
-    await prisma.clientApproval.updateMany({
-      where: { createdById: id },
-      data: { createdById: null }
-    })
-
     await prisma.projectUpdate.updateMany({
       where: { authorId: id },
       data: { authorId: null }

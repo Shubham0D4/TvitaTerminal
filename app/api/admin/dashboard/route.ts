@@ -23,8 +23,6 @@ export async function GET(request: NextRequest) {
       pendingInvitesCount,
       allInvoices,
       allTasks,
-      allIssues,
-      pendingApprovals,
       recentAuditLogs,
       recentProjects,
       recentClients,
@@ -43,14 +41,6 @@ export async function GET(request: NextRequest) {
       prisma.task.findMany({
         where: { status: { notIn: ['COMPLETED', 'CANCELLED'] } },
         select: { id: true, title: true, status: true, dueDate: true, projectId: true, developerId: true, assigneeId: true },
-      }),
-      prisma.issue.findMany({
-        where: { status: { in: ['OPEN', 'IN_PROGRESS'] } },
-        select: { id: true, title: true, status: true, priority: true, projectId: true },
-      }),
-      prisma.clientApproval.findMany({
-        where: { status: 'PENDING' },
-        select: { id: true, title: true, projectId: true, createdAt: true },
       }),
       prisma.auditLog.findMany({
         orderBy: { createdAt: 'desc' },
@@ -98,8 +88,7 @@ export async function GET(request: NextRequest) {
         totalTeamMembers,
         pendingInvitesCount,
         overdueTasksCount: overdueTasks.length,
-        blockedTasksCount: blockedTasks.length + allIssues.length,
-        pendingApprovalsCount: pendingApprovals.length,
+        blockedTasksCount: blockedTasks.length,
         financials: {
           totalInvoiced,
           totalPaid,
@@ -117,7 +106,6 @@ export async function GET(request: NextRequest) {
         blockedTasksCount: blockedTasks.length,
         unassignedLeadProjectsCount: unassignedLeadProjects.length,
         pendingInvitesCount,
-        pendingApprovalsCount: pendingApprovals.length,
         overdueInvoicesCount: overdueInvoices.length,
       },
     })

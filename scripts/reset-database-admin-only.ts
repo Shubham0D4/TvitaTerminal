@@ -15,8 +15,7 @@ async function resetDatabase() {
   console.log('🧹 Starting database cleanup...')
 
   // 1. Clean all data tables in order of foreign key dependency
-  console.log('Deleting activity logs, approvals, milestones, tasks, projects...')
-  await prisma.clientApproval.deleteMany({})
+  console.log('Deleting activity logs, milestones, tasks, projects...')
   await prisma.milestone.deleteMany({})
   await prisma.taskActivity.deleteMany({})
   await prisma.task.deleteMany({})

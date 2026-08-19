@@ -167,37 +167,32 @@ export default async function ClientDashboardPage() {
     ? { clientId: client.id, id: { in: allowedProjectIds } }
     : { clientId: client.id }
 
-  // 2. Fetch Projects
-  const projects = canSeeProjects
-    ? await prisma.project.findMany({
-        where: projectFilter,
-        orderBy: { updatedAt: 'desc' },
-        include: {
-          lead: { select: { name: true, email: true } },
-          milestones: canSeeMilestones
-            ? {
-                where: { clientVisible: true },
-                orderBy: { dueDate: 'asc' },
-              }
-            : false,
-        },
-      })
-    : []
-
-  const projectIds = projects.map((p) => p.id)
-
-  // 3. Fetch Actionable Data Concurrently
+  // 2. Fetch all dashboard data concurrently
   const [
+    projects,
     pendingInvoices,
     pendingQuotes,
-    pendingApprovals,
     openTickets,
-    openIssues,
     upcomingMilestones,
     upcomingMeetings,
     sharedNotes,
     projectUpdates,
   ] = await Promise.all([
+    canSeeProjects
+      ? prisma.project.findMany({
+          where: projectFilter,
+          orderBy: { updatedAt: 'desc' },
+          include: {
+            lead: { select: { name: true, email: true } },
+            milestones: canSeeMilestones
+              ? {
+                  where: { clientVisible: true },
+                  orderBy: { dueDate: 'asc' },
+                }
+              : false,
+          },
+        })
+      : Promise.resolve([]),
     canSeeBilling
       ? prisma.invoice.findMany({
           where: { clientId: client.id, status: { in: ['PENDING', 'OVERDUE'] } },
@@ -208,56 +203,42 @@ export default async function ClientDashboardPage() {
       where: { clientId: client.id, status: { in: ['PENDING', 'COUNTER_OFFERED'] } },
       orderBy: { createdAt: 'desc' },
     }),
-    canSeeApprovals
-      ? prisma.clientApproval.findMany({
-          where: { clientId: client.id, status: 'PENDING' },
-          orderBy: { createdAt: 'desc' },
-          include: { project: { select: { name: true } } },
-        })
-      : Promise.resolve([]),
     prisma.ticket.findMany({
-      where: { projectId: { in: projectIds } },
+      where: { project: projectFilter },
       orderBy: { createdAt: 'desc' },
       take: 5,
       include: { project: { select: { name: true } } },
     }),
-    canSeeIssues
-      ? prisma.issue.findMany({
-          where: { projectId: { in: projectIds }, status: { in: ['OPEN', 'IN_PROGRESS'] } },
-          orderBy: { createdAt: 'desc' },
-          take: 5,
-          include: { project: { select: { name: true } } },
-        })
-      : Promise.resolve([]),
     canSeeMilestones
       ? prisma.milestone.findMany({
-          where: { projectId: { in: projectIds }, clientVisible: true, status: { in: ['PLANNED', 'IN_PROGRESS'] }, dueDate: { not: null } },
+          where: { project: projectFilter, clientVisible: true, status: { in: ['PLANNED', 'IN_PROGRESS'] }, dueDate: { not: null } },
           orderBy: { dueDate: 'asc' },
           take: 5,
           include: { project: { select: { name: true } } },
         })
       : Promise.resolve([]),
     prisma.meeting.findMany({
-      where: { projectId: { in: projectIds }, scheduledAt: { gte: new Date(Date.now() - 3600 * 1000) } },
+      where: { project: projectFilter, scheduledAt: { gte: new Date(Date.now() - 3600 * 1000) } },
       orderBy: { scheduledAt: 'asc' },
       take: 5,
       include: { project: { select: { name: true } }, host: { select: { name: true } } },
     }),
     canSeeNotes
       ? prisma.note.findMany({
-          where: { projectId: { in: projectIds }, type: 'EXTERNAL_CLIENT' },
+          where: { project: projectFilter, type: 'EXTERNAL_CLIENT' },
           orderBy: { updatedAt: 'desc' },
           take: 5,
           include: { project: { select: { name: true } }, creator: { select: { name: true } } },
         })
       : Promise.resolve([]),
     prisma.projectUpdate.findMany({
-      where: { projectId: { in: projectIds } },
+      where: { project: projectFilter },
       orderBy: { createdAt: 'desc' },
       take: 5,
       include: { project: { select: { name: true } }, author: { select: { name: true } } },
     }),
   ])
+
 
   // 4. Calculate Aggregate Metrics & Priority Attention Work Queue
   const activeProjects = projects.filter((p) => p.status === 'IN_PROGRESS' || p.status === 'PLANNED')
@@ -301,19 +282,6 @@ export default async function ClientDashboardPage() {
       badge: { text: 'QUOTE ACTION', bg: 'rgba(99,102,241,0.15)', color: '#4f46e5' },
       ctaText: 'Review Quote',
       href: `/client/projects`,
-    })
-  })
-
-  // Add Pending Approvals
-  pendingApprovals.forEach((app) => {
-    attentionItems.push({
-      id: `app-${app.id}`,
-      category: 'APPROVAL',
-      title: `Approval Requested: "${app.title}"`,
-      subtitle: `Project: ${app.project.name} · Submitted for Client Sign-off`,
-      badge: { text: 'APPROVAL REQD', bg: 'rgba(37,99,235,0.15)', color: '#2563eb' },
-      ctaText: 'Review Approval',
-      href: `/client/projects/${app.projectId}`,
     })
   })
 

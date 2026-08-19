@@ -97,12 +97,6 @@ enum BillingCycle {
   LIFETIME
 }
 
-enum ClientApprovalStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  REVISION_REQUESTED
-}
 
 enum ClientTeamStatus {
   ACTIVE
@@ -188,10 +182,8 @@ model Profile {
   subscriptionsCreated Subscription[]
   milestonesAssigned   Milestone[]          @relation("MilestoneAssignee")
   milestonesCreated    Milestone[]          @relation("MilestoneCreatedBy")
-  approvalsCreated     ClientApproval[]     @relation("ApprovalCreatedBy")
   clientSubTeam        ClientSubTeam? // If this profile is a sub-team login
   subTeamMember        ClientSubTeamMember? @relation("SubTeamMemberProfile")
-  issuesCreated        Issue[]              @relation("IssueCreator")
   notesCreated         Note[]               @relation("NoteCreator")
   ticketsCreated       Ticket[]             @relation("TicketCreator")
   meetingsHosted       Meeting[]            @relation("MeetingHost")
@@ -288,7 +280,6 @@ model Client {
   subscriptions  Subscription[]
   invoices       Invoice[]
   contacts       ClientContact[]
-  approvals      ClientApproval[]
   privatePlans   Plan[]           @relation("ClientPrivatePlans")
   subTeams       ClientSubTeam[]
   quotes         Quote[]
@@ -482,8 +473,6 @@ model Project {
   tasks      Task[]
   updates    ProjectUpdate[]
   invoices   Invoice[]
-  approvals  ClientApproval[]
-  issues     Issue[]
   notes      Note[]
   tickets    Ticket[]
   meetings   Meeting[]
@@ -543,32 +532,6 @@ model Milestone {
   @@map("milestones")
 }
 
-// ─────────────────────────────────────────────
-// CLIENT APPROVALS (lead creates, client responds)
-// ─────────────────────────────────────────────
-
-model ClientApproval {
-  id          String               @id @default(uuid()) @db.Uuid
-  projectId   String               @map("project_id") @db.Uuid
-  clientId    String               @map("client_id") @db.Uuid
-  title       String
-  description String?
-  status      ClientApprovalStatus @default(PENDING)
-  clientNote  String?              @map("client_note")
-  respondedAt DateTime?            @map("responded_at")
-  createdById String?              @map("created_by") @db.Uuid
-  createdAt   DateTime             @default(now()) @map("created_at")
-  updatedAt   DateTime             @updatedAt @map("updated_at")
-
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  createdBy Profile? @relation("ApprovalCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-
-  @@index([projectId])
-  @@index([clientId])
-  @@index([createdById])
-  @@map("client_approvals")
-}
 
 // ─────────────────────────────────────────────
 // TASKS
@@ -601,6 +564,7 @@ model Task {
   activities TaskActivity[]
 
   @@index([projectId])
+  @@index([projectId, status])
   @@index([milestoneId])
   @@index([assigneeId])
   @@index([developerId])
@@ -705,6 +669,7 @@ model Invoice {
   payments  Payment[]
 
   @@index([clientId])
+  @@index([clientId, status])
   @@index([projectId])
   @@index([createdById])
   @@map("invoices")
@@ -752,6 +717,8 @@ model Notification {
   user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([userId, isRead])
+  @@index([userId, createdAt(sort: Desc)])
   @@map("notifications")
 }
 
@@ -777,6 +744,7 @@ model AuditLog {
   actor Profile? @relation(fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([actorId])
+  @@index([createdAt(sort: Desc)])
   @@map("audit_logs")
 }
 
@@ -820,22 +788,6 @@ model AppSettings {
 // NEW FEATURE MODELS
 // ─────────────────────────────────────────────
 
-model Issue {
-  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  projectId     String   @map("project_id") @db.Uuid
-  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  title         String
-  description   String
-  status        String   @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED, CLOSED
-  priority      String   @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
-  creatorId     String   @map("creator_id") @db.Uuid
-  creator       Profile  @relation("IssueCreator", fields: [creatorId], references: [id], onDelete: Cascade)
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-
-  @@index([projectId])
-  @@map("project_issues")
-}
 
 model Note {
   id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -848,6 +800,7 @@ model Note {
   creator           Profile  @relation("NoteCreator", fields: [creatorId], references: [id], onDelete: Cascade)
   allowedProfileIds String[] @default([]) @map("allowed_profile_ids")
   allowedSubTeamIds String[] @default([]) @map("allowed_sub_team_ids")
+  attachments       Json     @default("[]")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
@@ -869,6 +822,7 @@ model Ticket {
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   @@index([projectId])
+  @@index([projectId, status])
   @@map("project_tickets")
 }
 

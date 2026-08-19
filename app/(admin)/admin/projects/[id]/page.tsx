@@ -7,7 +7,6 @@ import AdminProjectLeadSelector from '@/components/projects/AdminProjectLeadSele
 import ProjectTeamManager from '@/components/projects/ProjectTeamManager'
 import PublishUpdateTrigger from '@/components/projects/PublishUpdateTrigger'
 import ProjectWorkspaceTabs from '@/components/projects/ProjectWorkspaceTabs'
-import ApprovalsPanel from '@/components/projects/ApprovalsPanel'
 import ProjectBannerUpload from '@/components/projects/ProjectBannerUpload'
 
 export const metadata = {
@@ -51,7 +50,6 @@ export default async function AdminProjectDetailPage({ params }: PageProps) {
       members: { include: { profile: true } },
       invoices: { orderBy: { createdAt: 'desc' } },
       updates: { orderBy: { createdAt: 'desc' } },
-      approvals: { orderBy: { createdAt: 'desc' } },
     },
   })
 
@@ -176,13 +174,6 @@ export default async function AdminProjectDetailPage({ params }: PageProps) {
             milestones={project.milestones}
             projectMembers={project.members}
             isLead={isLead}
-          />
-
-          <ApprovalsPanel
-            projectId={id}
-            isLead={isLead}
-            isClient={false}
-            approvals={project.approvals}
           />
 
           {/* Published Updates */}

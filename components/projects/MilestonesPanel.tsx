@@ -148,11 +148,11 @@ export default function MilestonesPanel({ projectId, isLead, milestones: initial
     <div className="card">
       <div className="flex items-center justify-between mb-4">
         <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
-          Milestones ({milestones.length})
+          Process Stages ({milestones.length})
         </h2>
         {isLead && (
           <button type="button" onClick={() => setShowCreate(!showCreate)} className="btn btn--ghost btn--sm">
-            {showCreate ? <><X size={14} /> Cancel</> : <><Plus size={14} /> New Milestone</>}
+            {showCreate ? <><X size={14} /> Cancel</> : <><Plus size={14} /> Add Stage</>}
           </button>
         )}
       </div>
@@ -362,7 +362,7 @@ export default function MilestonesPanel({ projectId, isLead, milestones: initial
                 <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border-subtle)' }}>
                   <div className="flex items-center justify-between mb-3">
                     <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span>Milestone Tasks ({m.tasks?.length ?? 0})</span>
+                      <span>Stage Tasks ({m.tasks?.length ?? 0})</span>
                     </div>
                     {isLead && (
                       <button

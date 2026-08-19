@@ -3,6 +3,7 @@ import { Role, TeamRole } from '@prisma/client'
 import { env } from '@/config/application/env'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { cache } from 'react'
 
 export type AuthUser = {
   id: string
@@ -12,7 +13,7 @@ export type AuthUser = {
   name: string
 }
 
-export async function getServerUser(): Promise<AuthUser | null> {
+export const getServerUser = cache(async (): Promise<AuthUser | null> => {
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) return null
@@ -34,7 +35,7 @@ export async function getServerUser(): Promise<AuthUser | null> {
   } catch {
     return null
   }
-}
+})
 
 export function verifyThirdPartyAuth(request: Request): boolean {
   const apiKeyHeader = request.headers.get('x-api-key') || request.headers.get('authorization')
@@ -118,7 +119,7 @@ export type SubTeamContext = {
  * If the logged-in CLIENT user is a sub-team member or sub-team login, returns their project & component access context.
  * Returns null if the user is the primary client organization (no restrictions).
  */
-export async function getClientSubTeamContext(userId: string): Promise<SubTeamContext | null> {
+export const getClientSubTeamContext = cache(async (userId: string): Promise<SubTeamContext | null> => {
   try {
     // 0. Primary client organization owner has full unrestricted access
     const profile = await prisma.profile.findUnique({
@@ -217,5 +218,5 @@ export async function getClientSubTeamContext(userId: string): Promise<SubTeamCo
   } catch {
     return null
   }
-}
+})
 

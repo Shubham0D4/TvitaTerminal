@@ -45,8 +45,6 @@ async function main() {
     () => prisma.milestone.deleteMany(),
     () => prisma.projectMember.deleteMany(),
     () => prisma.projectUpdate.deleteMany(),
-    () => prisma.clientApproval.deleteMany(),
-    () => prisma.issue.deleteMany(),
     () => prisma.note.deleteMany(),
     () => prisma.ticket.deleteMany(),
     () => prisma.meeting.deleteMany(),

@@ -30,9 +30,6 @@ export class ProjectService {
           orderBy: { createdAt: 'desc' },
           include: { author: { select: { name: true } } },
         },
-        approvals: {
-          orderBy: { createdAt: 'desc' },
-        },
       },
     })
   }

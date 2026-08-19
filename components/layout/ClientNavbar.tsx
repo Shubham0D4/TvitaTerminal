@@ -67,9 +67,12 @@ export default function ClientNavbar({ user, isSubTeam: isSubTeamProp = false, s
   const [notifications, setNotifications] = useState<any[]>([])
 
   useEffect(() => {
+    let active = true
     async function loadNotifs() {
+      if (document.visibilityState !== 'visible') return
       try {
         const res = await fetch('/api/notifications').then((r) => r.json())
+        if (!active) return
         if (res?.data) {
           setNotifications(res.data.notifications || [])
           setUnreadCount(res.data.unreadCount || 0)
@@ -79,8 +82,20 @@ export default function ClientNavbar({ user, isSubTeam: isSubTeamProp = false, s
       }
     }
     loadNotifs()
-    const interval = setInterval(loadNotifs, 15000)
-    return () => clearInterval(interval)
+    const interval = setInterval(loadNotifs, 45000)
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadNotifs()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      active = false
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
   }, [])
 
   useEffect(() => {

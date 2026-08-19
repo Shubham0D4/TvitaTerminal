@@ -2,68 +2,18 @@
 
 import { useState, useTransition } from 'react'
 import {
-  Users,
-  Plus,
-  Trash2,
-  PowerOff,
-  Power,
-  ShieldOff,
-  ShieldCheck,
-  Settings2,
-  X,
-  CheckCircle2,
-  Search,
-  Copy,
-  Check,
-  FolderKanban,
-  FileText,
-  CreditCard,
-  Sparkles,
-  Edit3,
-  UserPlus,
-  ShieldAlert,
-  ChevronDown,
-  ChevronUp,
-  UserCheck,
-  Briefcase,
-  Layers,
-  KeyRound,
-  Send,
+  Users, Plus, Trash2, Send, Copy, Check, X, Mail,
+  UserCheck, Clock, AlertCircle,
 } from 'lucide-react'
-import TeamAvatarUpload from '@/components/teams/TeamAvatarUpload'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { apiClient } from '@/shared/utilities/api-client'
-import type { Client } from '@prisma/client'
-import type { AccessPolicy } from '@/lib/auth/server'
-
-type ProjectItem = {
-  id: string
-  name: string
-  status: string
-}
-
-type RoleItem = {
-  id: string
-  subTeamId: string
-  name: string
-  description?: string | null
-  permissions: AccessPolicy
-}
 
 type MemberItem = {
   id: string
-  subTeamId: string
-  profileId?: string | null
-  roleId?: string | null
   name: string
   email: string
-  designation?: string | null
-  customPolicy?: AccessPolicy | null
   status: 'ACTIVE' | 'INACTIVE'
   createdAt: string
-  role?: RoleItem | null
   profile?: {
     email?: string
     name?: string
@@ -72,940 +22,322 @@ type MemberItem = {
   } | null
 }
 
-type TeamItem = {
-  id: string
-  clientId: string
-  name: string
-  description?: string | null
-  email: string
-  status: 'ACTIVE' | 'INACTIVE'
-  revokedByAdmin: boolean
-  accessPolicy: AccessPolicy
-  allowedProjects: string[]
-  createdAt: string
-  roles?: RoleItem[]
-  members?: MemberItem[]
-}
-
 type Props = {
-  client: any
-  projects: ProjectItem[]
-  initialSubTeams: any[]
+  clientName: string
+  initialMembers: MemberItem[]
 }
 
-type PolicyKey = keyof AccessPolicy
-
-type PolicyDefinition = {
-  key: PolicyKey
-  label: string
-  description: string
-  category: 'execution' | 'commercial'
-  icon: typeof FolderKanban
+function getInitials(name: string) {
+  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 }
 
-const POLICY_DEFINITIONS: PolicyDefinition[] = [
-  {
-    key: 'projects',
-    label: 'Projects',
-    description: 'View active deliverables, project progress, and task details',
-    category: 'execution',
-    icon: FolderKanban,
-  },
-  {
-    key: 'milestones',
-    label: 'Milestones',
-    description: 'Track key milestones and delivery schedules',
-    category: 'execution',
-    icon: CheckCircle2,
-  },
-  {
-    key: 'approvals',
-    label: 'Approvals',
-    description: 'Review and approve milestone sign-offs or task requests',
-    category: 'execution',
-    icon: ShieldCheck,
-  },
-  {
-    key: 'invoices',
-    label: 'Invoices',
-    description: 'View client invoices, payment status, and download PDFs',
-    category: 'commercial',
-    icon: CreditCard,
-  },
-  {
-    key: 'subscriptions',
-    label: 'Subscriptions',
-    description: 'View monthly retainer packages and active service plans',
-    category: 'commercial',
-    icon: Sparkles,
-  },
-  {
-    key: 'billing',
-    label: 'Billing Profile',
-    description: 'Access tax registration details and billing addresses',
-    category: 'commercial',
-    icon: CreditCard,
-  },
-  {
-    key: 'issues',
-    label: 'Issues Tracker',
-    description: 'Track, view, and report project-specific issues',
-    category: 'execution',
-    icon: ShieldAlert,
-  },
-  {
-    key: 'notes',
-    label: 'Project Notes',
-    description: 'Collaborate using private and shared project notes',
-    category: 'execution',
-    icon: FileText,
-  },
-]
-
-const DEFAULT_POLICY: AccessPolicy = {
-  projects: true,
-  milestones: true,
-  approvals: true,
-  invoices: false,
-  subscriptions: false,
-  billing: false,
-  issues: true,
-  notes: true,
+function formatDate(d: string) {
+  return new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(d))
 }
 
-function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2)
-}
-
-function formatDate(date: Date | string | null): string {
-  if (!date) return '—'
-  return new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(date))
-}
-
-export default function ClientTeamsManager({ client, projects, initialSubTeams }: Props) {
-  const router = useRouter()
-  const [teams, setTeams] = useState<TeamItem[]>(initialSubTeams as TeamItem[])
-  const [search, setSearch] = useState('')
+export default function ClientTeamsManager({ clientName, initialMembers }: Props) {
+  const [members, setMembers] = useState<MemberItem[]>(initialMembers)
+  const [showInviteModal, setShowInviteModal] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteName, setInviteName] = useState('')
   const [copiedId, setCopiedId] = useState<string | null>(null)
-  const [expandedTeamId, setExpandedTeamId] = useState<string | null>(initialSubTeams[0]?.id || null)
-
-  // Modals
-  const [showTeamModal, setShowTeamModal] = useState(false)
-  const [editingTeam, setEditingTeam] = useState<TeamItem | null>(null)
-
-  const [showRoleModal, setShowRoleModal] = useState(false)
-  const [roleTeamId, setRoleTeamId] = useState<string | null>(null)
-
-  const [showMemberModal, setShowMemberModal] = useState(false)
-  const [memberTeamId, setMemberTeamId] = useState<string | null>(null)
-
   const [isPending, startTransition] = useTransition()
 
-  // Team Form State
-  const [teamName, setTeamName] = useState('')
-  const [teamDesc, setTeamDesc] = useState('')
-  const [teamPolicy, setTeamPolicy] = useState<AccessPolicy>(DEFAULT_POLICY)
-  const [teamAllowedProjects, setTeamAllowedProjects] = useState<string[]>([]) // Empty = All
-
-  // Role Form State
-  const [roleName, setRoleName] = useState('')
-  const [roleDesc, setRoleDesc] = useState('')
-  const [rolePolicy, setRolePolicy] = useState<AccessPolicy>(DEFAULT_POLICY)
-
-  // Member Form State
-  const [memberName, setMemberName] = useState('')
-  const [memberEmail, setMemberEmail] = useState('')
-  const [memberDesignation, setMemberDesignation] = useState('')
-  const [memberRoleId, setMemberRoleId] = useState<string>('')
-  const [memberCustomPolicy, setMemberCustomPolicy] = useState<AccessPolicy>(DEFAULT_POLICY)
-  const [useCustomMemberPolicy, setUseCustomMemberPolicy] = useState(false)
-
-  // --- Team Handlers ---
-  const openCreateTeamModal = () => {
-    setTeamName('')
-    setTeamDesc('')
-    setTeamPolicy({ ...DEFAULT_POLICY })
-    setTeamAllowedProjects([])
-    setEditingTeam(null)
-    setShowTeamModal(true)
-  }
-
-  const openEditTeamModal = (t: TeamItem) => {
-    setTeamName(t.name)
-    setTeamDesc(t.description || '')
-    setTeamPolicy({ ...DEFAULT_POLICY, ...(t.accessPolicy || {}) })
-    setTeamAllowedProjects(Array.isArray(t.allowedProjects) ? t.allowedProjects : [])
-    setEditingTeam(t)
-    setShowTeamModal(true)
-  }
-
-  const handleSaveTeam = async (e: React.FormEvent) => {
+  const handleInvite = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!teamName.trim()) {
-      toast.error('Team name is required')
-      return
-    }
+    if (!inviteEmail.trim()) return
 
     startTransition(async () => {
       try {
-        if (editingTeam) {
-          const updated = await apiClient.put<TeamItem>(`/api/client/team/${editingTeam.id}`, {
-            name: teamName.trim(),
-            description: teamDesc.trim(),
-            policy: teamPolicy,
-            allowedProjects: teamAllowedProjects,
-          })
-          setTeams((prev) => prev.map((t) => (t.id === editingTeam.id ? { ...t, ...updated } : t)))
-          toast.success(`Team "${teamName}" updated successfully`)
-        } else {
-          const created = await apiClient.post<TeamItem>('/api/client/team', {
-            name: teamName.trim(),
-            description: teamDesc.trim(),
-            policy: teamPolicy,
-            allowedProjects: teamAllowedProjects,
-          })
-          setTeams((prev) => [created, ...prev])
-          setExpandedTeamId(created.id)
-          toast.success(`Team "${teamName}" created!`)
-        }
-        setShowTeamModal(false)
-      } catch (err: unknown) {
-        toast.error((err as Error)?.message || 'Failed to save team')
-      }
-    })
-  }
-
-  const handleDeleteTeam = async (team: TeamItem) => {
-    if (!confirm(`Are you sure you want to delete team "${team.name}"? This will revoke access for all members.`)) {
-      return
-    }
-
-    try {
-      await apiClient.delete<{ deleted: boolean }>(`/api/client/team/${team.id}`)
-      setTeams((prev) => prev.filter((t) => t.id !== team.id))
-      toast.success('Team deleted')
-    } catch (err: unknown) {
-      toast.error((err as Error)?.message || 'Failed to delete team')
-    }
-  }
-
-  // --- Role Handlers ---
-  const openCreateRoleModal = (teamId: string) => {
-    setRoleTeamId(teamId)
-    setRoleName('')
-    setRoleDesc('')
-    setRolePolicy({ ...DEFAULT_POLICY })
-    setShowRoleModal(true)
-  }
-
-  const handleSaveRole = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!roleName.trim() || !roleTeamId) {
-      toast.error('Role name is required')
-      return
-    }
-
-    startTransition(async () => {
-      try {
-        const created = await apiClient.post<RoleItem>(`/api/client/team/${roleTeamId}/roles`, {
-          name: roleName.trim(),
-          description: roleDesc.trim(),
-          permissions: rolePolicy,
+        const created = await apiClient.post<MemberItem>('/api/client/members', {
+          email: inviteEmail.trim(),
+          name: inviteName.trim() || undefined,
         })
-        setTeams((prev) =>
-          prev.map((t) => (t.id === roleTeamId ? { ...t, roles: [created, ...(t.roles || [])] } : t))
-        )
-        toast.success(`Custom role "${roleName}" added`)
-        setShowRoleModal(false)
-      } catch (err: unknown) {
-        toast.error((err as Error)?.message || 'Failed to create role')
+        setMembers(prev => [created, ...prev])
+        toast.success(`Invitation sent to ${inviteEmail}!`)
+        setInviteEmail('')
+        setInviteName('')
+        setShowInviteModal(false)
+      } catch (err) {
+        toast.error((err as Error)?.message || 'Failed to send invite')
       }
     })
   }
 
-  // --- Member Handlers ---
-  const openCreateMemberModal = (teamId: string) => {
-    setMemberTeamId(teamId)
-    setMemberName('')
-    setMemberEmail('')
-    setMemberDesignation('')
-    setMemberRoleId('')
-    setMemberCustomPolicy({ ...DEFAULT_POLICY })
-    setUseCustomMemberPolicy(false)
-    setShowMemberModal(true)
-  }
-
-  const handleSaveMember = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!memberName.trim() || !memberEmail.trim() || !memberTeamId) {
-      toast.error('Name and valid email are required')
-      return
-    }
-
-    startTransition(async () => {
-      try {
-        const created = await apiClient.post<MemberItem>(`/api/client/team/${memberTeamId}/members`, {
-          name: memberName.trim(),
-          email: memberEmail.trim(),
-          designation: memberDesignation.trim(),
-          roleId: memberRoleId || null,
-          customPolicy: useCustomMemberPolicy ? memberCustomPolicy : null,
-        })
-
-        setTeams((prev) =>
-          prev.map((t) => (t.id === memberTeamId ? { ...t, members: [created, ...(t.members || [])] } : t))
-        )
-        toast.success(`Member "${memberName}" invited! Magic link sent to ${memberEmail}.`)
-        setShowMemberModal(false)
-      } catch (err: unknown) {
-        toast.error((err as Error)?.message || 'Failed to invite member')
-      }
-    })
-  }
-
-  const handleDeleteMember = async (teamId: string, member: MemberItem) => {
-    if (!confirm(`Remove member "${member.name}" from team?`)) return
+  const handleResend = async (member: MemberItem) => {
     try {
-      await apiClient.delete<{ deleted: boolean }>(`/api/client/team/${teamId}/members/${member.id}`)
-      setTeams((prev) =>
-        prev.map((t) =>
-          t.id === teamId ? { ...t, members: (t.members || []).filter((m) => m.id !== member.id) } : t
-        )
-      )
-      toast.success('Team member removed')
-    } catch (err: unknown) {
+      // Resend via re-invite
+      const res = await apiClient.post<MemberItem>('/api/client/members', {
+        email: member.email,
+        name: member.name,
+      })
+      if (res) {
+        toast.success(`Magic link resent to ${member.email}`)
+      }
+    } catch (err) {
+      toast.error((err as Error)?.message || 'Failed to resend invite')
+    }
+  }
+
+  const copyLink = (email: string, memberId: string) => {
+    const url = `${window.location.origin}/login?email=${encodeURIComponent(email)}`
+    navigator.clipboard.writeText(url).catch(() => {})
+    setCopiedId(memberId)
+    toast.success('Login link copied!')
+    setTimeout(() => setCopiedId(null), 3000)
+  }
+
+  const handleRemove = async (member: MemberItem) => {
+    if (!confirm(`Remove ${member.name || member.email} from your team?`)) return
+    try {
+      await apiClient.delete(`/api/client/members/${member.id}`)
+      setMembers(prev => prev.filter(m => m.id !== member.id))
+      toast.success('Member removed')
+    } catch (err) {
       toast.error((err as Error)?.message || 'Failed to remove member')
     }
   }
 
-  const handleResendMemberInvite = async (teamId: string, member: MemberItem) => {
-    try {
-      const res = await apiClient<{ message: string; inviteLink?: string }>(
-        `/api/client/team/${teamId}/members/${member.id}/resend-invite`,
-        { method: 'POST' }
-      )
-      if (res.success && res.data) {
-        if (res.data.inviteLink && typeof navigator !== 'undefined' && navigator.clipboard) {
-          try {
-            await navigator.clipboard.writeText(res.data.inviteLink)
-            setCopiedId(member.id)
-            setTimeout(() => setCopiedId(null), 3000)
-          } catch (clipErr) {
-            console.warn('Clipboard write error:', clipErr)
-          }
-        }
-        toast.success(res.data.message || `Magic link invitation resent to ${member.email}!`)
-      } else {
-        toast.error(res.error?.message || 'Failed to resend invitation')
-      }
-    } catch (err: unknown) {
-      toast.error((err as Error)?.message || 'Failed to resend invitation')
-    }
-  }
-
-  const copyMagicLink = (email: string, id: string) => {
-    const url = `${window.location.origin}/login?email=${encodeURIComponent(email)}`
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(url).catch((clipErr) => console.warn('Clipboard write error:', clipErr))
-    }
-    setCopiedId(id)
-    toast.success('Magic login link copied to clipboard!')
-    setTimeout(() => setCopiedId(null), 3000)
-  }
-
-  const toggleProjectAccess = (projId: string) => {
-    setTeamAllowedProjects((prev) => {
-      if (prev.includes(projId)) {
-        return prev.filter((p) => p !== projId)
-      }
-      return [...prev, projId]
-    })
-  }
-
-  // Filtered teams
-  const filteredTeams = teams.filter(
-    (t) =>
-      t.name.toLowerCase().includes(search.toLowerCase()) ||
-      (t.description && t.description.toLowerCase().includes(search.toLowerCase())) ||
-      (t.members && t.members.some((m) => m.name.toLowerCase().includes(search.toLowerCase()) || m.email.toLowerCase().includes(search.toLowerCase())))
-  )
-
-  const totalMembersCount = teams.reduce((acc, t) => acc + (t.members?.length || 0), 0)
+  const activeCount = members.filter(m => m.status === 'ACTIVE').length
+  const pendingCount = members.filter(m => m.status === 'ACTIVE' && !m.profile?.passwordHash).length
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-      {/* Page Header */}
+
+      {/* Header */}
       <div className="page-header flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="page-header__title">Client Teams &amp; Access Control</h1>
-            <span className="badge" style={{ background: 'rgba(99, 102, 241, 0.15)', color: 'var(--accent-primary)', fontWeight: 600 }}>
-              {teams.length} Teams · {totalMembersCount} Members
+            <h1 className="page-header__title">Team Members</h1>
+            <span className="badge" style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent-primary)', fontWeight: 600 }}>
+              {activeCount} Active
+              {pendingCount > 0 && <span style={{ marginLeft: 4, color: '#f59e0b' }}>· {pendingCount} Pending</span>}
             </span>
           </div>
           <p className="page-header__subtitle">
-            Create internal teams for {client.name}, assign project-level access boundaries, and define granular roles and component permissions for members.
+            Invite colleagues from {clientName} to access your projects. They'll receive a magic link to sign in instantly.
           </p>
         </div>
 
-        <button type="button" onClick={openCreateTeamModal} className="btn btn--primary" style={{ gap: 6, flexShrink: 0 }}>
-          <Plus size={16} /> Create Client Team
+        <button
+          type="button"
+          onClick={() => setShowInviteModal(true)}
+          className="btn btn--primary"
+          style={{ gap: 6, flexShrink: 0 }}
+        >
+          <Plus size={16} /> Invite Member
         </button>
       </div>
 
-      {/* Roster Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div style={{ position: 'relative', width: '100%', maxWidth: 420 }}>
-          <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-          <input
-            type="text"
-            placeholder="Search teams, roles, or members..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="form-input"
-            style={{
-              paddingLeft: 36,
-              fontSize: 'var(--text-xs)',
-              background: '#ffffff',
-              border: '1px solid var(--border-default)',
-              color: '#0f172a',
-            }}
-          />
-        </div>
+      {/* Info card */}
+      <div style={{
+        display: 'flex', alignItems: 'flex-start', gap: 10,
+        background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.2)',
+        borderRadius: 'var(--radius-lg)', padding: 'var(--space-4)',
+      }}>
+        <AlertCircle size={16} style={{ color: 'var(--accent-primary)', flexShrink: 0, marginTop: 1 }} />
+        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.6 }}>
+          Invited members can view all projects and communicate via notes, but <strong>cannot access invoices, billing, or subscription details</strong>. A magic link will be emailed to them for instant sign-in.
+        </p>
       </div>
 
-      {/* Teams List Accordion */}
-      {filteredTeams.length === 0 ? (
-        <div className="card" style={{ padding: 'var(--space-8)' }}>
-          <div className="empty-state">
+      {/* Members list */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        {members.length === 0 ? (
+          <div className="empty-state" style={{ padding: 'var(--space-10)' }}>
             <Users size={32} style={{ color: 'var(--text-muted)' }} />
-            <div className="empty-state__title">No Teams Configured</div>
-            <div className="empty-state__desc">
-              {search ? 'No teams or members match your search criteria.' : 'Create your first internal sub-team to manage project access.'}
-            </div>
-            {!search && (
-              <button type="button" onClick={openCreateTeamModal} className="btn btn--primary mt-4">
-                <Plus size={15} /> Create First Team
-              </button>
-            )}
+            <div className="empty-state__title">No team members yet</div>
+            <div className="empty-state__desc">Invite colleagues to give them access to your projects.</div>
+            <button type="button" onClick={() => setShowInviteModal(true)} className="btn btn--primary mt-4">
+              <Plus size={15} /> Send First Invite
+            </button>
           </div>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-          {filteredTeams.map((team) => {
-            const isExpanded = expandedTeamId === team.id
-            const members = team.members || []
-            const roles = team.roles || []
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {/* Table header */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr auto',
+              gap: 12,
+              padding: '10px 20px',
+              borderBottom: '1px solid var(--border-subtle)',
+              background: 'var(--bg-elevated)',
+            }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Member</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Actions</span>
+            </div>
 
-            return (
-              <div
-                key={team.id}
-                className="card"
-                style={{
-                  padding: 0,
-                  overflow: 'hidden',
-                  border: team.revokedByAdmin ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid var(--border-subtle)',
-                }}
-              >
-                {/* Team Header Bar */}
+            {members.map(member => {
+              const hasLoggedIn = Boolean(member.profile?.passwordHash)
+              const isPendingAccept = !hasLoggedIn && member.status === 'ACTIVE'
+
+              return (
                 <div
+                  key={member.id}
                   style={{
-                    padding: 'var(--space-4) var(--space-6)',
-                    background: isExpanded ? 'var(--bg-elevated)' : 'var(--bg-surface)',
-                    borderBottom: isExpanded ? '1px solid var(--border-subtle)' : 'none',
-                    display: 'flex',
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr auto',
+                    gap: 12,
+                    padding: '14px 20px',
+                    borderBottom: '1px solid var(--border-subtle)',
                     alignItems: 'center',
-                    justifyContent: 'space-between',
-                    cursor: 'pointer',
+                    transition: 'background 0.1s',
                   }}
-                  onClick={() => setExpandedTeamId(isExpanded ? null : team.id)}
                 >
+                  {/* Member info */}
                   <div className="flex items-center gap-3">
-                    <TeamAvatarUpload
-                      teamId={team.id}
-                      teamName={team.name}
-                      currentAvatarUrl={(team.accessPolicy as any)?.avatarUrl}
-                    />
+                    <div style={{
+                      width: 36, height: 36, borderRadius: '50%',
+                      background: hasLoggedIn ? 'var(--accent-primary)' : 'rgba(99,102,241,0.15)',
+                      color: hasLoggedIn ? '#fff' : 'var(--accent-primary)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 13, fontWeight: 700, flexShrink: 0,
+                    }}>
+                      {getInitials(member.name)}
+                    </div>
                     <div>
-                      <div className="flex items-center gap-2">
-                        <h3 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)', margin: 0 }}>
-                          {team.name}
-                        </h3>
-                        {team.revokedByAdmin ? (
-                          <span className="badge badge--danger" style={{ fontSize: 10 }}>Revoked</span>
-                        ) : (
-                          <span className={`badge badge--${team.status === 'ACTIVE' ? 'active' : 'inactive'}`} style={{ fontSize: 10 }}>
-                            {team.status}
-                          </span>
-                        )}
+                      <div style={{ fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', fontSize: 'var(--text-sm)' }}>
+                        {member.name}
                       </div>
-                      <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
-                        {team.description || 'Internal sub-team'} · Created {formatDate(team.createdAt)}
-                      </p>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                        <Mail size={10} />{member.email}
+                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 1 }}>
+                        Invited {formatDate(member.createdAt)}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4">
-                    {/* Project access pills */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                        <Briefcase size={12} /> Project Access:
+                  {/* Status */}
+                  <div>
+                    {hasLoggedIn ? (
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
+                        background: 'rgba(16,185,129,0.1)', color: '#10b981',
+                      }}>
+                        <UserCheck size={11} /> Active
                       </span>
-                      {team.allowedProjects && team.allowedProjects.length > 0 ? (
-                        <span className="badge" style={{ background: 'rgba(99, 102, 241, 0.15)', color: 'var(--accent-primary)', fontSize: 10 }}>
-                          {team.allowedProjects.length} Specific Project{team.allowedProjects.length !== 1 ? 's' : ''}
-                        </span>
-                      ) : (
-                        <span className="badge badge--active" style={{ fontSize: 10 }}>
-                          All Projects
-                        </span>
-                      )}
-                    </div>
-
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', fontWeight: 'var(--font-semibold)' }}>
-                      {members.length} member{members.length !== 1 ? 's' : ''}
-                    </div>
-
-                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                      <Link
-                        href={`/client/teams/${team.id}`}
-                        className="btn btn--primary btn--xs"
-                        style={{ gap: 4 }}
-                      >
-                        Manage Team &amp; Members
-                      </Link>
-
-                      <button
-                        type="button"
-                        onClick={() => openEditTeamModal(team)}
-                        className="btn btn--ghost btn--xs"
-                        title="Edit Team & Project Access"
-                      >
-                        <Edit3 size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteTeam(team)}
-                        className="btn btn--ghost btn--xs text-danger"
-                        title="Delete Team"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-
-                    <div style={{ color: 'var(--text-muted)' }}>
-                      {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                    </div>
+                    ) : isPendingAccept ? (
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
+                        background: 'rgba(245,158,11,0.1)', color: '#f59e0b',
+                      }}>
+                        <Clock size={11} /> Invite Pending
+                      </span>
+                    ) : (
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
+                        background: 'rgba(100,116,139,0.1)', color: '#64748b',
+                      }}>
+                        Inactive
+                      </span>
+                    )}
                   </div>
-                </div>
 
-                {/* Team Details Panel (Expanded) */}
-                {isExpanded && (
-                  <div style={{ padding: 'var(--space-6)', background: 'var(--bg-surface)', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-                    
-                    {/* Sub-Team Actions Toolbar */}
-                    <div className="flex items-center justify-between pb-3" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                      <div className="flex items-center gap-2">
-                        <Layers size={16} style={{ color: 'var(--accent-primary)' }} />
-                        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)' }}>
-                          Team Roster &amp; Custom Roles
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button type="button" onClick={() => openCreateRoleModal(team.id)} className="btn btn--secondary btn--sm" style={{ gap: 4 }}>
-                          <KeyRound size={14} /> Add Custom Role
-                        </button>
-                        <button type="button" onClick={() => openCreateMemberModal(team.id)} className="btn btn--primary btn--sm" style={{ gap: 4 }}>
-                          <UserPlus size={14} /> Invite Team Member
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Roles Grid (if any) */}
-                    {roles.length > 0 && (
-                      <div>
-                        <div style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 'var(--space-3)' }}>
-                          Custom Roles Defined ({roles.length}):
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                          {roles.map((r) => {
-                            const perms = (r.permissions || {}) as AccessPolicy
-                            const activePerms = POLICY_DEFINITIONS.filter((p) => Boolean(perms[p.key]))
-                            return (
-                              <div
-                                key={r.id}
-                                style={{
-                                  background: 'var(--bg-elevated)',
-                                  border: '1px solid var(--border-subtle)',
-                                  borderRadius: 'var(--radius-md)',
-                                  padding: 'var(--space-3) var(--space-4)',
-                                }}
-                              >
-                                <div style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)' }}>
-                                  {r.name}
-                                </div>
-                                {r.description && (
-                                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{r.description}</div>
-                                )}
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
-                                  {activePerms.map((p) => (
-                                    <span key={p.key} className="badge" style={{ fontSize: 9, padding: '1px 6px', background: 'rgba(99,102,241,0.12)', color: 'var(--accent-primary)' }}>
-                                      {p.label}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
+                  {/* Actions */}
+                  <div className="flex items-center gap-2">
+                    {isPendingAccept && (
+                      <button
+                        type="button"
+                        onClick={() => handleResend(member)}
+                        className="btn btn--ghost btn--xs"
+                        style={{ gap: 3, color: 'var(--accent-primary)' }}
+                        title="Resend magic link"
+                      >
+                        <Send size={12} /> Resend
+                      </button>
                     )}
 
-                    {/* Members List Table */}
-                    <div>
-                      <div style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 'var(--space-3)' }}>
-                        Team Members ({members.length}):
-                      </div>
+                    <button
+                      type="button"
+                      onClick={() => copyLink(member.email, member.id)}
+                      className="btn btn--ghost btn--xs"
+                      title="Copy login link"
+                    >
+                      {copiedId === member.id ? <Check size={13} style={{ color: '#10b981' }} /> : <Copy size={13} />}
+                    </button>
 
-                      {members.length === 0 ? (
-                        <div className="empty-state" style={{ padding: 'var(--space-6)', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)' }}>
-                          <UserCheck size={24} style={{ color: 'var(--text-muted)' }} />
-                          <div className="empty-state__title" style={{ fontSize: 'var(--text-sm)' }}>No members in this team yet</div>
-                          <div className="empty-state__desc">Invite colleagues to grant them access to this team's assigned projects.</div>
-                        </div>
-                      ) : (
-                        <div className="table-responsive">
-                          <table className="table">
-                            <thead>
-                              <tr>
-                                <th>Member Name &amp; Email</th>
-                                <th>Designation</th>
-                                <th>Assigned Role</th>
-                                <th>Component Access</th>
-                                <th>Actions</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {members.map((m) => {
-                                return (
-                                  <tr key={m.id}>
-                                    <td>
-                                      <div className="flex items-center gap-2">
-                                        <div
-                                          style={{
-                                            width: 28,
-                                            height: 28,
-                                            borderRadius: '50%',
-                                            background: 'var(--accent-primary)',
-                                            color: '#fff',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            fontSize: 11,
-                                            fontWeight: 700,
-                                          }}
-                                        >
-                                          {getInitials(m.name)}
-                                        </div>
-                                        <div>
-                                          <div style={{ fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>{m.name}</div>
-                                          <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{m.email}</div>
-                                        </div>
-                                      </div>
-                                    </td>
-                                    <td style={{ color: 'var(--text-secondary)' }}>{m.designation || 'Member'}</td>
-                                    <td>
-                                      {m.role ? (
-                                        <span className="badge" style={{ background: 'rgba(99, 102, 241, 0.15)', color: 'var(--accent-primary)' }}>
-                                          {m.role.name}
-                                        </span>
-                                      ) : (
-                                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Default Team Role</span>
-                                      )}
-                                    </td>
-                                    <td>
-                                      {m.customPolicy ? (
-                                        <span className="badge" style={{ background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc', fontSize: 10 }}>
-                                          Custom Override
-                                        </span>
-                                      ) : (
-                                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Inherited from Role</span>
-                                      )}
-                                    </td>
-                                    <td>
-                                      <div className="flex items-center gap-2">
-                                        {!m.profile?.passwordHash && (
-                                          <button
-                                            type="button"
-                                            onClick={() => handleResendMemberInvite(team.id, m)}
-                                            className="btn btn--secondary btn--xs"
-                                            style={{ gap: 4, background: 'rgba(99, 102, 241, 0.15)', color: 'var(--accent-primary)', border: '1px solid rgba(99, 102, 241, 0.3)' }}
-                                            title="Resend Magic Link Invitation Email"
-                                          >
-                                            <Send size={12} /> Resend Invite
-                                          </button>
-                                        )}
-
-                                        <button
-                                          type="button"
-                                          onClick={() => copyMagicLink(m.email, m.id)}
-                                          className="btn btn--ghost btn--xs"
-                                          title="Copy Magic Login Link"
-                                        >
-                                          {copiedId === m.id ? <Check size={13} className="text-success" /> : <Copy size={13} />}
-                                        </button>
-
-                                        <button
-                                          type="button"
-                                          onClick={() => handleDeleteMember(team.id, m)}
-                                          className="btn btn--ghost btn--xs text-danger"
-                                          title="Remove Member"
-                                        >
-                                          <Trash2 size={13} />
-                                        </button>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                )
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemove(member)}
+                      className="btn btn--ghost btn--xs"
+                      style={{ color: 'var(--color-danger)' }}
+                      title="Remove member"
+                    >
+                      <Trash2 size={13} />
+                    </button>
                   </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
 
-      {/* --- MODAL 1: Create / Edit Team (with Project-Level Access) --- */}
-      {showTeamModal && (
+      {/* Invite Modal */}
+      {showInviteModal && (
         <div className="modal-backdrop">
-          <div className="modal-content" style={{ maxWidth: 700, width: '95%' }}>
+          <div className="modal-content" style={{ maxWidth: 420, width: '95%' }}>
             <div className="modal-header">
-              <h2 className="modal-title">
-                {editingTeam ? 'Edit Team & Project Access' : 'Create New Client Sub-Team'}
-              </h2>
-              <button type="button" onClick={() => setShowTeamModal(false)} className="btn btn--ghost btn--icon"><X size={18} /></button>
-            </div>
-
-            <form onSubmit={handleSaveTeam} className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-              <div className="form-group">
-                <label className="form-label">Team Name *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. QA &amp; Marketing Reviewers"
-                  value={teamName}
-                  onChange={(e) => setTeamName(e.target.value)}
-                  className="form-input"
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Description (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Internal QA department for mobile apps"
-                  value={teamDesc}
-                  onChange={(e) => setTeamDesc(e.target.value)}
-                  className="form-input"
-                />
-              </div>
-
-              {/* Project-Level Access Selection */}
-              <div className="form-group">
-                <label className="form-label" style={{ fontWeight: 600, color: '#334155', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Briefcase size={15} style={{ color: 'var(--accent-primary)' }} />
-                  Project-Level Access Restriction
-                </label>
-                <p className="form-hint" style={{ marginTop: 0, marginBottom: 8 }}>
-                  Select which projects members of this team can see. If none selected, team members can view all client projects.
+              <div>
+                <h2 className="modal-title">Invite a Team Member</h2>
+                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 2 }}>
+                  A magic sign-in link will be emailed to them.
                 </p>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 180, overflowY: 'auto', background: '#ffffff', padding: 'var(--space-3)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-                  {projects.length === 0 ? (
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>No projects created yet for your client account.</div>
-                  ) : (
-                    projects.map((p) => {
-                      const isChecked = teamAllowedProjects.includes(p.id)
-                      return (
-                        <label key={p.id} className="flex items-center gap-2" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-primary)', cursor: 'pointer' }}>
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => toggleProjectAccess(p.id)}
-                            style={{ accentColor: 'var(--accent-primary)' }}
-                          />
-                          <span style={{ fontWeight: 600 }}>{p.name}</span>
-                          <span className="badge" style={{ fontSize: 9 }}>{p.status}</span>
-                        </label>
-                      )
-                    })
-                  )}
-                </div>
               </div>
-
-              <div className="modal-footer" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 'var(--space-4)', marginTop: 'var(--space-2)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                <button type="button" onClick={() => setShowTeamModal(false)} className="btn btn--secondary">Cancel</button>
-                <button type="submit" disabled={isPending} className="btn btn--primary">
-                  {isPending ? 'Saving...' : editingTeam ? 'Update Team' : 'Create Team'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* --- MODAL 2: Create Custom Team Role --- */}
-      {showRoleModal && (
-        <div className="modal-backdrop">
-          <div className="modal-content" style={{ maxWidth: 650, width: '95%' }}>
-            <div className="modal-header">
-              <h2 className="modal-title">Add Custom Role to Team</h2>
-              <button type="button" onClick={() => setShowRoleModal(false)} className="btn btn--ghost btn--icon"><X size={18} /></button>
+              <button type="button" onClick={() => setShowInviteModal(false)} className="btn btn--ghost btn--icon">
+                <X size={18} />
+              </button>
             </div>
 
-            <form onSubmit={handleSaveRole} className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+            <form onSubmit={handleInvite} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', padding: 'var(--space-5)' }}>
               <div className="form-group">
-                <label className="form-label">Role Name *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Milestone Approver"
-                  value={roleName}
-                  onChange={(e) => setRoleName(e.target.value)}
-                  className="form-input"
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Role Description</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Can review and approve project milestones"
-                  value={roleDesc}
-                  onChange={(e) => setRoleDesc(e.target.value)}
-                  className="form-input"
-                />
-              </div>
-
-              {/* Permissions switches */}
-              <div className="form-group">
-                <label className="form-label" style={{ fontWeight: 600, color: '#334155' }}>Component Access Permissions</label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
-                  {POLICY_DEFINITIONS.map((def) => {
-                    const isEnabled = Boolean(rolePolicy[def.key])
-                    return (
-                      <div
-                        key={def.key}
-                        onClick={() => setRolePolicy((prev) => ({ ...prev, [def.key]: !prev[def.key] }))}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '6px 12px',
-                          borderRadius: 'var(--radius-md)',
-                          border: isEnabled ? '1px solid rgba(99, 102, 241, 0.4)' : '1px solid var(--border-subtle)',
-                          background: isEnabled ? 'rgba(99, 102, 241, 0.06)' : '#ffffff',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600 }}>{def.label}</span>
-                        <input type="checkbox" checked={isEnabled} readOnly style={{ accentColor: 'var(--accent-primary)' }} />
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-
-              <div className="modal-footer" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 'var(--space-4)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                <button type="button" onClick={() => setShowRoleModal(false)} className="btn btn--secondary">Cancel</button>
-                <button type="submit" disabled={isPending} className="btn btn--primary">
-                  {isPending ? 'Saving...' : 'Save Custom Role'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* --- MODAL 3: Invite Team Member --- */}
-      {showMemberModal && (
-        <div className="modal-backdrop">
-          <div className="modal-content" style={{ maxWidth: 650, width: '95%' }}>
-            <div className="modal-header">
-              <h2 className="modal-title">Invite Team Member</h2>
-              <button type="button" onClick={() => setShowMemberModal(false)} className="btn btn--ghost btn--icon"><X size={18} /></button>
-            </div>
-
-            <form onSubmit={handleSaveMember} className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="form-group">
-                  <label className="form-label">Member Name *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Alex Morgan"
-                    value={memberName}
-                    onChange={(e) => setMemberName(e.target.value)}
-                    className="form-input"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Email Address *</label>
+                <label className="form-label">Email Address <span style={{ color: 'var(--color-danger)' }}>*</span></label>
+                <div style={{ position: 'relative' }}>
+                  <Mail size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
                   <input
                     type="email"
                     required
-                    placeholder="e.g. alex@company.com"
-                    value={memberEmail}
-                    onChange={(e) => setMemberEmail(e.target.value)}
+                    value={inviteEmail}
+                    onChange={e => setInviteEmail(e.target.value)}
+                    placeholder="colleague@company.com"
                     className="form-input"
+                    style={{ paddingLeft: 36 }}
+                    autoFocus
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="form-group">
-                  <label className="form-label">Designation</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Senior QA Engineer"
-                    value={memberDesignation}
-                    onChange={(e) => setMemberDesignation(e.target.value)}
-                    className="form-input"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Assign Custom Role</label>
-                  <select
-                    value={memberRoleId}
-                    onChange={(e) => setMemberRoleId(e.target.value)}
-                    className="form-select"
-                  >
-                    <option value="">Default Team Role</option>
-                    {(teams.find((t) => t.id === memberTeamId)?.roles || []).map((r) => (
-                      <option key={r.id} value={r.id}>{r.name}</option>
-                    ))}
-                  </select>
-                </div>
+              <div className="form-group">
+                <label className="form-label">Name <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(Optional)</span></label>
+                <input
+                  type="text"
+                  value={inviteName}
+                  onChange={e => setInviteName(e.target.value)}
+                  placeholder="Their name (auto-filled from email if blank)"
+                  className="form-input"
+                />
               </div>
 
-              <div className="modal-footer" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 'var(--space-4)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                <button type="button" onClick={() => setShowMemberModal(false)} className="btn btn--secondary">Cancel</button>
-                <button type="submit" disabled={isPending} className="btn btn--primary">
-                  {isPending ? 'Sending Invite...' : 'Send Magic Link Invite'}
+              <div style={{
+                background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)',
+                borderRadius: 'var(--radius-md)', padding: 'var(--space-3)',
+                fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.6,
+              }}>
+                ✓ Access to all projects & notes<br />
+                ✓ Can view milestones & updates<br />
+                ✗ Cannot see invoices or billing details
+              </div>
+
+              <div className="flex items-center justify-end gap-3" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 'var(--space-4)' }}>
+                <button type="button" onClick={() => setShowInviteModal(false)} className="btn btn--ghost">Cancel</button>
+                <button type="submit" className="btn btn--primary" disabled={isPending || !inviteEmail.trim()} style={{ gap: 6 }}>
+                  <Send size={14} />
+                  {isPending ? 'Sending...' : 'Send Invite'}
                 </button>
               </div>
             </form>

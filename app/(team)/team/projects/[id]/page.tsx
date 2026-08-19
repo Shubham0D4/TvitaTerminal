@@ -4,7 +4,6 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Building2 } from 'lucide-react'
 import ProjectWorkspaceTabs from '@/components/projects/ProjectWorkspaceTabs'
-import ApprovalsPanel from '@/components/projects/ApprovalsPanel'
 import ProjectBannerUpload from '@/components/projects/ProjectBannerUpload'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -149,7 +148,7 @@ export default async function TeamProjectDetailPage({ params }: PageProps) {
       </div>
 
       <div className="grid grid-cols-3 gap-6">
-        {/* Main: Milestones + Approvals (lead only) */}
+        {/* Main: Process & Roadmaps */}
         <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
           <ProjectWorkspaceTabs
             projectId={id}
@@ -161,15 +160,6 @@ export default async function TeamProjectDetailPage({ params }: PageProps) {
             projectMembers={project.members}
             isLead={isLead}
           />
-
-          {isLead && (
-            <ApprovalsPanel
-              projectId={id}
-              isLead={isLead}
-              isClient={false}
-              approvals={[]}
-            />
-          )}
         </div>
 
         {/* Right: Team + Updates */}

@@ -17,7 +17,6 @@ async function resetDatabase() {
     const deleteOps = [
       () => prisma.auditLog.deleteMany(),
       () => prisma.notification.deleteMany(),
-      () => prisma.clientApproval.deleteMany(),
       () => prisma.projectUpdate.deleteMany(),
       () => prisma.invoice.deleteMany(),
       () => prisma.subscription.deleteMany(),

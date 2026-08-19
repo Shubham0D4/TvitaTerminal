@@ -8,15 +8,16 @@ export async function GET() {
   if (!user) return Errors.UNAUTHORIZED()
 
   try {
-    const notifications = await prisma.notification.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: 'desc' },
-      take: 20,
-    })
-
-    const unreadCount = await prisma.notification.count({
-      where: { userId: user.id, isRead: false },
-    })
+    const [notifications, unreadCount] = await Promise.all([
+      prisma.notification.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      }),
+      prisma.notification.count({
+        where: { userId: user.id, isRead: false },
+      }),
+    ])
 
     return apiSuccess({ notifications, unreadCount })
   } catch (error) {
