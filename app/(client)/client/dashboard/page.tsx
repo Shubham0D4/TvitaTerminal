@@ -1,6 +1,7 @@
 import { getServerUser, getClientSubTeamContext } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
 import { cleanupExpiredInvitations } from '@/lib/invitation-cleanup'
+import QuotesModule from '@/components/projects/QuotesModule'
 import {
   FolderKanban,
   CreditCard,
@@ -336,9 +337,9 @@ export default async function ClientDashboardPage() {
       </div>
 
       {/* ─────────────────────────────────────────────
-          2. TOP-LEVEL KPI CARDS (4-5 MAXIMUM)
+          2. TOP-LEVEL KPI CARDS (4 COLUMNS x N ROWS)
           ───────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Active Projects */}
         <div className="stat-card">
           <div className="stat-card__icon stat-card__icon--purple">
@@ -408,6 +409,9 @@ export default async function ClientDashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Project Quotations & Negotiations Module */}
+      <QuotesModule clientId={client.id} userRole={user.role} userId={user.id} />
 
       {/* ─────────────────────────────────────────────
           3. NEEDS YOUR ATTENTION (HIGHEST PRIORITY WORK QUEUE)

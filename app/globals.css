@@ -3,68 +3,69 @@
    Dark theme inspired by Google Cloud Console + Apple Design Language
    ───────────────────────────────────────────────────────────────────────────── */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 
 /* ─────────────────────────────────────────────
-   DESIGN TOKENS
+   DESIGN TOKENS (Tvita DESIGN.md Specification)
    ───────────────────────────────────────────── */
 
 :root {
   /* Background Palette (Clean Light Mode) */
-  --bg-base: #f8fafc;
+  --bg-base: #f4f4f5;
   --bg-surface: #ffffff;
-  --bg-elevated: #f1f5f9;
+  --bg-elevated: #ffffff;
   --bg-overlay: #ffffff;
-  --bg-muted: #e2e8f0;
+  --bg-muted: #e4e4e7;
 
   /* Border (Light Mode) */
-  --border-subtle: #e2e8f0;
-  --border-default: #cbd5e1;
-  --border-strong: #94a3b8;
-  --border-focus: rgba(79, 70, 229, 0.6);
+  --border-subtle: rgba(16, 28, 107, 0.1);
+  --border-default: rgba(16, 28, 107, 0.18);
+  --border-strong: rgba(16, 28, 107, 0.35);
+  --border-focus: #2340b8;
 
   /* Text (Light Mode) */
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
-  --text-disabled: #94a3b8;
+  --text-primary: #000000;
+  --text-secondary: rgba(0, 0, 0, 0.65);
+  --text-muted: rgba(0, 0, 0, 0.45);
+  --text-disabled: rgba(0, 0, 0, 0.25);
   --text-inverse: #ffffff;
 
-  /* Brand / Accent */
-  --accent-primary: #4f46e5;        /* indigo-600 */
-  --accent-primary-hover: #4338ca;  /* indigo-700 */
-  --accent-primary-muted: rgba(79, 70, 229, 0.08);
-  --accent-secondary: #7c3aed;      /* violet-600 */
-  --accent-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  /* Brand / Accent (DESIGN.md Spec) */
+  --accent-primary: #2340b8;        /* AppColors.brand */
+  --accent-primary-hover: #16277a;  /* AppColors.brandHover */
+  --accent-primary-muted: #dbe2f8;  /* AppColors.accent tint */
+  --accent-secondary: #8fa4e6;      /* AppColors.brandLight */
+  --brand-dark: #101c6b;            /* AppColors.brandDark */
+  --accent-gradient: linear-gradient(135deg, #2340b8 0%, #101c6b 100%);
 
   /* Semantic Colors */
-  --color-success: #059669;
-  --color-success-muted: rgba(5, 150, 105, 0.1);
-  --color-warning: #d97706;
-  --color-warning-muted: rgba(217, 119, 6, 0.1);
-  --color-danger: #dc2626;
-  --color-danger-muted: rgba(220, 38, 38, 0.1);
-  --color-info: #2563eb;
-  --color-info-muted: rgba(37, 99, 235, 0.1);
+  --color-success: #1e6b50;
+  --color-success-muted: #dff0e8;
+  --color-warning: #8a6a0b;
+  --color-warning-muted: #fff3d6;
+  --color-danger: #e5484d;
+  --color-danger-muted: rgba(229, 72, 77, 0.1);
+  --color-info: #2340b8;
+  --color-info-muted: #dbe2f8;
   --color-orange: #ea580c;
   --color-orange-muted: rgba(234, 88, 12, 0.1);
 
   /* Status Colors */
   --status-planned: #64748b;
-  --status-in-progress: #2563eb;
-  --status-on-hold: #d97706;
-  --status-completed: #059669;
-  --status-cancelled: #dc2626;
+  --status-in-progress: #2340b8;
+  --status-on-hold: #8a6a0b;
+  --status-completed: #1e6b50;
+  --status-cancelled: #e5484d;
   --status-blocked: #ea580c;
 
   /* Priority Colors */
   --priority-low: #64748b;
-  --priority-medium: #2563eb;
-  --priority-high: #d97706;
-  --priority-urgent: #dc2626;
+  --priority-medium: #2340b8;
+  --priority-high: #8a6a0b;
+  --priority-urgent: #e5484d;
 
   /* Typography Scale */
-  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-family: 'DM Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
   --text-xs: 0.75rem;      /* 12px */
@@ -98,20 +99,20 @@
   --space-12: 3rem;
   --space-16: 4rem;
 
-  /* Border Radius */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-2xl: 20px;
+  /* Border Radius (DESIGN.md Scale) */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
   --radius-full: 9999px;
 
-  /* Shadows (Soft & Crisp for Light Mode) */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
-  --shadow-glow: 0 0 20px rgba(79, 70, 229, 0.15);
+  /* Shadows (Navy-Tinted Soft Shadows) */
+  --shadow-sm: 0 1px 3px rgba(16, 28, 107, 0.04);
+  --shadow-md: 0 4px 12px rgba(16, 28, 107, 0.07);
+  --shadow-lg: 0 10px 25px rgba(16, 28, 107, 0.09);
+  --shadow-xl: 0 20px 35px rgba(16, 28, 107, 0.12);
+  --shadow-glow: 0 0 20px rgba(35, 64, 184, 0.18);
 
   /* Transitions */
   --transition-fast: 120ms ease;
@@ -1273,7 +1274,7 @@ a:hover { color: var(--accent-primary-hover); }
 
 .auth-page {
   min-height: 100vh;
-  background: var(--bg-base);
+  background: linear-gradient(135deg, #0a1138 0%, #101c6b 50%, #060a24 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1289,7 +1290,7 @@ a:hover { color: var(--accent-primary-hover); }
   left: -20%;
   width: 600px;
   height: 600px;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(35, 64, 184, 0.25) 0%, transparent 70%);
   pointer-events: none;
 }
 
@@ -1300,18 +1301,18 @@ a:hover { color: var(--accent-primary-hover); }
   right: -10%;
   width: 500px;
   height: 500px;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.06) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(143, 164, 230, 0.15) 0%, transparent 70%);
   pointer-events: none;
 }
 
 .auth-card {
   width: 100%;
-  max-width: 420px;
+  max-width: 440px;
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-2xl);
-  padding: var(--space-10);
-  box-shadow: var(--shadow-xl);
+  padding: var(--space-8) var(--space-8);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.35);
   position: relative;
   z-index: 1;
   animation: slideUp var(--transition-base);

@@ -58,10 +58,10 @@ export class MeetingService {
   }
 
   static async createMeeting(
-    body: { projectId: string; title: string; description?: string; scheduledAt: string; duration?: number },
+    body: { projectId: string; title: string; description?: string; scheduledAt: string; duration?: number; meetLink?: string },
     user: AuthUser
   ) {
-    const { projectId, title, description, scheduledAt, duration = 30 } = body
+    const { projectId, title, description, scheduledAt, duration = 30, meetLink: customMeetLink } = body
     if (!projectId || !title || !scheduledAt) {
       throw new ValidationError('projectId, title, and scheduledAt are required')
     }
@@ -84,12 +84,23 @@ export class MeetingService {
       throw new ValidationError('Maximum of 3 scheduled meetings reached for this project. Please complete or cancel existing meetings first.')
     }
 
-    const { eventId, meetLink } = await scheduleGoogleMeetEvent({
-      title,
-      description,
-      scheduledAt: scheduledDate,
-      duration,
-    })
+    let eventId: string | null
+    let meetLink: string | null
+
+    if (customMeetLink) {
+      // User pasted a custom link — skip Google Calendar API
+      eventId = `mock_manual_${Math.random().toString(36).substring(2, 10)}`
+      meetLink = customMeetLink
+    } else {
+      const result = await scheduleGoogleMeetEvent({
+        title,
+        description,
+        scheduledAt: scheduledDate,
+        duration,
+      })
+      eventId = result.eventId
+      meetLink = result.meetLink
+    }
 
     const meeting = await prisma.meeting.create({
       data: {
@@ -120,6 +131,7 @@ export class MeetingService {
 
     return meeting
   }
+
 
   static async deleteMeeting(id: string, user: AuthUser) {
     const meeting = await prisma.meeting.findUnique({ where: { id } })

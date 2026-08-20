@@ -19,7 +19,7 @@ export default function PublishUpdateTrigger({ projectId }: Props) {
         className="btn btn--secondary btn--sm"
       >
         <Megaphone size={14} />
-        <span>Publish Update</span>
+        <span>Publish Revision</span>
       </button>
 
       <ProjectUpdateModal

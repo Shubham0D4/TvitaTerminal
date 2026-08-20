@@ -2,6 +2,7 @@ import { getServerUser, isAdmin } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
 import { cleanupExpiredInvitations } from '@/lib/invitation-cleanup'
 import { redirect } from 'next/navigation'
+import QuotesModule from '@/components/projects/QuotesModule'
 import {
   Building2,
   FolderKanban,
@@ -386,8 +387,8 @@ export default async function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* Top Metric Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Top Metric Cards (4 COLUMNS x N ROWS) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="stat-card">
           <div className="flex items-center justify-between">
             <div className="stat-card__icon stat-card__icon--blue">
@@ -479,8 +480,6 @@ export default async function AdminDashboardPage() {
           </div>
         </div>
 
-
-
         <div
           className="stat-card"
           style={{
@@ -498,6 +497,9 @@ export default async function AdminDashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Global Quotes & Iterative Negotiation Section */}
+      <QuotesModule userRole={user.role} userId={user.id} />
 
       {/* Organization Health */}
       <div

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useTransition } from 'react'
-import { Plus, X, Calendar, Video, Clock, Trash2, ExternalLink } from 'lucide-react'
+import { Plus, X, Calendar, Video, Clock, Trash2, ExternalLink, Link2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { apiClient } from '@/shared/utilities/api-client'
 
@@ -24,6 +24,24 @@ interface Props {
   hasAccess: boolean
 }
 
+function getMeetPlatformLabel(url: string): string {
+  if (!url) return 'Join Meeting'
+  if (url.includes('meet.google.com')) return 'Join Google Meet'
+  if (url.includes('zoom.us')) return 'Join Zoom Meeting'
+  if (url.includes('teams.microsoft.com') || url.includes('teams.live.com')) return 'Join MS Teams Meeting'
+  if (url.includes('whereby.com')) return 'Join Whereby Room'
+  if (url.includes('webex.com')) return 'Join Webex Meeting'
+  return 'Join Meeting'
+}
+
+function getMeetPlatformColor(url: string): string {
+  if (!url) return '#10b981'
+  if (url.includes('meet.google.com')) return '#10b981'
+  if (url.includes('zoom.us')) return '#2D8CFF'
+  if (url.includes('teams.microsoft.com') || url.includes('teams.live.com')) return '#6264A7'
+  return '#10b981'
+}
+
 export default function MeetingsModule({ projectId, userRole, userTeamRole, userId, hasAccess }: Props) {
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [loading, setLoading] = useState(true)
@@ -35,6 +53,8 @@ export default function MeetingsModule({ projectId, userRole, userTeamRole, user
   const [description, setDescription] = useState('')
   const [scheduledAt, setScheduledAt] = useState('')
   const [duration, setDuration] = useState(30)
+  const [linkMode, setLinkMode] = useState<'auto' | 'custom'>('auto')
+  const [customLink, setCustomLink] = useState('')
 
   useEffect(() => {
     if (!hasAccess) return
@@ -61,15 +81,23 @@ export default function MeetingsModule({ projectId, userRole, userTeamRole, user
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault()
     if (!title || !scheduledAt) return
+    if (linkMode === 'custom' && !customLink.trim()) {
+      toast.error('Please enter a valid meeting link')
+      return
+    }
 
     startTransition(async () => {
       try {
-        const newMeeting = await apiClient.post<Meeting>(`/api/projects/${projectId}/meetings`, {
+        const payload: Record<string, any> = {
           title,
           description,
           scheduledAt,
           duration: Number(duration),
-        })
+        }
+        if (linkMode === 'custom' && customLink.trim()) {
+          payload.meetLink = customLink.trim()
+        }
+        const newMeeting = await apiClient.post<Meeting>(`/api/projects/${projectId}/meetings`, payload)
         setMeetings((prev) => [...prev, newMeeting].sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()))
         toast.success('Meeting scheduled successfully')
         setShowCreate(false)
@@ -77,6 +105,8 @@ export default function MeetingsModule({ projectId, userRole, userTeamRole, user
         setDescription('')
         setScheduledAt('')
         setDuration(30)
+        setLinkMode('auto')
+        setCustomLink('')
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Failed to schedule meeting'
         toast.error(msg)
@@ -132,7 +162,7 @@ export default function MeetingsModule({ projectId, userRole, userTeamRole, user
           </div>
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div className="form-group">
-              <label className="form-label" htmlFor="mt-date">Date & Time *</label>
+              <label className="form-label" htmlFor="mt-date">Date &amp; Time *</label>
               <input id="mt-date" type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} className="form-input" required />
             </div>
             <div className="form-group">
@@ -142,9 +172,51 @@ export default function MeetingsModule({ projectId, userRole, userTeamRole, user
                 <option value="30">30 min</option>
                 <option value="45">45 min</option>
                 <option value="60">60 min</option>
+                <option value="90">90 min</option>
               </select>
             </div>
           </div>
+
+          {/* Meeting Link Mode Selector */}
+          <div className="form-group mb-3">
+            <label className="form-label">Meeting Link</label>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+              <button
+                type="button"
+                onClick={() => setLinkMode('auto')}
+                className={`btn btn--sm ${linkMode === 'auto' ? 'btn--primary' : 'btn--ghost'}`}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
+              >
+                <Video size={13} /> Auto-generate (Google Meet)
+              </button>
+              <button
+                type="button"
+                onClick={() => setLinkMode('custom')}
+                className={`btn btn--sm ${linkMode === 'custom' ? 'btn--primary' : 'btn--ghost'}`}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
+              >
+                <Link2 size={13} /> Paste Custom Link
+              </button>
+            </div>
+
+            {linkMode === 'auto' && (
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                A Google Meet link will be automatically created via Google Calendar API.
+              </p>
+            )}
+
+            {linkMode === 'custom' && (
+              <input
+                id="mt-custom-link"
+                type="url"
+                value={customLink}
+                onChange={(e) => setCustomLink(e.target.value)}
+                className="form-input"
+                placeholder="https://zoom.us/j/… or https://meet.google.com/… or any meeting URL"
+              />
+            )}
+          </div>
+
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <button type="submit" className="btn btn--primary btn--sm" disabled={isPending}>
               Schedule Meeting
@@ -161,6 +233,8 @@ export default function MeetingsModule({ projectId, userRole, userTeamRole, user
             const isHost = meeting.hostId === userId
             const isLeadOrAdmin = userRole === 'ADMIN' || userTeamRole === 'TEAM_LEAD'
             const active = isFuture(meeting.scheduledAt)
+            const joinLabel = meeting.meetLink ? getMeetPlatformLabel(meeting.meetLink) : 'Join Meeting'
+            const joinColor = meeting.meetLink ? getMeetPlatformColor(meeting.meetLink) : '#10b981'
 
             return (
               <div key={meeting.id} style={{ background: 'var(--bg-elevated)', border: `1px solid ${active ? 'rgba(59,130,246,0.3)' : 'var(--border-subtle)'}`, borderRadius: 'var(--radius-lg)', padding: 'var(--space-4)' }}>
@@ -187,8 +261,14 @@ export default function MeetingsModule({ projectId, userRole, userTeamRole, user
 
                     {meeting.meetLink && active && (
                       <div style={{ marginTop: 12 }}>
-                        <a href={meeting.meetLink} target="_blank" rel="noopener noreferrer" className="btn btn--primary btn--sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#10b981', borderColor: '#10b981' }}>
-                          <Video size={14} /> Join Google Meet <ExternalLink size={12} />
+                        <a
+                          href={meeting.meetLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn--primary btn--sm"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: joinColor, borderColor: joinColor }}
+                        >
+                          <Video size={14} /> {joinLabel} <ExternalLink size={12} />
                         </a>
                       </div>
                     )}

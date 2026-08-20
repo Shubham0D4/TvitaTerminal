@@ -1,12 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Landmark, AlertCircle, FileText, Calendar, Layers } from 'lucide-react'
+import { AlertCircle, FileText, Calendar, Layers } from 'lucide-react'
 import MilestonesPanel from './MilestonesPanel'
 import NotesModule from './NotesModule'
 import TicketsModule from './TicketsModule'
 import MeetingsModule from './MeetingsModule'
-import QuotesModule from './QuotesModule'
 
 import type { Milestone } from '@prisma/client'
 
@@ -51,7 +50,7 @@ export default function ProjectWorkspaceTabs({
   projectMembers,
   isLead,
 }: Props) {
-  const [activeTab, setActiveTab] = useState<'milestones' | 'notes' | 'tickets' | 'meetings' | 'quotes'>('milestones')
+  const [activeTab, setActiveTab] = useState<'milestones' | 'notes' | 'tickets' | 'meetings'>('milestones')
 
   const isClient = userRole === 'CLIENT'
 
@@ -62,14 +61,12 @@ export default function ProjectWorkspaceTabs({
   // All roles can see tickets and meetings by default
   const canSeeTickets = true
   const canSeeMeetings = true
-  const canSeeQuotes = true
 
   const tabs = [
     { id: 'milestones', label: 'Process', icon: Layers, visible: canSeeMilestones },
     { id: 'notes', label: 'Notes', icon: FileText, visible: canSeeNotes },
     { id: 'tickets', label: 'Tickets', icon: AlertCircle, visible: canSeeTickets },
     { id: 'meetings', label: 'Meetings', icon: Calendar, visible: canSeeMeetings },
-    { id: 'quotes', label: 'Quotes', icon: Landmark, visible: canSeeQuotes },
   ] as const
 
   return (
@@ -149,14 +146,6 @@ export default function ProjectWorkspaceTabs({
             userTeamRole={userTeamRole}
             userId={userId}
             hasAccess={canSeeMeetings}
-          />
-        )}
-
-        {activeTab === 'quotes' && canSeeQuotes && (
-          <QuotesModule
-            clientId={clientId}
-            userRole={userRole}
-            userId={userId}
           />
         )}
       </div>

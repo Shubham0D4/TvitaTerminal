@@ -643,7 +643,12 @@ export default function ClientForm({ client, adminProfiles = [] }: ClientFormPro
               <option value="direct">Direct / Walk-in</option>
               <option value="linkedin">LinkedIn</option>
               <option value="website">Website / Inbound</option>
-              <option value="upwork">Upwork / Freelance Platform</option>
+              <option value="upwork">Upwork</option>
+              <option value="freelancer">Freelancer.com</option>
+              <option value="fiverr">Fiverr</option>
+              <option value="toptal">Toptal</option>
+              <option value="guru">Guru</option>
+              <option value="peopleperhour">PeoplePerHour</option>
               <option value="instagram">Instagram</option>
               <option value="twitter">X / Twitter</option>
               <option value="cold_outreach">Cold Outreach</option>
@@ -651,6 +656,19 @@ export default function ClientForm({ client, adminProfiles = [] }: ClientFormPro
               <option value="event">Event / Conference</option>
               <option value="other">Other</option>
             </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="externalPlatformUrl">External Platform URL</label>
+            <input
+              id="externalPlatformUrl"
+              name="externalPlatformUrl"
+              className="form-input"
+              type="url"
+              defaultValue={(client as any)?.externalPlatformUrl ?? ''}
+              placeholder="https://www.upwork.com/jobs/… or contract profile link"
+            />
+            <p className="form-hint">Contract or profile link on Upwork, Freelancer, Fiverr, etc. Client will be redirected here for payments.</p>
           </div>
 
           <div className="form-group">

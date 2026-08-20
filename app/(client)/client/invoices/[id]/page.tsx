@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { getServerUser } from '@/lib/auth/server'
 import { redirect, notFound } from 'next/navigation'
 import ClientInvoiceActions from './ClientInvoiceActions'
+import PaymentRedirect from '@/components/billing/PaymentRedirect'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -34,6 +35,20 @@ export default async function ClientInvoiceDetailPage({ params }: PageProps) {
     where: { OR: [{ profileId: user.id }, { email: user.email }] },
   })
   if (!client) redirect('/client/invoices')
+
+  // External platform redirect
+  const externalSources = ['upwork', 'freelancer', 'fiverr', 'toptal', 'guru', 'peopleperhour']
+  const isExternal = client.clientSource && externalSources.includes(client.clientSource)
+  const externalUrl = (client as any).externalPlatformUrl as string | null
+  if (isExternal && externalUrl) {
+    return (
+      <PaymentRedirect
+        clientSource={client.clientSource!}
+        externalPlatformUrl={externalUrl}
+        clientName={client.name}
+      />
+    )
+  }
 
   const [invoice, settings] = await Promise.all([
     prisma.invoice.findFirst({

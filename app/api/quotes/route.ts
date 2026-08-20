@@ -8,11 +8,7 @@ export async function GET(request: NextRequest) {
   if (!user) return Errors.UNAUTHORIZED()
 
   const { searchParams } = new URL(request.url)
-  const clientId = searchParams.get('clientId') || ''
-
-  if (!clientId) {
-    return Errors.VALIDATION('clientId query parameter is required')
-  }
+  const clientId = searchParams.get('clientId') || undefined
 
   try {
     const quotes = await QuoteService.getQuotesList(clientId, user)

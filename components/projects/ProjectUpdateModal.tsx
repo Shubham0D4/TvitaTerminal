@@ -46,7 +46,7 @@ export default function ProjectUpdateModal({ projectId, isOpen, onClose }: Proje
         <div className="modal__header">
           <div className="flex items-center gap-2">
             <Sparkles size={18} style={{ color: 'var(--accent-primary)' }} />
-            <h2 className="modal__title">Publish Project Update</h2>
+            <h2 className="modal__title">Publish Project Revision</h2>
           </div>
           <button className="modal__close" onClick={onClose} aria-label="Close">
             <X size={18} />
@@ -57,12 +57,12 @@ export default function ProjectUpdateModal({ projectId, isOpen, onClose }: Proje
           <div className="modal__body">
             <div className="form-group">
               <label className="form-label">
-                Update Title <span className="form-required">*</span>
+                Revision Title <span className="form-required">*</span>
               </label>
               <input
                 type="text"
                 className="form-input"
-                placeholder="e.g. Sprint 2 Features Delivered & Ready for Client Demo"
+                placeholder="e.g. Revision 2: Updated Design Specs & Feature Adjustments"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
@@ -71,11 +71,11 @@ export default function ProjectUpdateModal({ projectId, isOpen, onClose }: Proje
 
             <div className="form-group">
               <label className="form-label">
-                Update Details / Content <span className="form-required">*</span>
+                Revision Details / Content <span className="form-required">*</span>
               </label>
               <textarea
                 className="form-textarea"
-                placeholder="Share key progress milestones, completed features, or next steps..."
+                placeholder="Share key revision notes, changed deliverables, or client feedback adjustments..."
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 rows={4}
@@ -101,7 +101,7 @@ export default function ProjectUpdateModal({ projectId, isOpen, onClose }: Proje
               Cancel
             </button>
             <button type="submit" className="btn btn--primary" disabled={submitting}>
-              {submitting ? 'Publishing...' : 'Publish Update'}
+              {submitting ? 'Publishing...' : 'Publish Revision'}
             </button>
           </div>
         </form>

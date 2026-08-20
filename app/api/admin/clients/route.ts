@@ -179,6 +179,7 @@ export async function POST(request: NextRequest) {
         paymentInstructions: body.paymentInstructions || null,
         txnFeeResponsibility: body.txnFeeResponsibility || null,
         clientSource: body.clientSource || null,
+        externalPlatformUrl: body.externalPlatformUrl || null,
         clientPriority: body.clientPriority || 'MEDIUM',
         accountManagerId: body.accountManagerId || null,
         internalTags: Array.isArray(body.internalTags) ? body.internalTags : (body.internalTags ? String(body.internalTags).split(',').map((t: string) => t.trim()) : []),

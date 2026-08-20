@@ -1,15 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
-import {
-  FolderKanban,
-  Plus,
-  Building2,
-  Calendar,
-  User,
-  CheckCircle2,
-  Clock,
-  AlertCircle,
-} from 'lucide-react'
+import { FolderKanban, Plus } from 'lucide-react'
 
 export const metadata = {
   title: 'Projects — Tvita Admin',
@@ -28,19 +19,18 @@ async function getProjects(search?: string, status?: string) {
       }),
       ...(status && status !== 'ALL' && { status: status as any }),
     },
-    include: {
-      client: { select: { id: true, name: true } },
-      lead: { select: { id: true, name: true, avatarUrl: true } },
-      _count: { select: { tasks: true, invoices: true, members: true } },
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      progress: true,
+      banner: true,
     },
     orderBy: { createdAt: 'desc' },
   })
 }
 
-function formatDate(date: Date | null): string {
-  if (!date) return '—'
-  return new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(date))
-}
+
 
 type SearchParams = Promise<{ search?: string; status?: string }>
 
@@ -115,44 +105,44 @@ export default async function AdminProjectsPage({
           </div>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 'var(--space-4)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 'var(--space-4)' }}>
           {projects.map((project) => (
-            <div key={project.id} className="card hover-lift" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: 0 }}>
-              <div style={{ height: 120, backgroundImage: `url(${project.banner || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800'})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
-              <div style={{ padding: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-                <div className="flex items-start justify-between gap-3">
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <Link
-                      href={`/admin/projects/${project.id}`}
-                      style={{
-                        fontSize: 'var(--text-md)',
-                        fontWeight: 'var(--font-semibold)',
-                        color: 'var(--text-primary)',
-                        textDecoration: 'none',
-                      }}
-                    >
-                      {project.name}
-                    </Link>
-                    <div className="flex items-center gap-2" style={{ marginTop: 'var(--space-1)', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                      <Building2 size={12} />
-                      <Link href={`/admin/clients/${project.client.id}`} style={{ color: 'var(--text-muted)' }}>
-                        {project.client.name}
-                      </Link>
-                    </div>
-                  </div>
-
-                  <span className={`badge badge--${project.status.toLowerCase().replace('_', '-')}`}>
-                    {project.status.replace('_', ' ')}
-                  </span>
+            <Link
+              key={project.id}
+              href={`/admin/projects/${project.id}`}
+              className="card hover-lift"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+                padding: 0,
+                textDecoration: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <div
+                style={{
+                  height: 120,
+                  backgroundImage: `url(${project.banner || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800'})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }}
+              />
+              <div style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                {/* Project Name */}
+                <div
+                  style={{
+                    fontSize: 'var(--text-md)',
+                    fontWeight: 'var(--font-semibold)',
+                    color: 'var(--text-primary)',
+                    lineHeight: 1.3,
+                    wordBreak: 'break-word',
+                  }}
+                >
+                  {project.name}
                 </div>
 
-                {project.description && (
-                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                    {project.description}
-                  </p>
-                )}
-
-                {/* Progress */}
+                {/* Progress Bar */}
                 <div>
                   <div className="flex items-center justify-between mb-1" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
                     <span>Progress</span>
@@ -162,31 +152,8 @@ export default async function AdminProjectsPage({
                     <div className="progress-bar-fill" style={{ width: `${project.progress}%` }} />
                   </div>
                 </div>
-
-                {/* Footer */}
-                <div className="flex items-center justify-between pt-3" style={{ borderTop: '1px solid var(--border-subtle)', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                  <div className="flex items-center gap-3">
-                    {project.lead && (
-                      <div className="flex items-center gap-1">
-                        <User size={12} />
-                        <span>{project.lead.name.split(' ')[0]}</span>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-1">
-                      <CheckCircle2 size={12} />
-                      <span>{project._count.tasks} tasks</span>
-                    </div>
-                  </div>
-
-                  {project.endDate && (
-                    <div className="flex items-center gap-1">
-                      <Calendar size={12} />
-                      <span>Due {formatDate(project.endDate)}</span>
-                    </div>
-                  )}
-                </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}

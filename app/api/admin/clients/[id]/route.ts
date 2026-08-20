@@ -118,6 +118,7 @@ export async function PUT(
         paymentInstructions: body.paymentInstructions ?? existing.paymentInstructions,
         txnFeeResponsibility: body.txnFeeResponsibility ?? existing.txnFeeResponsibility,
         clientSource: body.clientSource ?? existing.clientSource,
+        externalPlatformUrl: body.externalPlatformUrl !== undefined ? (body.externalPlatformUrl || null) : (existing as any).externalPlatformUrl,
         clientPriority: body.clientPriority ?? existing.clientPriority,
         accountManagerId: body.accountManagerId ?? existing.accountManagerId,
         internalTags: Array.isArray(body.internalTags) ? body.internalTags : (body.internalTags ? String(body.internalTags).split(',').map((t: string) => t.trim()) : existing.internalTags),

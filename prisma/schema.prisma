@@ -253,8 +253,9 @@ model Client {
   txnFeeResponsibility String? @map("txn_fee_responsibility") // agency | client | split
 
   // ── 7. Internal / Admin
-  clientSource     String?        @map("client_source") // referral | direct | linkedin | etc.
-  clientPriority   ClientPriority @default(MEDIUM) @map("client_priority")
+  clientSource        String?        @map("client_source") // referral | direct | linkedin | etc.
+  externalPlatformUrl String?        @map("external_platform_url")
+  clientPriority      ClientPriority @default(MEDIUM) @map("client_priority")
   accountManagerId String?        @map("account_manager_id") @db.Uuid
   internalTags     String[]       @map("internal_tags") // stored as array
   internalNotes    String?        @map("internal_notes")
@@ -845,18 +846,21 @@ model Meeting {
 }
 
 model Quote {
-  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  clientId      String   @map("client_id") @db.Uuid
-  client        Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  title         String
-  description   String
-  budget        Decimal  @db.Decimal(12, 2)
-  currency      String   @default("INR")
-  status        String   @default("PENDING") // PENDING, COUNTER_OFFERED, ACCEPTED, REJECTED
-  adminNotes    String?  @map("admin_notes")
-  counterBudget Decimal? @map("counter_budget") @db.Decimal(12, 2)
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clientId       String   @map("client_id") @db.Uuid
+  client         Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  title          String
+  description    String
+  budget         Decimal  @db.Decimal(12, 2)
+  currency       String   @default("INR")
+  status         String   @default("PENDING") // PENDING, COUNTER_OFFERED, ACCEPTED, REJECTED
+  adminNotes     String?  @map("admin_notes")
+  counterBudget  Decimal? @map("counter_budget") @db.Decimal(12, 2)
+  counterMessage String?  @map("counter_message")
+  lastCounterBy  String?  @map("last_counter_by") // ADMIN | CLIENT
+  messages       Json     @default("[]")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   @@index([clientId])
   @@map("client_quotes")

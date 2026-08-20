@@ -3,6 +3,7 @@ import { getServerUser, getClientSubTeamContext } from '@/lib/auth/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { CreditCard, FileText, CheckCircle2, Clock, ExternalLink } from 'lucide-react'
+import PaymentRedirect from '@/components/billing/PaymentRedirect'
 
 export const metadata = {
   title: 'Invoices — Tvita Client Portal',
@@ -40,6 +41,20 @@ export default async function ClientInvoicesPage() {
           <div className="empty-state__title">No Client Account Linked</div>
         </div>
       </div>
+    )
+  }
+
+  // External platform redirect
+  const externalSources = ['upwork', 'freelancer', 'fiverr', 'toptal', 'guru', 'peopleperhour']
+  const isExternal = client.clientSource && externalSources.includes(client.clientSource)
+  const externalUrl = (client as any).externalPlatformUrl as string | null
+  if (isExternal && externalUrl) {
+    return (
+      <PaymentRedirect
+        clientSource={client.clientSource!}
+        externalPlatformUrl={externalUrl}
+        clientName={client.name}
+      />
     )
   }
 

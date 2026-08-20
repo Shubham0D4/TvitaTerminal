@@ -1,9 +1,11 @@
 'use client'
 
 import { useState, useEffect, useRef, useTransition } from 'react'
-import { Send, Lock, Eye, Trash2, Paperclip, FileText, X, Download, Image as ImageIcon } from 'lucide-react'
+import { Send, Lock, Eye, Trash2, Paperclip, FileText, X, Download, Image as ImageIcon, Wifi } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { apiClient } from '@/shared/utilities/api-client'
+import { createSupabaseBrowserClient } from '@/infrastructure/supabase/client'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 
 interface Attachment {
   name: string
@@ -106,6 +108,7 @@ function AttachmentLink({ att }: { att: Attachment }) {
 export default function NotesModule({ projectId, userRole, userTeamRole, userId, hasAccess }: Props) {
   const [notes, setNotes] = useState<Note[]>([])
   const [loading, setLoading] = useState(true)
+  const [isConnected, setIsConnected] = useState(false)
   const [activeChannel, setActiveChannel] = useState<'ALL' | 'INTERNAL_TEAM' | 'EXTERNAL_CLIENT'>('ALL')
   const [content, setContent] = useState('')
   const [messageType, setMessageType] = useState<'INTERNAL_TEAM' | 'EXTERNAL_CLIENT'>('EXTERNAL_CLIENT')
@@ -116,10 +119,12 @@ export default function NotesModule({ projectId, userRole, userTeamRole, userId,
   const chatEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const channelRef = useRef<RealtimeChannel | null>(null)
 
   const isClient = userRole === 'CLIENT'
   const isLeadOrAdmin = userRole === 'ADMIN' || userTeamRole === 'TEAM_LEAD'
 
+  // Initial fetch
   useEffect(() => {
     if (!hasAccess) return
     apiClient.get<Note[]>(`/api/projects/${projectId}/notes`)
@@ -133,6 +138,46 @@ export default function NotesModule({ projectId, userRole, userTeamRole, userId,
         setLoading(false)
       })
   }, [projectId, hasAccess])
+
+  // WebSocket Realtime Channel Subscription
+  useEffect(() => {
+    if (!hasAccess || !projectId) return
+
+    const supabase = createSupabaseBrowserClient()
+    const channelName = `project-notes:${projectId}`
+    
+    const channel = supabase.channel(channelName, {
+      config: { broadcast: { self: false } },
+    })
+
+    channel
+      .on('broadcast', { event: 'new_note' }, ({ payload }) => {
+        const note = payload as Note
+        if (isClient && note.type === 'INTERNAL_TEAM') return
+        setNotes((prev) => {
+          if (prev.some((n) => n.id === note.id)) return prev
+          return [...prev, note].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+        })
+      })
+      .on('broadcast', { event: 'delete_note' }, ({ payload }) => {
+        const { noteId } = payload as { noteId: string }
+        setNotes((prev) => prev.filter((n) => n.id !== noteId))
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          setIsConnected(true)
+        } else {
+          setIsConnected(false)
+        }
+      })
+
+    channelRef.current = channel
+
+    return () => {
+      channel.unsubscribe()
+      setIsConnected(false)
+    }
+  }, [projectId, hasAccess, isClient])
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -148,11 +193,10 @@ export default function NotesModule({ projectId, userRole, userTeamRole, userId,
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
-    // Filter only allowed types and max 20MB each
     const valid = files.filter(f => f.size <= 20 * 1024 * 1024)
     const invalid = files.filter(f => f.size > 20 * 1024 * 1024)
     if (invalid.length > 0) toast.error('Some files exceed 20MB and were excluded')
-    setPendingFiles(prev => [...prev, ...valid].slice(0, 5)) // max 5 files
+    setPendingFiles(prev => [...prev, ...valid].slice(0, 5))
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -196,9 +240,17 @@ export default function NotesModule({ projectId, userRole, userTeamRole, userId,
           type: isClient ? 'EXTERNAL_CLIENT' : messageType,
           attachments,
         })
+
         setNotes(prev => [...prev, newNote])
         setContent('')
         setPendingFiles([])
+
+        // Broadcast to other WebSocket subscribers
+        channelRef.current?.send({
+          type: 'broadcast',
+          event: 'new_note',
+          payload: newNote,
+        })
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to send message')
       } finally {
@@ -214,6 +266,13 @@ export default function NotesModule({ projectId, userRole, userTeamRole, userId,
         await apiClient.delete(`/api/projects/notes/${noteId}`)
         setNotes(prev => prev.filter(n => n.id !== noteId))
         toast.success('Message deleted')
+
+        // Broadcast deletion event to WebSocket subscribers
+        channelRef.current?.send({
+          type: 'broadcast',
+          event: 'delete_note',
+          payload: { noteId },
+        })
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to delete')
       }
@@ -264,9 +323,27 @@ export default function NotesModule({ projectId, userRole, userTeamRole, userId,
         flexShrink: 0,
       }}>
         <div>
-          <h2 style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)', margin: 0 }}>
-            Notes & Chat
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <h2 style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)', margin: 0 }}>
+              Notes & Chat
+            </h2>
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: '2px 8px',
+                borderRadius: 'var(--radius-full)',
+                background: isConnected ? '#DFF0E8' : '#FFF3D6',
+                color: isConnected ? '#1E6B50' : '#8A6A0B',
+                fontSize: 10,
+                fontWeight: 'var(--font-bold)',
+              }}
+            >
+              <Wifi size={10} />
+              <span>{isConnected ? 'LIVE WS' : 'CONNECTING'}</span>
+            </div>
+          </div>
           <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
             {filteredNotes.length} message{filteredNotes.length !== 1 ? 's' : ''}
           </span>

@@ -35,7 +35,7 @@ export default async function ClientProjectDetailPage({ params }: { params: Prom
   const project = await prisma.project.findFirst({
     where: { id, clientId: client.id },
     include: {
-      lead: { select: { name: true } },
+      lead: { select: { name: true, email: true } },
       milestones: {
         orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
         include: {
@@ -81,7 +81,7 @@ export default async function ClientProjectDetailPage({ params }: { params: Prom
               </span>
             </div>
             <p className="page-header__subtitle">
-              Lead: {project.lead?.name ?? '—'} · {formatDate(project.startDate)} → {formatDate(project.endDate)}
+              Project Lead: {project.lead?.name ?? '—'} {project.lead?.email ? `(${project.lead.email})` : ''} · {formatDate(project.startDate)} → {formatDate(project.endDate)}
             </p>
           </div>
         </div>
@@ -146,7 +146,7 @@ export default async function ClientProjectDetailPage({ params }: { params: Prom
           )}
         </div>
 
-        {/* Right 2 cols: Milestones + Approvals + Updates */}
+        {/* Right 2 cols: Milestones + Approvals + Revisions */}
         <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
           <ProjectWorkspaceTabs
             projectId={id}
@@ -167,11 +167,11 @@ export default async function ClientProjectDetailPage({ params }: { params: Prom
             isLead={false}
           />
 
-          {/* Project Updates */}
+          {/* Project Revisions */}
           {project.updates.length > 0 && (
             <div className="card">
               <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', marginBottom: 'var(--space-4)' }}>
-                Project Updates
+                Project Revisions
               </h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
                 {project.updates.map((u) => (

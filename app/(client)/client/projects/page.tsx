@@ -2,17 +2,14 @@ import { prisma } from '@/lib/prisma'
 import { getServerUser, getClientSubTeamContext } from '@/lib/auth/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { FolderKanban, Calendar, CheckCircle2, Clock, FileText } from 'lucide-react'
+import { FolderKanban } from 'lucide-react'
 
 export const metadata = {
   title: 'My Projects — Tvita Client Portal',
   description: 'Track ongoing project deliverables, timelines, and milestones.',
 }
 
-function formatDate(date: Date | null): string {
-  if (!date) return '—'
-  return new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(date))
-}
+
 
 export default async function ClientProjectsPage() {
   const user = await getServerUser()
@@ -49,18 +46,11 @@ export default async function ClientProjectsPage() {
         ? { id: { in: subTeamCtx.allowedProjectIds } }
         : {}),
     },
-    include: {
-      lead: { select: { name: true } },
-      milestones: {
-        where: { clientVisible: true },
-        orderBy: { sortOrder: 'asc' },
-      },
-      updates: {
-        where: { clientVisible: true },
-        orderBy: { createdAt: 'desc' },
-        take: 3,
-      },
-      _count: { select: { tasks: { where: { clientVisible: true } } } },
+    select: {
+      id: true,
+      name: true,
+      progress: true,
+      banner: true,
     },
     orderBy: { createdAt: 'desc' },
   })
@@ -86,80 +76,52 @@ export default async function ClientProjectsPage() {
           </div>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 'var(--space-6)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 'var(--space-4)' }}>
           {projects.map((project) => (
-            <div key={project.id} className="card hover-lift" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: 0 }}>
-              <div style={{ height: 120, backgroundImage: `url(${project.banner || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800'})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
-              <div style={{ padding: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <Link
-                      href={`/client/projects/${project.id}`}
-                      style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', textDecoration: 'none' }}
-                    >
-                      {project.name}
-                    </Link>
-                    {project.lead && (
-                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 2 }}>
-                        Project Lead: {project.lead.name}
-                      </div>
-                    )}
-                  </div>
-
-                  <span className={`badge badge--${project.status.toLowerCase().replace('_', '-')}`}>
-                    {project.status.replace('_', ' ')}
-                  </span>
+            <Link
+              key={project.id}
+              href={`/client/projects/${project.id}`}
+              className="card hover-lift"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+                padding: 0,
+                textDecoration: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <div
+                style={{
+                  height: 120,
+                  backgroundImage: `url(${project.banner || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800'})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }}
+              />
+              <div style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                <div
+                  style={{
+                    fontSize: 'var(--text-md)',
+                    fontWeight: 'var(--font-semibold)',
+                    color: 'var(--text-primary)',
+                    lineHeight: 1.3,
+                    wordBreak: 'break-word',
+                  }}
+                >
+                  {project.name}
                 </div>
-
-                {project.description && (
-                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                    {project.description}
-                  </p>
-                )}
-
-                {/* Progress */}
                 <div>
                   <div className="flex items-center justify-between mb-1" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                    <span>Overall Completion</span>
+                    <span>Progress</span>
                     <span>{project.progress}%</span>
                   </div>
                   <div className="progress-bar-container">
                     <div className="progress-bar-fill" style={{ width: `${project.progress}%` }} />
                   </div>
                 </div>
-
-                {/* Timeline */}
-                <div className="grid grid-cols-2 gap-3" style={{ background: 'var(--bg-overlay)', padding: 'var(--space-3)', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-xs)' }}>
-                  <div>
-                    <span style={{ color: 'var(--text-muted)' }}>Start Date: </span>
-                    <span style={{ color: 'var(--text-primary)' }}>{formatDate(project.startDate)}</span>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--text-muted)' }}>Target Date: </span>
-                    <span style={{ color: 'var(--text-primary)' }}>{formatDate(project.endDate)}</span>
-                  </div>
-                </div>
-
-                {/* Milestones preview */}
-                {project.milestones.length > 0 && (
-                  <div style={{ paddingTop: 'var(--space-3)', borderTop: '1px solid var(--border-subtle)' }}>
-                    <div style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-semibold)', color: 'var(--text-muted)', marginBottom: 'var(--space-2)' }}>
-                      Key Milestones
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                      {project.milestones.map((m) => (
-                        <div key={m.id} className="flex items-center justify-between" style={{ fontSize: 'var(--text-xs)' }}>
-                          <span style={{ color: 'var(--text-primary)' }}>{m.name}</span>
-                          <span className={`badge badge--${m.status.toLowerCase().replace('_', '-')}`} style={{ fontSize: 9 }}>
-                            {m.status.replace('_', ' ')}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}
