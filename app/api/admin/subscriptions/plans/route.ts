@@ -1,6 +1,6 @@
-import { apiSuccess, Errors } from '@/shared/utilities/api-response'
+import { apiSuccess, Errors } from '@/lib/utils/api-response'
 import { getServerUser, isAdmin } from '@/lib/auth/server'
-import { SubscriptionService } from '@/application/services/subscription.service'
+import { SubscriptionService } from '@/lib/services/subscription.service'
 import { NextRequest } from 'next/server'
 
 export async function GET(request: NextRequest) {

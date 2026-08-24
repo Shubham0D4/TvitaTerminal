@@ -25,7 +25,7 @@ import {
   Send,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { apiClient } from '@/shared/utilities/api-client'
+import { apiClient } from '@/lib/utils/api-client'
 import type { AccessPolicy } from '@/lib/auth/server'
 
 type ProjectItem = {

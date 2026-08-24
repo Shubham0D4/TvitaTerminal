@@ -1,7 +1,7 @@
-import { apiSuccess, Errors } from '@/shared/utilities/api-response'
+import { apiSuccess, Errors } from '@/lib/utils/api-response'
 import { writeAuditLog } from '@/lib/audit'
 import { getServerUser, isAdmin } from '@/lib/auth/server'
-import { sendEmail } from '@/infrastructure/email'
+import { sendEmail } from '@/lib/email'
 import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'
 

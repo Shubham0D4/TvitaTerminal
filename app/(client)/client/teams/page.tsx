@@ -14,14 +14,14 @@ export default async function ClientTeamsPage() {
 
   // Sub-team members cannot access team management
   const subTeamCtx = await getClientSubTeamContext(user.id)
-  if (subTeamCtx) redirect('/client/dashboard')
+  if (subTeamCtx) redirect('/client/home')
 
   const client = await prisma.client.findFirst({
     where: { profileId: user.id },
     select: { id: true, name: true },
   })
 
-  if (!client) redirect('/client/dashboard')
+  if (!client) redirect('/client/home')
 
   // Fetch members from the default team (if it exists)
   const defaultTeam = await prisma.clientSubTeam.findFirst({

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { apiClient } from '@/shared/utilities/api-client'
+import { apiClient } from '@/lib/utils/api-client'
 import toast from 'react-hot-toast'
 import type { MilestoneStatus } from '@prisma/client'
 

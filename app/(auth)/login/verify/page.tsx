@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState, Suspense } from 'react'
+import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { signIn } from 'next-auth/react'
 import toast from 'react-hot-toast'
 
 function VerifyForm() {
@@ -26,15 +26,15 @@ function VerifyForm() {
 
     const doSignIn = async () => {
       try {
-        const result = await signIn('credentials', {
-          email,
-          token,
-          redirect: false,
+        const res = await fetch('/api/auth/magic-link/exchange', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, token }),
         })
 
         if (!isMounted) return
 
-        if (result?.error) {
+        if (!res.ok) {
           setStatus('error')
           setErrorMsg('This link is invalid or has expired. Please request a new one.')
           toast.error('Verification failed')
@@ -62,7 +62,7 @@ function VerifyForm() {
       <div className="auth-card" style={{ textAlign: 'center', padding: 'var(--space-8) var(--space-6)' }}>
         {/* Logo */}
         <div className="auth-logo" style={{ justifyContent: 'center', marginBottom: 'var(--space-6)' }}>
-          <img src="/logo.png" alt="Tvita Logo" style={{ height: '40px', width: 'auto', objectFit: 'contain' }} />
+          <Image src="/logo.webp" alt="Tvita" width={40} height={40} priority />
           <span className="auth-logo__name">Tvita</span>
         </div>
 

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getServerUser, getClientSubTeamContext } from '@/lib/auth/server'
-import { SubscriptionService } from '@/application/services/subscription.service'
+import { SubscriptionService } from '@/lib/services/subscription.service'
 
 export async function POST(req: Request) {
   try {

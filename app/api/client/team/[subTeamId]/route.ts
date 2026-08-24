@@ -1,6 +1,6 @@
-import { apiSuccess, Errors } from '@/shared/utilities/api-response'
-import { AuthService } from '@/application/services/auth.service'
-import { ClientService } from '@/application/services/client.service'
+import { apiSuccess, Errors } from '@/lib/utils/api-response'
+import { AuthService } from '@/lib/services/auth.service'
+import { ClientService } from '@/lib/services/client.service'
 import { NextRequest } from 'next/server'
 
 export async function PUT(

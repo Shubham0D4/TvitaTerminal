@@ -3,11 +3,11 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { apiClient } from '@/shared/utilities/api-client'
+import { apiClient } from '@/lib/utils/api-client'
 import type { AppSettings } from '@prisma/client'
-import { createSupabaseBrowserClient } from '@/infrastructure/supabase/client'
-import DynamicSecurityDashboard from '@/components/admin/DynamicSecurityDashboard'
-import AuditLogsView from '@/components/admin/AuditLogsView'
+import { createSupabaseBrowserClient } from '@/lib/supabase/client'
+import DynamicSecurityDashboard from '@/app/components/admin/DynamicSecurityDashboard'
+import AuditLogsView from '@/app/components/admin/AuditLogsView'
 import {
   Building2,
   Landmark,

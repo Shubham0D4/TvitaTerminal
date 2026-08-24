@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
-import { apiSuccess, Errors } from '@/shared/utilities/api-response'
+import { apiSuccess, Errors } from '@/lib/utils/api-response'
 import { getServerUser } from '@/lib/auth/server'
-import { uploadToSupabaseStorage } from '@/infrastructure/supabase/storage'
+import { uploadToSupabaseStorage } from '@/lib/supabase/storage'
 import path from 'path'
 
 // Allowed MIME types — documents, images only. No executables.

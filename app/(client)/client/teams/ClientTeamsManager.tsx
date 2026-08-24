@@ -6,7 +6,7 @@ import {
   UserCheck, Clock, AlertCircle,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { apiClient } from '@/shared/utilities/api-client'
+import { apiClient } from '@/lib/utils/api-client'
 
 type MemberItem = {
   id: string

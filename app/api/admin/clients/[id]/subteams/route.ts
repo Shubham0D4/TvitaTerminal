@@ -1,9 +1,9 @@
 import crypto from 'crypto'
-import { apiSuccess, Errors } from '@/shared/utilities/api-response'
+import { apiSuccess, Errors } from '@/lib/utils/api-response'
 import { DEFAULT_SUBTEAM_POLICY, getServerUser, isAdmin } from '@/lib/auth/server'
-import { sendClientTeamInvite } from '@/infrastructure/email'
+import { sendClientTeamInvite } from '@/lib/email'
 import { prisma } from '@/lib/prisma'
-import { getAppBaseUrl } from '@/shared/utilities/url'
+import { getAppBaseUrl } from '@/lib/utils/url'
 import { NextRequest } from 'next/server'
 
 export async function POST(

@@ -1,4 +1,4 @@
-import { NotificationRepository } from '@/infrastructure/database/repositories/notification.repository'
+import { NotificationRepository } from '@/lib/repositories/notification.repository'
 
 export async function createNotification({
   userId,

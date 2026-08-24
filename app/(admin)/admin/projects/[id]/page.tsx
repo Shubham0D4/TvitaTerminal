@@ -3,11 +3,11 @@ import { getServerUser } from '@/lib/auth/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Building2, Plus, CreditCard } from 'lucide-react'
-import AdminProjectLeadSelector from '@/components/projects/AdminProjectLeadSelector'
-import ProjectTeamManager from '@/components/projects/ProjectTeamManager'
-import PublishUpdateTrigger from '@/components/projects/PublishUpdateTrigger'
-import ProjectWorkspaceTabs from '@/components/projects/ProjectWorkspaceTabs'
-import ProjectBannerUpload from '@/components/projects/ProjectBannerUpload'
+import AdminProjectLeadSelector from '@/app/components/projects/AdminProjectLeadSelector'
+import ProjectTeamManager from '@/app/components/projects/ProjectTeamManager'
+import PublishUpdateTrigger from '@/app/components/projects/PublishUpdateTrigger'
+import ProjectWorkspaceTabs from '@/app/components/projects/ProjectWorkspaceTabs'
+import ProjectBannerUpload from '@/app/components/projects/ProjectBannerUpload'
 
 export const metadata = {
   title: 'Project Workspace — Tvita Admin',

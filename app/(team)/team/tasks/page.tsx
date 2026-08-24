@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { getServerUser } from '@/lib/auth/server'
 import { redirect } from 'next/navigation'
-import TaskBoardClient from '@/components/tasks/TaskBoardClient'
+import TaskBoardClient from '@/app/components/tasks/TaskBoardClient'
 
 export const metadata = {
   title: 'Tasks & Workflow — Tvita Team',

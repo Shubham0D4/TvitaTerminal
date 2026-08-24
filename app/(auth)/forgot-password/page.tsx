@@ -1,23 +1,33 @@
 'use client'
 
 import { useState } from 'react'
-import toast from 'react-hot-toast'
+import Image from 'next/image'
 import Link from 'next/link'
+import { ChevronLeft, MailCheck } from 'lucide-react'
+import toast from 'react-hot-toast'
+
+import { validateEmailField } from '@/lib/validation'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
+  const [touched, setTouched] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const emailError = validateEmailField(email)
+  const showEmailError = touched && emailError !== null
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
+    setTouched(true)
+    if (emailError) return
+
     setLoading(true)
-
     try {
       const res = await fetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: email.trim() }),
       })
 
       const data = await res.json()
@@ -27,39 +37,49 @@ export default function ForgotPasswordPage() {
         setSent(true)
       }
     } catch {
-      toast.error('Something went wrong.')
+      toast.error('Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="auth-page">
-      <div className="auth-card">
-        <div className="auth-logo">
-          <img src="/logo.png" alt="Tvita Logo" style={{ height: '40px', width: 'auto', objectFit: 'contain' }} />
-          <span className="auth-logo__name">Tvita</span>
-        </div>
+    <div className="auth-flat">
+      <Link href="/login" className="auth-flat__back-circle" aria-label="Back to sign in">
+        <ChevronLeft size={20} strokeWidth={2} />
+      </Link>
 
-        {sent ? (
-          <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-            <div style={{ fontSize: '48px' }}>📧</div>
-            <h1 className="auth-title">Check your email</h1>
-            <p className="auth-subtitle">
-              We sent a password reset link to <strong style={{ color: 'var(--text-primary)' }}>{email}</strong>
-            </p>
-            <Link href="/login" className="btn btn--secondary" style={{ marginTop: 'var(--space-4)' }}>
-              Back to sign in
-            </Link>
+      <div className="auth-flat__main">
+        <div className="auth-flat__shell">
+          <div className="auth-flat__icon">
+            {sent ? (
+              <span className="auth-flat__icon-badge">
+                <MailCheck size={28} strokeWidth={1.75} />
+              </span>
+            ) : (
+              <Image src="/favicon.webp" alt="" width={64} height={64} priority />
+            )}
           </div>
-        ) : (
-          <>
-            <h1 className="auth-title">Reset password</h1>
-            <p className="auth-subtitle">Enter your email and we&apos;ll send you a reset link</p>
 
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+          <h1 className="auth-flat__title">{sent ? 'Check your email' : 'Reset password'}</h1>
+          <p className="auth-flat__subtitle" key={String(sent)}>
+            {sent ? (
+              <>
+                We sent a reset link to <strong>{email}</strong>
+              </>
+            ) : (
+              "Enter your email and we'll send you a reset link"
+            )}
+          </p>
+
+          {!sent && (
+            <form onSubmit={handleSubmit} className="auth-flat__form">
               <div className="form-group">
-                <label className="form-label" htmlFor="email">Email address <span>*</span></label>
+                <div className="auth-flat__label-row">
+                  <label className="form-label" htmlFor="email">
+                    Email address <span>*</span>
+                  </label>
+                </div>
                 <input
                   id="email"
                   type="email"
@@ -67,30 +87,35 @@ export default function ForgotPasswordPage() {
                   placeholder="you@company.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  onBlur={() => setTouched(true)}
+                  aria-invalid={showEmailError}
+                  aria-describedby={showEmailError ? 'email-error' : undefined}
                   required
+                  autoComplete="email"
                   autoFocus
                 />
+                {showEmailError && (
+                  <p className="form-error" id="email-error">
+                    {emailError}
+                  </p>
+                )}
               </div>
 
               <button
                 type="submit"
-                className={`btn btn--primary btn--lg w-full${loading ? ' btn--loading' : ''}`}
-                disabled={loading}
+                className={`btn btn--primary btn--lg w-full auth-flat__submit${loading ? ' btn--loading' : ''}`}
+                disabled={loading || showEmailError}
               >
                 {loading ? '' : 'Send reset link'}
               </button>
             </form>
-
-            <div className="divider" />
-
-            <div style={{ textAlign: 'center' }}>
-              <Link href="/login" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
-                ← Back to sign in
-              </Link>
-            </div>
-          </>
-        )}
+          )}
+        </div>
       </div>
+
+      <footer className="auth-flat__footer">
+        © {new Date().getFullYear()} Tvita. All rights reserved.
+      </footer>
     </div>
   )
 }

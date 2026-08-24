@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import pg from 'pg'
-import { env } from '@/config/application/env'
+import { env } from '@/lib/config/env'
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
@@ -31,10 +31,33 @@ function createPrismaClient() {
   })
 }
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient()
+const baseClient = globalForPrisma.prisma ?? createPrismaClient()
+
+// TEMPORARY INSTRUMENTATION — logs one line per query so per-request counts
+// can be measured. Removed once the audit is done.
+const instrumented = baseClient.$extends({
+  query: {
+    $allModels: {
+      async $allOperations({ model, operation, args, query }) {
+        const started = Date.now()
+        const result = await query(args)
+        try {
+          const fs = await import('fs')
+          fs.appendFileSync(
+            '/tmp/qlog.txt',
+            `${Date.now()}\t${model}.${operation}\t${Date.now() - started}ms\n`,
+          )
+        } catch {}
+        return result
+      },
+    },
+  },
+}) as unknown as PrismaClient
+
+export const prisma = instrumented
 
 if (env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma
+  globalForPrisma.prisma = baseClient
 }
 
 

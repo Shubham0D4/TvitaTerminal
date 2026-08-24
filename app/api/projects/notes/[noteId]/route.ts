@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
-import { apiSuccess, Errors } from '@/shared/utilities/api-response'
+import { apiSuccess, Errors } from '@/lib/utils/api-response'
 import { getServerUser } from '@/lib/auth/server'
-import { NoteService } from '@/application/services/note.service'
+import { NoteService } from '@/lib/services/note.service'
 
 export async function PATCH(
   request: NextRequest,

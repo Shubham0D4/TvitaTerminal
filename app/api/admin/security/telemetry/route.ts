@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getServerUser } from '@/lib/auth/server'
-import { SecurityDashboardService } from '@/application/services/security-dashboard.service'
+import { SecurityDashboardService } from '@/lib/services/security-dashboard.service'
 
 export async function GET() {
   try {

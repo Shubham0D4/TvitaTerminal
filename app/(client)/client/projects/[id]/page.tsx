@@ -1,25 +1,75 @@
+import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import Image from 'next/image'
+import { FileText, Sparkles, Receipt } from 'lucide-react'
+
 import { prisma } from '@/lib/prisma'
 import { getClientSubTeamContext, getServerUser } from '@/lib/auth/server'
-import { redirect, notFound } from 'next/navigation'
-import Link from 'next/link'
-import { ArrowLeft, Sparkles, Clock } from 'lucide-react'
-import CircularProgress from '@/components/ui/CircularProgress'
-import ProjectWorkspaceTabs from '@/components/projects/ProjectWorkspaceTabs'
-import ProjectBannerUpload from '@/components/projects/ProjectBannerUpload'
+import ProcessTree, { STAGES, stageIndex } from '@/app/components/client/ProcessTree'
+import ProjectActions from '@/app/components/client/ProjectActions'
+import ProjectWorkspaceTabs from '@/app/components/projects/ProjectWorkspaceTabs'
+import ProjectBannerUpload from '@/app/components/projects/ProjectBannerUpload'
 
-function formatDate(date: Date | null): string {
-  if (!date) return '—'
-  return new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(date))
+const FALLBACK_BANNER = '/banner.webp'
+
+const STATUS_STYLES: Record<string, { label: string; tone: string }> = {
+  PLANNED: { label: 'Planned', tone: 'slate' },
+  IN_PROGRESS: { label: 'In progress', tone: 'amber' },
+  ON_HOLD: { label: 'On hold', tone: 'orange' },
+  CLIENT_REVIEW: { label: 'In review', tone: 'blue' },
+  COMPLETED: { label: 'Completed', tone: 'green' },
+  CANCELLED: { label: 'Cancelled', tone: 'slate' },
 }
 
-export default async function ClientProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
+/** Client requests against this project, shown as revisions. */
+const REVISION_STYLES: Record<string, { label: string; tone: string }> = {
+  OPEN: { label: 'Queued', tone: 'slate' },
+  IN_PROGRESS: { label: 'In progress', tone: 'amber' },
+  RESOLVED: { label: 'Done', tone: 'green' },
+  CLOSED: { label: 'Done', tone: 'green' },
+}
+
+function formatDate(date: Date | null) {
+  if (!date) return '—'
+  return new Intl.DateTimeFormat('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(date))
+}
+
+function shortDate(date: Date) {
+  return new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short' }).format(date)
+}
+
+function money(amount: number, currency: string) {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 0,
+  }).format(amount)
+}
+
+function initials(name: string) {
+  return name
+    .split(' ')
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('')
+}
+
+export default async function ClientProjectDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
   const { id } = await params
   const user = await getServerUser()
   if (!user) redirect('/login')
 
   const subTeamCtx = await getClientSubTeamContext(user.id)
   if (subTeamCtx) {
-    if (!subTeamCtx.policy.projects) redirect('/client/dashboard')
+    if (!subTeamCtx.policy.projects) redirect('/client/home')
     if (subTeamCtx.allowedProjectIds.length > 0 && !subTeamCtx.allowedProjectIds.includes(id)) {
       redirect('/client/projects')
     }
@@ -30,165 +80,269 @@ export default async function ClientProjectDetailPage({ params }: { params: Prom
       ? { id: subTeamCtx.clientId }
       : { OR: [{ profileId: user.id }, { email: user.email }] },
   })
-  if (!client) redirect('/client/dashboard')
+  if (!client) redirect('/client/home')
 
   const project = await prisma.project.findFirst({
     where: { id, clientId: client.id },
     include: {
-      lead: { select: { name: true, email: true } },
+      lead: { select: { name: true, email: true, avatarUrl: true } },
       milestones: {
         orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
-        include: {
-          assignee: { select: { name: true } },
-          tasks: {
-            where: { clientVisible: true },
-            include: {
-              developer: { select: { name: true } },
-              tester: { select: { name: true } },
-            },
-            orderBy: { createdAt: 'desc' },
-          },
-        },
       },
       updates: {
         where: { clientVisible: true },
         orderBy: { createdAt: 'desc' },
+        take: 3,
+        select: { id: true, content: true, createdAt: true },
+      },
+      // Client requests double as the revision list.
+      tickets: {
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, title: true, status: true, createdAt: true },
+      },
+      invoices: {
+        orderBy: { issuedDate: 'desc' },
+        select: {
+          id: true,
+          invoiceNo: true,
+          amount: true,
+          currency: true,
+          status: true,
+          issuedDate: true,
+          pdfUrl: true,
+        },
       },
     },
   })
+  if (!project) redirect('/client/projects')
 
-  if (!project) notFound()
+  const status = STATUS_STYLES[project.status] ?? { label: project.status, tone: 'slate' }
+  const stage = stageIndex(project.status, project.progress)
+  const phase = project.milestones.find((m) => m.status !== 'COMPLETED')?.name
 
-  // Compute progress from ALL milestones (not just completed ones visible here)
-  const allMilestones = await prisma.milestone.findMany({ where: { projectId: id } })
-  const totalMilestones = allMilestones.length
-  const completedMilestones = allMilestones.filter((m) => m.status === 'COMPLETED').length
-  const progressPct = totalMilestones > 0 ? Math.round((completedMilestones / totalMilestones) * 100) : project.progress
+  const revisionsDone = project.tickets.filter((t) =>
+    ['RESOLVED', 'CLOSED'].includes(t.status),
+  ).length
+
+  const currency = project.invoices[0]?.currency ?? 'INR'
+  const invoiceTotal = project.invoices.reduce((sum, inv) => sum + Number(inv.amount), 0)
+  const latestInvoice = project.invoices[0]
+
+  const canUseNotes = subTeamCtx ? subTeamCtx.policy.notes !== false : true
 
   return (
-    <div>
-      {/* Header */}
-      <div className="page-header">
-        <div className="flex items-center gap-3">
-          <Link href="/client/projects" className="btn btn--ghost btn--icon">
-            <ArrowLeft size={18} />
-          </Link>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="page-header__title">{project.name}</h1>
-              <span className={`badge badge--${project.status.toLowerCase().replace(/_/g, '-')}`}>
-                {project.status.replace(/_/g, ' ')}
-              </span>
+    <div className="pdetail">
+      {/* ── Overview and who's running it ─────────────────────── */}
+      <div className="pdetail__top">
+        <section className={`phero phero--${status.tone}`}>
+          <div
+            className="phero__banner"
+            style={{ backgroundImage: `url(${project.banner || FALLBACK_BANNER})` }}
+          >
+            <div className="phero__upload">
+              <ProjectBannerUpload projectId={project.id} canUpload={true} />
             </div>
-            <p className="page-header__subtitle">
-              Project Lead: {project.lead?.name ?? '—'} {project.lead?.email ? `(${project.lead.email})` : ''} · {formatDate(project.startDate)} → {formatDate(project.endDate)}
+          </div>
+
+          <div className="phero__info">
+            <div className="phero__head">
+              <span
+                className="phero__thumb"
+                style={{ backgroundImage: `url(${project.banner || FALLBACK_BANNER})` }}
+                aria-hidden="true"
+              />
+
+              <span className="phero__body">
+                <h1 className="phero__name">{project.name}</h1>
+                {phase && <span className="phero__phase">{phase}</span>}
+              </span>
+
+              <span className="phero__status">{status.label}</span>
+            </div>
+
+            {project.description && <p className="phero__desc">{project.description}</p>}
+
+            <div className="phero__meter">
+              <span className="phero__bar" aria-hidden="true">
+                <span className="phero__fill" style={{ width: `${project.progress}%` }} />
+              </span>
+              <span className="phero__pct">{project.progress}%</span>
+            </div>
+
+            <p className="phero__phases">
+              {Math.min(stage, STAGES.length)} of {STAGES.length} phases complete
             </p>
           </div>
-        </div>
-      </div>
+        </section>
 
-      {/* Project Banner cover image */}
-      <div 
-        style={{ 
-          position: 'relative', 
-          width: '100%', 
-          height: '200px', 
-          borderRadius: 'var(--radius-xl)', 
-          overflow: 'hidden', 
-          marginBottom: 'var(--space-6)',
-          backgroundImage: `url(${project.banner || '/banner.webp'})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          border: '1px solid var(--border-subtle)'
-        }}
-      >
-        <div style={{ position: 'absolute', right: 'var(--space-4)', bottom: 'var(--space-4)' }}>
-          <ProjectBannerUpload projectId={project.id} canUpload={true} />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-6">
-        {/* Left: circular ring + completion info */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-
-          {/* Circular Progress Ring */}
-          <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-4)', padding: 'var(--space-6)' }}>
-            <CircularProgress
-              percent={progressPct}
-              size={160}
-              strokeWidth={14}
-              color="#6366f1"
-              trackColor="rgba(99,102,241,0.1)"
-              label="Complete"
-            />
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                {completedMilestones} of {totalMilestones} milestone{totalMilestones !== 1 ? 's' : ''} complete
-              </div>
-              {project.endDate && (
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 4 }}>
-                  Deadline: {formatDate(project.endDate)}
-                </div>
+        <aside className="pside">
+          <div className="pside__card">
+            <div className="plead">
+              {project.lead?.avatarUrl ? (
+                <Image
+                  src={project.lead.avatarUrl}
+                  alt=""
+                  width={48}
+                  height={48}
+                  className="plead__avatar"
+                />
+              ) : (
+                <span className="plead__avatar plead__avatar--text" aria-hidden="true">
+                  {initials(project.lead?.name ?? 'Tvita')}
+                </span>
               )}
+
+              <span className="plead__body">
+                <span className="plead__name">{project.lead?.name ?? 'Tvita team'}</span>
+                {project.lead?.email && (
+                  <span className="plead__email">{project.lead.email}</span>
+                )}
+              </span>
             </div>
+
+            <dl className="pdates">
+              <div className="pdates__row">
+                <dt>Started</dt>
+                <dd>{formatDate(project.startDate)}</dd>
+              </div>
+              <div className="pdates__row">
+                <dt>Due</dt>
+                <dd>{formatDate(project.endDate)}</dd>
+              </div>
+            </dl>
           </div>
 
-          {/* Project description */}
-          {project.description && (
-            <div className="card">
-              <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', marginBottom: 'var(--space-3)' }}>
-                About this Project
-              </h2>
-              <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
-                {project.description}
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Right 2 cols: Milestones + Approvals + Revisions */}
-        <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-          <ProjectWorkspaceTabs
-            projectId={id}
-            clientId={client.id}
-            userRole={user.role}
-            userTeamRole={null}
-            userId={user.id}
-            clientPolicy={
-              subTeamCtx
-                ? {
-                    milestones: subTeamCtx.policy.milestones !== false,
-                    notes: subTeamCtx.policy.notes !== false,
-                  }
-                : { milestones: true, notes: true }
-            }
-            milestones={project.milestones}
-            projectMembers={[]}
-            isLead={false}
+          <ProjectActions
+            project={{ id: project.id, name: project.name }}
+            canUseNotes={canUseNotes}
           />
-
-          {/* Project Revisions */}
-          {project.updates.length > 0 && (
-            <div className="card">
-              <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', marginBottom: 'var(--space-4)' }}>
-                Project Revisions
-              </h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                {project.updates.map((u) => (
-                  <div key={u.id} style={{ background: 'var(--bg-elevated)', padding: 'var(--space-3) var(--space-4)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <Sparkles size={12} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
-                      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>{u.title}</div>
-                    </div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', lineHeight: 1.6 }}>{u.content}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6 }}>{formatDate(u.createdAt)}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        </aside>
       </div>
+
+      {/* ── Where the work has got to ─────────────────────────── */}
+      <section className="pdetail__proc" aria-label="Process">
+        <h2 className="pdetail__h">Process</h2>
+        <div className="pdetail__panel">
+          <ProcessTree
+            status={project.status}
+            progress={project.progress}
+            updates={project.updates.map((u) => ({
+              id: u.id,
+              content: u.content,
+              createdAt: u.createdAt.toISOString(),
+            }))}
+          />
+        </div>
+      </section>
+
+      {/* ── Revisions and money ───────────────────────────────── */}
+      <div className="pdetail__bottom">
+        <section className="revs" aria-label="Revisions">
+          <div className="pdetail__hrow">
+            <h2 className="pdetail__h">Revisions</h2>
+            {project.tickets.length > 0 && (
+              <span className="revs__count">
+                {revisionsDone} of {project.tickets.length} done
+              </span>
+            )}
+          </div>
+
+          {project.tickets.length === 0 ? (
+            <p className="pdetail__empty">No revisions requested yet.</p>
+          ) : (
+            <ul className="revs__list">
+              {project.tickets.map((ticket) => {
+                const tone = REVISION_STYLES[ticket.status] ?? {
+                  label: ticket.status,
+                  tone: 'slate',
+                }
+
+                return (
+                  <li key={ticket.id} className="rev">
+                    <span className={`rev__icon rev__icon--${tone.tone}`}>
+                      <Sparkles size={15} />
+                    </span>
+
+                    <span className="rev__body">
+                      <span className="rev__title">{ticket.title}</span>
+                      <span className="rev__when">{shortDate(ticket.createdAt)}</span>
+                    </span>
+
+                    <span className={`rev__badge rev__badge--${tone.tone}`}>{tone.label}</span>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </section>
+
+        <section className="pay" aria-label="Payment">
+          <h2 className="pdetail__h">Payment</h2>
+
+          <div className="pdetail__panel">
+            {project.invoices.length === 0 ? (
+              <p className="pdetail__empty">No invoices raised for this project yet.</p>
+            ) : (
+              <>
+                <ul className="pay__list">
+                  {project.invoices.map((invoice) => (
+                    <li key={invoice.id} className="payrow">
+                      <span className="payrow__icon">
+                        <Receipt size={16} />
+                      </span>
+
+                      <span className="payrow__body">
+                        <span className="payrow__no">{invoice.invoiceNo}</span>
+                        <span className="payrow__when">{shortDate(invoice.issuedDate)}</span>
+                      </span>
+
+                      <span
+                        className={`payrow__badge${invoice.status === 'PAID' ? ' is-paid' : ''}`}
+                      >
+                        {invoice.status === 'PAID' ? 'Paid' : 'Due'}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="pay__total">
+                  <span>Total</span>
+                  <strong>{money(invoiceTotal, currency)}</strong>
+                </div>
+
+                <Link
+                  href={latestInvoice?.pdfUrl ?? '/client/invoices'}
+                  className="pay__cta"
+                  {...(latestInvoice?.pdfUrl ? { target: '_blank', rel: 'noreferrer' } : {})}
+                >
+                  <FileText size={16} />
+                  View invoice
+                </Link>
+              </>
+            )}
+          </div>
+        </section>
+      </div>
+
+      {/* ── Milestones and approvals, unchanged ───────────────── */}
+      <ProjectWorkspaceTabs
+        projectId={id}
+        clientId={client.id}
+        userRole={user.role}
+        userTeamRole={null}
+        userId={user.id}
+        clientPolicy={
+          subTeamCtx
+            ? {
+                milestones: subTeamCtx.policy.milestones !== false,
+                notes: subTeamCtx.policy.notes !== false,
+              }
+            : { milestones: true, notes: true }
+        }
+        milestones={project.milestones}
+        projectMembers={[]}
+        isLead={false}
+      />
     </div>
   )
 }

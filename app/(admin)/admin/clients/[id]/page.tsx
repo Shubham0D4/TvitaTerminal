@@ -6,7 +6,7 @@ import {
   CreditCard, Plus, Layers, Globe, Edit, Users, User, ShieldCheck,
   Star, AlertTriangle, Clock, CheckCircle2, ExternalLink,
 } from 'lucide-react'
-import { getCountryDisplay, getFlagEmoji } from '@/shared/utilities/countries'
+import { getCountryDisplay, getFlagEmoji } from '@/lib/utils/countries'
 import ClientContactsSection from './ClientContactsSection'
 import AdminSubTeamsSection from './AdminSubTeamsSection'
 import ClientDangerZone from './ClientDangerZone'

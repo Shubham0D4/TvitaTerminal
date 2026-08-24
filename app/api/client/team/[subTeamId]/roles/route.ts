@@ -1,6 +1,6 @@
-import { apiSuccess, Errors } from '@/shared/utilities/api-response'
+import { apiSuccess, Errors } from '@/lib/utils/api-response'
 import { getClientSubTeamContext, getServerUser, isClient } from '@/lib/auth/server'
-import { ClientService } from '@/application/services/client.service'
+import { ClientService } from '@/lib/services/client.service'
 import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'
 

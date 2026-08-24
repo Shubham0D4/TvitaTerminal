@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { stripe } from '@/infrastructure/stripe'
+import { stripe } from '@/lib/stripe'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
 
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
         })
 
         if (planId) {
-          const { SubscriptionService } = await import('@/application/services/subscription.service')
+          const { SubscriptionService } = await import('@/lib/services/subscription.service')
           await SubscriptionService.processSubscriptionPurchase(
             planId,
             {

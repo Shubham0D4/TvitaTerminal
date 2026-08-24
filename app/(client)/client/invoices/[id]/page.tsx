@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { getServerUser } from '@/lib/auth/server'
 import { redirect, notFound } from 'next/navigation'
 import ClientInvoiceActions from './ClientInvoiceActions'
-import PaymentRedirect from '@/components/billing/PaymentRedirect'
+import PaymentRedirect from '@/app/components/billing/PaymentRedirect'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params

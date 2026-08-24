@@ -8,7 +8,11 @@
     "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint",
-    "seed:agency": "npx tsx --env-file=.env scripts/seed-agency-data.ts"
+    "seed:agency": "npx tsx --env-file=.env scripts/seed-agency-data.ts",
+    "db:reset": "npx tsx --env-file=.env scripts/reset-database-admin-only.ts",
+    "admin:create": "npx tsx --env-file=.env scripts/create-admin.ts",
+    "client:create": "npx tsx --env-file=.env scripts/create-client.ts",
+    "projects:sample": "npx tsx --env-file=.env scripts/create-sample-projects.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed.ts"
@@ -21,14 +25,12 @@
     "@stripe/stripe-js": "^9.13.0",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.112.3",
-    "@types/nodemailer": "^8.0.1",
-    "@types/react-pdf": "^6.2.0",
     "@vercel/speed-insights": "^2.0.0",
     "bcryptjs": "^3.0.3",
+    "better-auth": "^1.7.1",
     "googleapis": "^174.0.1",
     "lucide-react": "^1.31.0",
     "next": "16.3.0",
-    "next-auth": "^4.24.15",
     "nodemailer": "^9.0.5",
     "pg": "^8.23.0",
     "react": "19.2.8",
@@ -42,9 +44,11 @@
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
+    "@types/nodemailer": "^8.0.1",
     "@types/pg": "^8.21.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
     "prisma": "^7.9.1",

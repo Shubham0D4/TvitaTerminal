@@ -1,23 +1,45 @@
-import { prisma } from '@/lib/prisma'
-import { getServerUser, getClientSubTeamContext } from '@/lib/auth/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { FolderKanban } from 'lucide-react'
+import Image from 'next/image'
+
+import { prisma } from '@/lib/prisma'
+import { getServerUser, getClientSubTeamContext } from '@/lib/auth/server'
+import ProjectCarousel from '@/app/components/client/ProjectCarousel'
 
 export const metadata = {
-  title: 'My Projects — Tvita Client Portal',
+  title: 'Projects — Tvita Client Portal',
   description: 'Track ongoing project deliverables, timelines, and milestones.',
 }
 
+/** Used when a project has no banner of its own. */
+const FALLBACK_BANNER = '/menu%20img.webp'
 
+/** Finished work lives under History rather than in the active deck. */
+const CLOSED = ['COMPLETED', 'CANCELLED']
 
-export default async function ClientProjectsPage() {
+function initials(name: string) {
+  return name
+    .split(' ')
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('')
+}
+
+interface ClientProjectsPageProps {
+  searchParams: Promise<{ search?: string }>
+}
+
+export default async function ClientProjectsPage({ searchParams }: ClientProjectsPageProps) {
+  const { search } = await searchParams
+  const query = search?.trim() ?? ''
+
   const user = await getServerUser()
   if (!user) redirect('/login')
 
-  // Sub-team users resolve their client via the sub-team relation
+  // Sub-team users resolve their client via the sub-team relation.
   const subTeamCtx = await getClientSubTeamContext(user.id)
-  if (subTeamCtx && !subTeamCtx.policy.projects) redirect('/client/dashboard')
+  if (subTeamCtx && !subTeamCtx.policy.projects) redirect('/client/home')
 
   const client = await prisma.client.findFirst({
     where: subTeamCtx
@@ -45,22 +67,50 @@ export default async function ClientProjectsPage() {
       ...(subTeamCtx && subTeamCtx.allowedProjectIds.length > 0
         ? { id: { in: subTeamCtx.allowedProjectIds } }
         : {}),
+      ...(query
+        ? {
+            OR: [
+              { name: { contains: query, mode: 'insensitive' as const } },
+              { description: { contains: query, mode: 'insensitive' as const } },
+            ],
+          }
+        : {}),
     },
     select: {
       id: true,
       name: true,
-      progress: true,
+      description: true,
       banner: true,
+      status: true,
+      progress: true,
+      endDate: true,
+      updatedAt: true,
+      // Names the phase on the ticket stub. The process tree itself is a
+      // fixed pipeline, so it needs nothing from here.
+      milestones: {
+        where: { clientVisible: true },
+        orderBy: { sortOrder: 'asc' },
+        select: { name: true, status: true },
+      },
+      // Latest notes from the team, shown against the milestone underway.
+      updates: {
+        where: { clientVisible: true },
+        orderBy: { createdAt: 'desc' },
+        take: 3,
+        select: { id: true, title: true, content: true, createdAt: true },
+      },
     },
     orderBy: { createdAt: 'desc' },
   })
 
+  const active = projects.filter((project) => !CLOSED.includes(project.status))
+  const history = projects.filter((project) => CLOSED.includes(project.status))
+
   return (
-    <div>
-      {/* Header */}
+    <div className="projects">
       <div className="page-header">
         <div>
-          <h1 className="page-header__title">My Projects</h1>
+          <h1 className="page-header__title">Projects</h1>
           <p className="page-header__subtitle">
             Deliverables and milestone status for {client.name}.
           </p>
@@ -71,58 +121,75 @@ export default async function ClientProjectsPage() {
         <div className="card">
           <div className="empty-state">
             <FolderKanban size={28} />
-            <div className="empty-state__title">No active projects</div>
-            <div className="empty-state__desc">You have no active projects registered with us at this time.</div>
+            <div className="empty-state__title">
+              {query ? 'No projects match that search' : 'No active projects'}
+            </div>
+            <div className="empty-state__desc">
+              {query
+                ? 'Try a different name or keyword.'
+                : 'You have no active projects registered with us at this time.'}
+            </div>
           </div>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 'var(--space-4)' }}>
-          {projects.map((project) => (
-            <Link
-              key={project.id}
-              href={`/client/projects/${project.id}`}
-              className="card hover-lift"
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                overflow: 'hidden',
-                padding: 0,
-                textDecoration: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              <div
-                style={{
-                  height: 120,
-                  backgroundImage: `url(${project.banner || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800'})`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                }}
-              />
-              <div style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                <div
-                  style={{
-                    fontSize: 'var(--text-md)',
-                    fontWeight: 'var(--font-semibold)',
-                    color: 'var(--text-primary)',
-                    lineHeight: 1.3,
-                    wordBreak: 'break-word',
-                  }}
-                >
-                  {project.name}
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                    <span>Progress</span>
-                    <span>{project.progress}%</span>
-                  </div>
-                  <div className="progress-bar-container">
-                    <div className="progress-bar-fill" style={{ width: `${project.progress}%` }} />
-                  </div>
-                </div>
-              </div>
-            </Link>
-          ))}
+        <div className="projects__stack">
+          <ProjectCarousel
+            fallbackImage={FALLBACK_BANNER}
+            projects={active.map((project) => ({
+              id: project.id,
+              name: project.name,
+              banner: project.banner,
+              status: project.status,
+              progress: project.progress,
+              phase: project.milestones.find((m) => m.status !== 'COMPLETED')?.name,
+              updates: project.updates.map((update) => ({
+                id: update.id,
+                title: update.title,
+                content: update.content,
+                createdAt: update.createdAt.toISOString(),
+              })),
+            }))}
+          />
+
+          {history.length > 0 && (
+            <section className="phist" aria-label="Project history">
+              <h2 className="phist__title">History</h2>
+
+              <ul className="phist__list">
+                {history.map((project) => (
+                  <li key={project.id} className="phrow">
+                    <Link href={`/client/projects/${project.id}`} className="phrow__link">
+                      <span className="phrow__avatar" aria-hidden="true">
+                        {initials(project.name)}
+                      </span>
+
+                      <span className="phrow__body">
+                        <span className="phrow__name">
+                          {project.name}
+                          {project.status === 'COMPLETED' && (
+                            <Image
+                              src="/check.png"
+                              alt="Completed"
+                              width={17}
+                              height={17}
+                              className="phrow__check"
+                            />
+                          )}
+                        </span>
+                        {project.description && (
+                          <span className="phrow__desc">{project.description}</span>
+                        )}
+                      </span>
+
+                      <span className="phrow__year">
+                        {(project.endDate ?? project.updatedAt).getFullYear()}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </div>
       )}
     </div>

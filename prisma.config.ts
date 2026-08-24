@@ -9,5 +9,7 @@ export default defineConfig({
   },
   datasource: {
     url: process.env.DIRECT_URL || env('DATABASE_URL'),
+    // Needed by `prisma migrate diff --from-migrations` to replay history.
+    shadowDatabaseUrl: process.env.SHADOW_DATABASE_URL,
   },
 })

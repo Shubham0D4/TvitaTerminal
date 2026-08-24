@@ -3,8 +3,8 @@ import { getServerUser } from '@/lib/auth/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Building2 } from 'lucide-react'
-import ProjectWorkspaceTabs from '@/components/projects/ProjectWorkspaceTabs'
-import ProjectBannerUpload from '@/components/projects/ProjectBannerUpload'
+import ProjectWorkspaceTabs from '@/app/components/projects/ProjectWorkspaceTabs'
+import ProjectBannerUpload from '@/app/components/projects/ProjectBannerUpload'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params

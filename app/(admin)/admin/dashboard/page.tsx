@@ -2,7 +2,7 @@ import { getServerUser, isAdmin } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
 import { cleanupExpiredInvitations } from '@/lib/invitation-cleanup'
 import { redirect } from 'next/navigation'
-import QuotesModule from '@/components/projects/QuotesModule'
+import QuotesModule from '@/app/components/projects/QuotesModule'
 import {
   Building2,
   FolderKanban,

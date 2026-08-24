@@ -1,4 +1,4 @@
-import PortalLayout from '@/components/layout/PortalLayout'
+import PortalLayout from '@/app/components/layout/PortalLayout'
 
 export const dynamic = 'force-dynamic'
 

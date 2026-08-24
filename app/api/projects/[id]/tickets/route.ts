@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
-import { apiSuccess, Errors } from '@/shared/utilities/api-response'
+import { apiSuccess, Errors } from '@/lib/utils/api-response'
 import { getServerUser } from '@/lib/auth/server'
-import { TicketService } from '@/application/services/ticket.service'
+import { TicketService } from '@/lib/services/ticket.service'
 
 export async function GET(
   request: NextRequest,

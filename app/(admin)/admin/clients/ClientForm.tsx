@@ -3,10 +3,10 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { apiClient } from '@/shared/utilities/api-client'
+import { apiClient } from '@/lib/utils/api-client'
 import Link from 'next/link'
 import { ArrowLeft, Lock, Building2, Phone, MapPin, ScrollText, CreditCard, Wallet, Settings } from 'lucide-react'
-import CountrySelect from '@/components/ui/CountrySelect'
+import CountrySelect from '@/app/components/ui/CountrySelect'
 import type { Client } from '@prisma/client'
 
 interface ClientFormProps {

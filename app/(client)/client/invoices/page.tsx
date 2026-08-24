@@ -3,7 +3,7 @@ import { getServerUser, getClientSubTeamContext } from '@/lib/auth/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { CreditCard, FileText, CheckCircle2, Clock, ExternalLink } from 'lucide-react'
-import PaymentRedirect from '@/components/billing/PaymentRedirect'
+import PaymentRedirect from '@/app/components/billing/PaymentRedirect'
 
 export const metadata = {
   title: 'Invoices — Tvita Client Portal',
@@ -25,7 +25,7 @@ export default async function ClientInvoicesPage() {
 
   // Sub-teams do not have access to financial data
   const subTeamCtx = await getClientSubTeamContext(user.id)
-  if (subTeamCtx && !subTeamCtx.policy.invoices) redirect('/client/dashboard')
+  if (subTeamCtx && !subTeamCtx.policy.invoices) redirect('/client/home')
 
   const client = await prisma.client.findFirst({
     where: subTeamCtx

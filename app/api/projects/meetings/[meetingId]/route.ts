@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
-import { apiSuccess, Errors } from '@/shared/utilities/api-response'
+import { apiSuccess, Errors } from '@/lib/utils/api-response'
 import { getServerUser } from '@/lib/auth/server'
-import { MeetingService } from '@/application/services/meeting.service'
+import { MeetingService } from '@/lib/services/meeting.service'
 
 export async function DELETE(
   request: NextRequest,

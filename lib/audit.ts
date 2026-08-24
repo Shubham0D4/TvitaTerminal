@@ -1,4 +1,4 @@
-import { AuditRepository } from '@/infrastructure/database/repositories/audit.repository'
+import { AuditRepository } from '@/lib/repositories/audit.repository'
 import { getServerUser } from '@/lib/auth/server'
 import type { NextRequest } from 'next/server'
 

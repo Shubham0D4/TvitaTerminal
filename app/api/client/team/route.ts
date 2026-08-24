@@ -1,7 +1,7 @@
-import { apiSuccess, Errors } from '@/shared/utilities/api-response'
-import { AuthService } from '@/application/services/auth.service'
-import { ClientService } from '@/application/services/client.service'
-import { ClientRepository } from '@/infrastructure/database/repositories/client.repository'
+import { apiSuccess, Errors } from '@/lib/utils/api-response'
+import { AuthService } from '@/lib/services/auth.service'
+import { ClientService } from '@/lib/services/client.service'
+import { ClientRepository } from '@/lib/repositories/client.repository'
 import { NextRequest } from 'next/server'
 
 export async function GET(request: NextRequest) {

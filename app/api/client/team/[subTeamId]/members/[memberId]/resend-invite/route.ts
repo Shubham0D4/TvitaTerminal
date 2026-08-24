@@ -1,10 +1,10 @@
 import crypto from 'crypto'
-import { apiSuccess, Errors } from '@/shared/utilities/api-response'
+import { apiSuccess, Errors } from '@/lib/utils/api-response'
 import { getClientSubTeamContext, getServerUser, isClient } from '@/lib/auth/server'
-import { ClientService } from '@/application/services/client.service'
-import { sendRoleAccountCreatedEmail } from '@/infrastructure/email'
+import { ClientService } from '@/lib/services/client.service'
+import { sendRoleAccountCreatedEmail } from '@/lib/email'
 import { prisma } from '@/lib/prisma'
-import { getAppBaseUrl } from '@/shared/utilities/url'
+import { getAppBaseUrl } from '@/lib/utils/url'
 import { NextRequest } from 'next/server'
 
 export async function POST(

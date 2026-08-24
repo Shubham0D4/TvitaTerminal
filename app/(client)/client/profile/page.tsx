@@ -6,8 +6,9 @@ import {
   Mail, FolderKanban, Phone, MapPin, Globe, Building2,
   CreditCard, FileText, Hash, Calendar, User, Shield,
 } from 'lucide-react'
-import ChangePasswordForm from '@/components/profile/ChangePasswordForm'
-import ProfileAvatarUpload from '@/components/profile/ProfileAvatarUpload'
+import ChangePasswordForm from '@/app/components/profile/ChangePasswordForm'
+import ProfileAvatarUpload from '@/app/components/profile/ProfileAvatarUpload'
+import SignOutButton from '@/app/components/client/SignOutButton'
 
 export const metadata = {
   title: 'My Profile — Tvita Client Portal',
@@ -271,6 +272,7 @@ export default async function ClientProfilePage() {
           )}
         </div>
       </div>
+      <SignOutButton />
     </div>
   )
 }

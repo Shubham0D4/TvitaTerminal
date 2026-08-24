@@ -1,7 +1,7 @@
-import { apiSuccess, Errors } from '@/shared/utilities/api-response'
+import { apiSuccess, Errors } from '@/lib/utils/api-response'
 import { getServerUser } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
-import { uploadToSupabaseStorage } from '@/infrastructure/supabase/storage'
+import { uploadToSupabaseStorage } from '@/lib/supabase/storage'
 import { NextRequest } from 'next/server'
 import path from 'path'
 

@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server'
-import { apiSuccess, Errors } from '@/shared/utilities/api-response'
-import { AuthService } from '@/application/services/auth.service'
-import { ClientService } from '@/application/services/client.service'
-import { getAppBaseUrl } from '@/shared/utilities/url'
+import { apiSuccess, Errors } from '@/lib/utils/api-response'
+import { AuthService } from '@/lib/services/auth.service'
+import { ClientService } from '@/lib/services/client.service'
+import { getAppBaseUrl } from '@/lib/utils/url'
 import { prisma } from '@/lib/prisma'
 
 // Default access policy for simple invite — everything except financial data

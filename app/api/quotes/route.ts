@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
-import { apiSuccess, Errors } from '@/shared/utilities/api-response'
+import { apiSuccess, Errors } from '@/lib/utils/api-response'
 import { getServerUser } from '@/lib/auth/server'
-import { QuoteService } from '@/application/services/quote.service'
+import { QuoteService } from '@/lib/services/quote.service'
 
 export async function GET(request: NextRequest) {
   const user = await getServerUser()

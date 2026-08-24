@@ -1,7 +1,16 @@
-import type { Metadata } from 'next'
-import { Toaster } from 'react-hot-toast'
+import type { Metadata, Viewport } from 'next'
+import { Outfit } from 'next/font/google'
 import { SpeedInsights } from '@vercel/speed-insights/next'
+import AppToaster from '@/app/components/ui/AppToaster'
 import './globals.css'
+
+// Self-hosted by Next; matches the typeface used on tvita.in.
+const outfit = Outfit({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700'],
+  variable: '--font-outfit',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: {
@@ -11,10 +20,16 @@ export const metadata: Metadata = {
   description: 'Professional agency management platform for clients, teams, and projects.',
   keywords: ['agency management', 'project management', 'client portal', 'team collaboration'],
   icons: {
-    icon: '/favicon.ico',
-    shortcut: '/favicon.ico',
-    apple: '/favicon.ico',
+    icon: { url: '/favicon.webp', type: 'image/webp' },
+    shortcut: '/favicon.webp',
+    apple: '/favicon.webp',
   },
+}
+
+export const viewport: Viewport = {
+  // Renders <meta name="color-scheme" content="light">, so the browser never
+  // applies dark-mode UA styling to form controls or scrollbars.
+  colorScheme: 'light',
 }
 
 export default function RootLayout({
@@ -23,31 +38,11 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={outfit.variable}>
       <body>
         {children}
         <SpeedInsights />
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: 'var(--bg-elevated)',
-              color: 'var(--text-primary)',
-              border: '1px solid var(--border-default)',
-              fontSize: 'var(--text-sm)',
-              fontFamily: 'var(--font-family)',
-              borderRadius: 'var(--radius-lg)',
-              boxShadow: 'var(--shadow-lg)',
-            },
-            success: {
-              iconTheme: { primary: 'var(--color-success)', secondary: 'transparent' },
-            },
-            error: {
-              iconTheme: { primary: 'var(--color-danger)', secondary: 'transparent' },
-            },
-          }}
-        />
+        <AppToaster />
       </body>
     </html>
   )

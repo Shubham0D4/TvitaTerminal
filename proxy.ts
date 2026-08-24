@@ -1,4 +1,4 @@
-import { getToken } from 'next-auth/jwt'
+import { getCookieCache, getSessionCookie } from 'better-auth/cookies'
 import { NextResponse, type NextRequest } from 'next/server'
 
 const PUBLIC_ROUTES = [
@@ -24,7 +24,7 @@ function getPortalForRole(role: string): string {
     case 'TEAM_MEMBER':
       return '/team/dashboard'
     case 'CLIENT':
-      return '/client/dashboard'
+      return '/client/home'
     default:
       return '/login'
   }
@@ -50,25 +50,42 @@ function isAuthorizedForRoute(role: string, pathname: string): boolean {
   return allowedPrefixes.some((prefix) => pathname.startsWith(prefix))
 }
 
+/**
+ * Resolves the caller's identity without touching the database.
+ *
+ * `cachedRole` is populated from Better Auth's signed session-cookie cache. That
+ * cache is short-lived, so an authenticated user can legitimately present a
+ * session cookie with no cached role — callers must treat `null` as "unknown",
+ * not "unauthorized".
+ */
+async function resolveSession(
+  request: NextRequest,
+): Promise<{ isAuthenticated: boolean; cachedRole: string | null }> {
+  const hasSessionCookie = getSessionCookie(request) !== null
+
+  try {
+    const cached = await getCookieCache(request, {
+      secret: process.env.BETTER_AUTH_SECRET,
+    })
+    const role = (cached?.user as { role?: string } | undefined)?.role ?? null
+    return { isAuthenticated: hasSessionCookie || cached !== null, cachedRole: role }
+  } catch (err) {
+    console.error('[Middleware] session cache read failed:', err)
+    return { isAuthenticated: hasSessionCookie, cachedRole: null }
+  }
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   const response = NextResponse.next({ request })
 
-  // Retrieve next-auth token
-  let token = null
-  try {
-    token = await getToken({
-      req: request,
-      secret: process.env.NEXTAUTH_SECRET,
-    })
-  } catch (err) {
-    console.error('[Middleware] getToken error:', err)
-  }
+  const { isAuthenticated, cachedRole } = await resolveSession(request)
 
   // 1. If user is logged in and visits /login, redirect to their portal
-  if (token && pathname === '/login') {
-    const role = (token.role as string) || 'ADMIN'
-    return NextResponse.redirect(new URL(getPortalForRole(role), request.url))
+  if (isAuthenticated && pathname === '/login') {
+    return NextResponse.redirect(
+      new URL(getPortalForRole(cachedRole ?? 'ADMIN'), request.url),
+    )
   }
 
   // 2. Allow public routes, static assets, Next.js internals
@@ -81,7 +98,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // 3. Not authenticated → redirect to login
-  if (!token) {
+  if (!isAuthenticated) {
     const loginUrl = new URL('/login', request.url)
     if (pathname !== '/') {
       loginUrl.searchParams.set('redirect', pathname)
@@ -89,17 +106,21 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // 4. Get role from token
-  const role = (token.role as string) || 'CLIENT'
+  // 4. Role is unknown while the cookie cache is cold. Let the request through:
+  //    every portal layout and API route re-checks via `getServerUser()` +
+  //    `requireRole()`, which read the database and remain the source of truth.
+  if (!cachedRole) {
+    return response
+  }
 
   // 5. Root route redirect
   if (pathname === '/') {
-    return NextResponse.redirect(new URL(getPortalForRole(role), request.url))
+    return NextResponse.redirect(new URL(getPortalForRole(cachedRole), request.url))
   }
 
   // 6. Role-based route authorization
-  if (!isAuthorizedForRoute(role, pathname)) {
-    return NextResponse.redirect(new URL(getPortalForRole(role), request.url))
+  if (!isAuthorizedForRoute(cachedRole, pathname)) {
+    return NextResponse.redirect(new URL(getPortalForRole(cachedRole), request.url))
   }
 
   return response

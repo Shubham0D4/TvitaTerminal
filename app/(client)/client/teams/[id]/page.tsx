@@ -13,7 +13,7 @@ export default async function SubTeamDetailPage({ params }: { params: Promise<{ 
   if (!user || user.role !== 'CLIENT') redirect('/login')
 
   const subTeamCtx = await getClientSubTeamContext(user.id)
-  if (subTeamCtx) redirect('/client/dashboard')
+  if (subTeamCtx) redirect('/client/home')
 
   const { id } = await params
 
@@ -28,7 +28,7 @@ export default async function SubTeamDetailPage({ params }: { params: Promise<{ 
     },
   })
 
-  if (!client) redirect('/client/dashboard')
+  if (!client) redirect('/client/home')
 
   const subTeam = await prisma.clientSubTeam.findFirst({
     where: { id, clientId: client.id },

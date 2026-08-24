@@ -1,7 +1,7 @@
-import { apiSuccess, Errors } from '@/shared/utilities/api-response'
+import { apiSuccess, Errors } from '@/lib/utils/api-response'
 import { getClientSubTeamContext, getServerUser, isClient } from '@/lib/auth/server'
-import { ClientRepository } from '@/infrastructure/database/repositories/client.repository'
-import { InvoiceService } from '@/application/services/invoice.service'
+import { ClientRepository } from '@/lib/repositories/client.repository'
+import { InvoiceService } from '@/lib/services/invoice.service'
 import { NextRequest } from 'next/server'
 
 export async function GET(request: NextRequest) {

@@ -1,9 +1,10 @@
+import { headers } from 'next/headers'
+import { cache } from 'react'
+
 import { prisma } from '@/lib/prisma'
 import { Role, TeamRole } from '@prisma/client'
-import { env } from '@/config/application/env'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
-import { cache } from 'react'
+import { env } from '@/lib/config/env'
+import { auth } from '@/lib/auth/config'
 
 export type AuthUser = {
   id: string
@@ -15,7 +16,7 @@ export type AuthUser = {
 
 export const getServerUser = cache(async (): Promise<AuthUser | null> => {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await auth.api.getSession({ headers: await headers() })
     if (!session?.user?.email) return null
 
     const profile = await prisma.profile.findUnique({

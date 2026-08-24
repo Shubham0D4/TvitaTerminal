@@ -1,6 +1,6 @@
-import { apiSuccess, Errors } from '@/shared/utilities/api-response'
+import { apiSuccess, Errors } from '@/lib/utils/api-response'
 import { verifyThirdPartyAuth } from '@/lib/auth/server'
-import { WebhookService } from '@/infrastructure/integrations'
+import { WebhookService } from '@/lib/integrations'
 import { NextRequest } from 'next/server'
 
 export async function POST(request: NextRequest) {

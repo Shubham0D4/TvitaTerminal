@@ -14,7 +14,7 @@ export default async function RootPage() {
     case 'TEAM_MEMBER':
       redirect('/team/dashboard')
     case 'CLIENT':
-      redirect('/client/dashboard')
+      redirect('/client/home')
     default:
       redirect('/login')
   }

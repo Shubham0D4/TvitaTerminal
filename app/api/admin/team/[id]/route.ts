@@ -1,10 +1,10 @@
-import { apiSuccess, Errors } from '@/shared/utilities/api-response'
+import { apiSuccess, Errors } from '@/lib/utils/api-response'
 import { writeAuditLog } from '@/lib/audit'
 import { getServerUser, isAdmin } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
 import { TeamRole } from '@prisma/client'
 import { NextRequest } from 'next/server'
-import { createSupabaseAdminClient } from '@/infrastructure/supabase/server'
+import { createSupabaseAdminClient } from '@/lib/supabase/server'
 
 export async function GET(
   request: NextRequest,

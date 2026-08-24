@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { createSupabaseAdminClient } from '@/infrastructure/supabase/server'
+import { createSupabaseAdminClient } from '@/lib/supabase/server'
 
 let lastCleanupTime = 0
 const CLEANUP_THROTTLE_MS = 60 * 60 * 1000 // 1 hour

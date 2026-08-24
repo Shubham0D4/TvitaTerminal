@@ -1,6 +1,6 @@
-import { apiSuccess, Errors } from '@/shared/utilities/api-response'
+import { apiSuccess, Errors } from '@/lib/utils/api-response'
 import { getServerUser } from '@/lib/auth/server'
-import { TaskService } from '@/application/services/task.service'
+import { TaskService } from '@/lib/services/task.service'
 import { TaskStatus } from '@prisma/client'
 import { NextRequest } from 'next/server'
 

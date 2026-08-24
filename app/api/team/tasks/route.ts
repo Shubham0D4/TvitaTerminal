@@ -1,6 +1,6 @@
-import { apiSuccess, Errors } from '@/shared/utilities/api-response'
+import { apiSuccess, Errors } from '@/lib/utils/api-response'
 import { getServerUser, isTeamMember, isAdmin } from '@/lib/auth/server'
-import { TaskService } from '@/application/services/task.service'
+import { TaskService } from '@/lib/services/task.service'
 import { NextRequest } from 'next/server'
 
 export async function GET(request: NextRequest) {

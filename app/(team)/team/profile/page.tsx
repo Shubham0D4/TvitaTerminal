@@ -3,7 +3,7 @@ import { getServerUser } from '@/lib/auth/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Mail, FolderKanban } from 'lucide-react'
-import ChangePasswordForm from '@/components/profile/ChangePasswordForm'
+import ChangePasswordForm from '@/app/components/profile/ChangePasswordForm'
 
 export const metadata = {
   title: 'My Profile — Tvita Team',
