@@ -1,7 +1,6 @@
-import { getServerUser, isAdmin } from '@/lib/auth/server'
+import { getServerUser, isAdmin, redirectToLogin, redirectToPortal } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
 import { cleanupExpiredInvitations } from '@/lib/invitation-cleanup'
-import { redirect } from 'next/navigation'
 import QuotesModule from '@/app/components/projects/QuotesModule'
 import {
   Building2,
@@ -137,9 +136,8 @@ export default async function AdminDashboardPage() {
   cleanupExpiredInvitations().catch((err) => console.error('[Cleanup Error]', err))
 
   const user = await getServerUser()
-  if (!user || !isAdmin(user)) {
-    redirect('/login')
-  }
+  if (!user) redirectToLogin()
+  if (!isAdmin(user)) redirectToPortal(user)
 
   const now = new Date()
 

@@ -1,11 +1,11 @@
 import { redirect } from 'next/navigation'
-import { getServerUser } from '@/lib/auth/server'
+import { getServerUser, redirectToLogin } from '@/lib/auth/server'
 
 export default async function RootPage() {
   const user = await getServerUser()
 
   if (!user) {
-    redirect('/login')
+    redirectToLogin()
   }
 
   switch (user.role) {
@@ -16,7 +16,7 @@ export default async function RootPage() {
     case 'CLIENT':
       redirect('/client/home')
     default:
-      redirect('/login')
+      redirectToLogin()
   }
 
 }

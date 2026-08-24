@@ -1,9 +1,8 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getServerUser } from '@/lib/auth/server'
+import { getServerUser, redirectToLogin } from '@/lib/auth/server'
 import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
 import { createSupabaseAdminClient } from '@/lib/supabase/server'
@@ -39,7 +38,7 @@ async function uploadMilestoneImage(file: File): Promise<string | null> {
 
 async function requireLead(projectId: string) {
   const user = await getServerUser()
-  if (!user) redirect('/login')
+  if (!user) redirectToLogin()
 
   if (user.role === 'ADMIN') return user // admin always allowed
 
@@ -165,7 +164,7 @@ export async function updateMilestoneStatus(
   status: 'IN_PROGRESS' | 'COMPLETED' | 'PLANNED' | 'BLOCKED'
 ): Promise<{ success: boolean; message: string }> {
   const user = await getServerUser()
-  if (!user) redirect('/login')
+  if (!user) redirectToLogin()
 
   const milestone = await prisma.milestone.findUnique({ where: { id: milestoneId } })
   if (!milestone) return { success: false, message: 'Milestone not found.' }
@@ -206,7 +205,7 @@ export async function deleteMilestone(
   milestoneId: string
 ): Promise<{ success: boolean; message: string }> {
   const user = await getServerUser()
-  if (!user) redirect('/login')
+  if (!user) redirectToLogin()
 
   const milestone = await prisma.milestone.findUnique({ where: { id: milestoneId } })
   if (!milestone) return { success: false, message: 'Not found.' }

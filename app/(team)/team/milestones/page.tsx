@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { getServerUser } from '@/lib/auth/server'
-import { redirect } from 'next/navigation'
+import { getServerUser, redirectToLogin } from '@/lib/auth/server'
 import { CheckCircle2, Clock, PlayCircle } from 'lucide-react'
 import Link from 'next/link'
 import MilestoneStatusButton from './MilestoneStatusButton'
@@ -101,7 +100,7 @@ function Section({ title, items, icon }: { title: string; items: MilestoneItem[]
 
 export default async function TeamMilestonesPage() {
   const user = await getServerUser()
-  if (!user) redirect('/login')
+  if (!user) redirectToLogin()
 
   const milestones = await prisma.milestone.findMany({
     where: { assigneeId: user.id },

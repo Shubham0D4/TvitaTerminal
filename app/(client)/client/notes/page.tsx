@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 
-import { getServerUser, getClientSubTeamContext } from '@/lib/auth/server'
+import { getServerUser, getClientSubTeamContext, redirectToLogin } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
 import NotesWorkspace from '@/app/components/client/NotesWorkspace'
 
@@ -19,7 +19,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default async function ClientNotesPage() {
   const user = await getServerUser()
-  if (!user) redirect('/login')
+  if (!user) redirectToLogin()
 
   const subTeamCtx = await getClientSubTeamContext(user.id)
   if (subTeamCtx && subTeamCtx.policy.notes === false) redirect('/client/home')

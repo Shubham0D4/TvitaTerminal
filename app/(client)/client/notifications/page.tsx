@@ -1,7 +1,6 @@
-import { redirect } from 'next/navigation'
 import { Bell } from 'lucide-react'
 
-import { getServerUser } from '@/lib/auth/server'
+import { getServerUser, redirectToLogin } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
 import MarkAllReadButton from '@/app/components/client/MarkAllReadButton'
 
@@ -23,7 +22,7 @@ function formatTimestamp(date: Date) {
 
 export default async function ClientNotificationsPage() {
   const user = await getServerUser()
-  if (!user) redirect('/login')
+  if (!user) redirectToLogin()
 
   const notifications = await prisma.notification.findMany({
     where: { userId: user.id },

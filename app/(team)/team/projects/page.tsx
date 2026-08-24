@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { getServerUser } from '@/lib/auth/server'
-import { redirect } from 'next/navigation'
+import { getServerUser, redirectToLogin } from '@/lib/auth/server'
 import Link from 'next/link'
 import { FolderKanban } from 'lucide-react'
 
@@ -13,7 +12,7 @@ export const metadata = {
 
 export default async function TeamProjectsPage() {
   const user = await getServerUser()
-  if (!user) redirect('/login')
+  if (!user) redirectToLogin()
 
   const projects = await prisma.project.findMany({
     where: {

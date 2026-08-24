@@ -4,7 +4,7 @@ import { FolderKanban } from 'lucide-react'
 import Image from 'next/image'
 
 import { prisma } from '@/lib/prisma'
-import { getServerUser, getClientSubTeamContext } from '@/lib/auth/server'
+import { getServerUser, getClientSubTeamContext, redirectToLogin } from '@/lib/auth/server'
 import ProjectCarousel from '@/app/components/client/ProjectCarousel'
 
 export const metadata = {
@@ -35,7 +35,7 @@ export default async function ClientProjectsPage({ searchParams }: ClientProject
   const query = search?.trim() ?? ''
 
   const user = await getServerUser()
-  if (!user) redirect('/login')
+  if (!user) redirectToLogin()
 
   // Sub-team users resolve their client via the sub-team relation.
   const subTeamCtx = await getClientSubTeamContext(user.id)

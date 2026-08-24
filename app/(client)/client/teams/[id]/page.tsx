@@ -1,4 +1,4 @@
-import { getServerUser, getClientSubTeamContext } from '@/lib/auth/server'
+import { getServerUser, getClientSubTeamContext, redirectToLogin, redirectToPortal } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import TeamDetailsManager from './TeamDetailsManager'
@@ -10,7 +10,8 @@ export const metadata = {
 
 export default async function SubTeamDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await getServerUser()
-  if (!user || user.role !== 'CLIENT') redirect('/login')
+  if (!user) redirectToLogin()
+  if (user.role !== 'CLIENT') redirectToPortal(user)
 
   const subTeamCtx = await getClientSubTeamContext(user.id)
   if (subTeamCtx) redirect('/client/home')

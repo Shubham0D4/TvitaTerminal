@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { getServerUser, getClientSubTeamContext } from '@/lib/auth/server'
+import { getServerUser, getClientSubTeamContext, redirectToLogin } from '@/lib/auth/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { CreditCard, FileText, CheckCircle2, Clock, ExternalLink } from 'lucide-react'
@@ -21,7 +21,7 @@ function formatDate(date: Date | null): string {
 
 export default async function ClientInvoicesPage() {
   const user = await getServerUser()
-  if (!user) redirect('/login')
+  if (!user) redirectToLogin()
 
   // Sub-teams do not have access to financial data
   const subTeamCtx = await getClientSubTeamContext(user.id)

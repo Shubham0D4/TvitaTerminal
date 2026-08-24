@@ -1,10 +1,9 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getServerUser } from '@/lib/auth/server'
+import { getServerUser, redirectToLogin } from '@/lib/auth/server'
 import { writeAuditLog } from '@/lib/audit'
 import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 
 export async function publishProjectUpdate(data: {
   projectId: string
@@ -13,7 +12,7 @@ export async function publishProjectUpdate(data: {
   clientVisible?: boolean
 }): Promise<{ success: boolean; message: string }> {
   const user = await getServerUser()
-  if (!user) redirect('/login')
+  if (!user) redirectToLogin()
 
   const profile = await prisma.profile.findUnique({ where: { id: user.id } })
   if (!profile || (profile.role !== 'ADMIN' && profile.teamRole !== 'TEAM_LEAD')) {

@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { getServerUser } from '@/lib/auth/server'
+import { getServerUser, redirectToLogin } from '@/lib/auth/server'
 import { redirect, notFound } from 'next/navigation'
 import ClientInvoiceActions from './ClientInvoiceActions'
 import PaymentRedirect from '@/app/components/billing/PaymentRedirect'
@@ -28,7 +28,7 @@ type PageProps = { params: Promise<{ id: string }> }
 export default async function ClientInvoiceDetailPage({ params }: PageProps) {
   const { id } = await params
   const user = await getServerUser()
-  if (!user) redirect('/login')
+  if (!user) redirectToLogin()
 
   // Verify this invoice belongs to this client
   const client = await prisma.client.findFirst({

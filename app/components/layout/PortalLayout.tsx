@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { getServerUser } from '@/lib/auth/server'
+import { getServerUser, redirectToLogin } from '@/lib/auth/server'
 import Sidebar from '@/app/components/layout/Sidebar'
 import Topbar from '@/app/components/layout/Topbar'
 import { Toaster } from 'react-hot-toast'
@@ -16,7 +16,7 @@ export default async function PortalLayout({ children, allowedRoles }: PortalLay
   const user = await getServerUser()
 
   if (!user) {
-    redirect('/login')
+    redirectToLogin()
   }
 
   if (!allowedRoles.includes(user.role)) {
@@ -32,7 +32,7 @@ export default async function PortalLayout({ children, allowedRoles }: PortalLay
         redirect('/client/home')
         break
       default:
-        redirect('/login')
+        redirectToLogin()
     }
   }
 

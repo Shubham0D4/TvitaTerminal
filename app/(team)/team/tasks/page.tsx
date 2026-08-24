@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { getServerUser } from '@/lib/auth/server'
-import { redirect } from 'next/navigation'
+import { getServerUser, redirectToLogin } from '@/lib/auth/server'
 import TaskBoardClient from '@/app/components/tasks/TaskBoardClient'
 
 export const metadata = {
@@ -10,10 +9,10 @@ export const metadata = {
 
 export default async function TeamTasksPage() {
   const user = await getServerUser()
-  if (!user) redirect('/login')
+  if (!user) redirectToLogin()
 
   const profile = await prisma.profile.findUnique({ where: { id: user.id } })
-  if (!profile) redirect('/login')
+  if (!profile) redirectToLogin()
 
   const isLeadOrAdmin = profile.role === 'ADMIN' || profile.teamRole === 'TEAM_LEAD'
 

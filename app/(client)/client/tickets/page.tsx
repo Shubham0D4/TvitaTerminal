@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 
-import { getServerUser, getClientSubTeamContext } from '@/lib/auth/server'
+import { getServerUser, getClientSubTeamContext, redirectToLogin } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
 import TicketsWorkspace from '@/app/components/client/TicketsWorkspace'
 
@@ -10,7 +10,7 @@ export const metadata = {
 
 export default async function ClientTicketsPage() {
   const user = await getServerUser()
-  if (!user) redirect('/login')
+  if (!user) redirectToLogin()
 
   const subTeamCtx = await getClientSubTeamContext(user.id)
   if (subTeamCtx && subTeamCtx.policy.issues === false) redirect('/client/home')

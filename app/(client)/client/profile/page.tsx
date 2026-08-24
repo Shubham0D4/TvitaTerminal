@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { getServerUser, getClientSubTeamContext } from '@/lib/auth/server'
-import { redirect } from 'next/navigation'
+import { getServerUser, getClientSubTeamContext, redirectToLogin } from '@/lib/auth/server'
 import Link from 'next/link'
 import {
   Mail, FolderKanban, Phone, MapPin, Globe, Building2,
@@ -29,7 +28,7 @@ function InfoRow({ label, value, mono }: { label: string; value?: string | null;
 
 export default async function ClientProfilePage() {
   const user = await getServerUser()
-  if (!user) redirect('/login')
+  if (!user) redirectToLogin()
 
   const isSubTeamMember = !!(await getClientSubTeamContext(user.id))
 

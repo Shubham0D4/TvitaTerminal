@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
-import { getServerUser } from '@/lib/auth/server'
-import { redirect, notFound } from 'next/navigation'
+import { getServerUser, redirectToLogin } from '@/lib/auth/server'
+import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Building2, Plus, CreditCard } from 'lucide-react'
 import AdminProjectLeadSelector from '@/app/components/projects/AdminProjectLeadSelector'
@@ -27,7 +27,7 @@ type PageProps = { params: Promise<{ id: string }> }
 export default async function AdminProjectDetailPage({ params }: PageProps) {
   const { id } = await params
   const user = await getServerUser()
-  if (!user) redirect('/login')
+  if (!user) redirectToLogin()
 
   const project = await prisma.project.findUnique({
     where: { id },

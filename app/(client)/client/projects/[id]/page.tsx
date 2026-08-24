@@ -4,7 +4,7 @@ import Image from 'next/image'
 import { FileText, Sparkles, Receipt } from 'lucide-react'
 
 import { prisma } from '@/lib/prisma'
-import { getClientSubTeamContext, getServerUser } from '@/lib/auth/server'
+import { getClientSubTeamContext, getServerUser, redirectToLogin } from '@/lib/auth/server'
 import ProcessTree, { STAGES, stageIndex } from '@/app/components/client/ProcessTree'
 import ProjectActions from '@/app/components/client/ProjectActions'
 import ProjectWorkspaceTabs from '@/app/components/projects/ProjectWorkspaceTabs'
@@ -65,7 +65,7 @@ export default async function ClientProjectDetailPage({
 }) {
   const { id } = await params
   const user = await getServerUser()
-  if (!user) redirect('/login')
+  if (!user) redirectToLogin()
 
   const subTeamCtx = await getClientSubTeamContext(user.id)
   if (subTeamCtx) {

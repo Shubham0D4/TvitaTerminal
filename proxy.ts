@@ -1,8 +1,16 @@
 import { getCookieCache, getSessionCookie } from 'better-auth/cookies'
 import { NextResponse, type NextRequest } from 'next/server'
 
+import {
+  LOGIN_PATH,
+  STALE_SESSION_PARAM,
+  getPortalForRole,
+  isAuthCookie,
+  staleSessionLoginUrl,
+} from '@/lib/auth/routes'
+
 const PUBLIC_ROUTES = [
-  '/login',
+  LOGIN_PATH,
   '/forgot-password',
   '/reset-password',
   '/auth/callback',
@@ -15,19 +23,6 @@ const ROLE_ROUTES: Record<string, string[]> = {
   ADMIN: ['/admin', '/api/admin'],
   TEAM_MEMBER: ['/team', '/api/team'],
   CLIENT: ['/client', '/api/client'],
-}
-
-function getPortalForRole(role: string): string {
-  switch (role) {
-    case 'ADMIN':
-      return '/admin/dashboard'
-    case 'TEAM_MEMBER':
-      return '/team/dashboard'
-    case 'CLIENT':
-      return '/client/home'
-    default:
-      return '/login'
-  }
 }
 
 function isPublicRoute(pathname: string): boolean {
@@ -57,6 +52,9 @@ function isAuthorizedForRoute(role: string, pathname: string): boolean {
  * cache is short-lived, so an authenticated user can legitimately present a
  * session cookie with no cached role — callers must treat `null` as "unknown",
  * not "unauthorized".
+ *
+ * `isAuthenticated` likewise means "carries a session cookie", not "has a live
+ * session": only the database can settle that. See `STALE_SESSION_PARAM`.
  */
 async function resolveSession(
   request: NextRequest,
@@ -75,20 +73,47 @@ async function resolveSession(
   }
 }
 
+/**
+ * Expires every Better Auth cookie the request carried, so the next request
+ * arrives clean instead of re-triggering the same dead-session bounce.
+ */
+function clearAuthCookies(request: NextRequest, response: NextResponse): NextResponse {
+  for (const cookie of request.cookies.getAll()) {
+    if (!isAuthCookie(cookie.name)) continue
+    response.cookies.set(cookie.name, '', {
+      path: '/',
+      maxAge: 0,
+      // A `__Secure-`-prefixed cookie is only deletable by a Secure Set-Cookie.
+      secure: cookie.name.startsWith('__Secure-'),
+    })
+  }
+  return response
+}
+
 export async function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl
+  const { pathname, searchParams } = request.nextUrl
   const response = NextResponse.next({ request })
 
   const { isAuthenticated, cachedRole } = await resolveSession(request)
 
-  // 1. If user is logged in and visits /login, redirect to their portal
-  if (isAuthenticated && pathname === '/login') {
-    return NextResponse.redirect(
-      new URL(getPortalForRole(cachedRole ?? 'ADMIN'), request.url),
-    )
+  // 1. A portal guard has just rejected this session against the database, so
+  //    the cookie is dead however convincing it looks from here. Bin it and let
+  //    the login page render. Without this the next rule would send the request
+  //    back to the portal, whose guard would send it back here — forever.
+  if (pathname === LOGIN_PATH && searchParams.has(STALE_SESSION_PARAM)) {
+    return clearAuthCookies(request, response)
   }
 
-  // 2. Allow public routes, static assets, Next.js internals
+  // 2. Signed in and asking for the login page → straight on to their portal.
+  //    Only when the cached role names one: guessing a portal drops the user
+  //    somewhere they may not be allowed, and that guard bounces them back here.
+  //    With the role unknown, the login page resolves the session itself.
+  if (isAuthenticated && pathname === LOGIN_PATH) {
+    const portal = getPortalForRole(cachedRole)
+    return portal ? NextResponse.redirect(new URL(portal, request.url)) : response
+  }
+
+  // 3. Allow public routes, static assets, Next.js internals
   if (
     isPublicRoute(pathname) ||
     pathname.startsWith('/_next') ||
@@ -97,30 +122,34 @@ export async function proxy(request: NextRequest) {
     return response
   }
 
-  // 3. Not authenticated → redirect to login
+  // 4. Not authenticated → redirect to login
   if (!isAuthenticated) {
-    const loginUrl = new URL('/login', request.url)
+    const loginUrl = new URL(LOGIN_PATH, request.url)
     if (pathname !== '/') {
       loginUrl.searchParams.set('redirect', pathname)
     }
     return NextResponse.redirect(loginUrl)
   }
 
-  // 4. Role is unknown while the cookie cache is cold. Let the request through:
+  // 5. Role is unknown while the cookie cache is cold. Let the request through:
   //    every portal layout and API route re-checks via `getServerUser()` +
   //    `requireRole()`, which read the database and remain the source of truth.
   if (!cachedRole) {
     return response
   }
 
-  // 5. Root route redirect
+  const portal = getPortalForRole(cachedRole)
+
+  // 6. Root route redirect. An unmapped role is left to the root page, which
+  //    resolves the real session rather than guessing from the cookie.
   if (pathname === '/') {
-    return NextResponse.redirect(new URL(getPortalForRole(cachedRole), request.url))
+    return portal ? NextResponse.redirect(new URL(portal, request.url)) : response
   }
 
-  // 6. Role-based route authorization
+  // 7. Role-based route authorization. A role with no portal to fall back on is
+  //    a session we cannot place, so it is retired rather than redirected.
   if (!isAuthorizedForRoute(cachedRole, pathname)) {
-    return NextResponse.redirect(new URL(getPortalForRole(cachedRole), request.url))
+    return NextResponse.redirect(new URL(portal ?? staleSessionLoginUrl(), request.url))
   }
 
   return response

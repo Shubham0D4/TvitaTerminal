@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { getServerUser } from '@/lib/auth/server'
-import { redirect } from 'next/navigation'
+import { getServerUser, redirectToLogin } from '@/lib/auth/server'
 import Link from 'next/link'
 import { Mail, FolderKanban } from 'lucide-react'
 import ChangePasswordForm from '@/app/components/profile/ChangePasswordForm'
@@ -17,7 +16,7 @@ function formatDate(date: Date | null): string {
 
 export default async function TeamProfilePage() {
   const user = await getServerUser()
-  if (!user) redirect('/login')
+  if (!user) redirectToLogin()
 
   const profile = await prisma.profile.findUnique({
     where: { id: user.id },

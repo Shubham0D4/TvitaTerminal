@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
-import { getServerUser } from '@/lib/auth/server'
-import { notFound, redirect } from 'next/navigation'
+import { getServerUser, redirectToLogin, redirectToPortal } from '@/lib/auth/server'
+import { notFound } from 'next/navigation'
 
 export const metadata = {
   title: 'Tax Invoice — Tvita Print Service',
@@ -25,7 +25,7 @@ export default async function InvoicePrintPage({ params }: PageProps) {
   const { id } = await params
   const user = await getServerUser()
   if (!user) {
-    redirect('/login')
+    redirectToLogin()
   }
 
   // 1. Fetch fresh invoice data from the database
@@ -55,7 +55,7 @@ export default async function InvoicePrintPage({ params }: PageProps) {
   }
 
   if (!hasAccess) {
-    redirect('/login')
+    redirectToPortal(user)
   }
 
   // 3. Retrieve settings

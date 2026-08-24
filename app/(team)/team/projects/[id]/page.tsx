@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
-import { getServerUser } from '@/lib/auth/server'
-import { redirect, notFound } from 'next/navigation'
+import { getServerUser, redirectToLogin } from '@/lib/auth/server'
+import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Building2 } from 'lucide-react'
 import ProjectWorkspaceTabs from '@/app/components/projects/ProjectWorkspaceTabs'
@@ -25,7 +25,7 @@ type PageProps = { params: Promise<{ id: string }> }
 export default async function TeamProjectDetailPage({ params }: PageProps) {
   const { id } = await params
   const user = await getServerUser()
-  if (!user) redirect('/login')
+  if (!user) redirectToLogin()
 
   const project = await prisma.project.findFirst({
     where: {

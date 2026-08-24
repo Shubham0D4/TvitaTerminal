@@ -1,7 +1,6 @@
-import { getServerUser, isTeamMember, isAdmin } from '@/lib/auth/server'
+import { getServerUser, isTeamMember, isAdmin, redirectToLogin, redirectToPortal } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
 import { cleanupExpiredInvitations } from '@/lib/invitation-cleanup'
-import { redirect } from 'next/navigation'
 import {
   FolderKanban,
   CheckSquare,
@@ -110,9 +109,8 @@ export default async function TeamDashboardPage() {
   cleanupExpiredInvitations().catch((err) => console.error('[Cleanup Error]', err))
 
   const user = await getServerUser()
-  if (!user || (!isTeamMember(user) && !isAdmin(user))) {
-    redirect('/login')
-  }
+  if (!user) redirectToLogin()
+  if (!isTeamMember(user) && !isAdmin(user)) redirectToPortal(user)
 
   const isUserAdmin = isAdmin(user)
 

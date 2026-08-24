@@ -1,10 +1,12 @@
 import { headers } from 'next/headers'
+import { redirect } from 'next/navigation'
 import { cache } from 'react'
 
 import { prisma } from '@/lib/prisma'
 import { Role, TeamRole } from '@prisma/client'
 import { env } from '@/lib/config/env'
 import { auth } from '@/lib/auth/config'
+import { getPortalForRole, staleSessionLoginUrl } from '@/lib/auth/routes'
 
 export type AuthUser = {
   id: string
@@ -37,6 +39,29 @@ export const getServerUser = cache(async (): Promise<AuthUser | null> => {
     return null
   }
 })
+
+/**
+ * Sends a caller with no valid session to the login page.
+ *
+ * Always prefer this to `redirect('/login')` from a layout, page or action.
+ * Reaching this point means a session cookie survived the session it stood for,
+ * and a bare redirect leaves that cookie in place — `proxy.ts` reads it as
+ * "signed in" and bounces the request back into the portal, which lands here
+ * again, forever. The flag this adds tells the proxy to bin the cookie.
+ */
+export function redirectToLogin(from?: string): never {
+  redirect(staleSessionLoginUrl(from))
+}
+
+/**
+ * Sends a signed-in user to the portal their role owns — the right response to
+ * "authenticated, but not for this route". A role with no portal is a session
+ * we can't place, so it is treated as stale rather than looped further.
+ */
+export function redirectToPortal(user: AuthUser): never {
+  const portal = getPortalForRole(user.role)
+  redirect(portal ?? staleSessionLoginUrl())
+}
 
 export function verifyThirdPartyAuth(request: Request): boolean {
   const apiKeyHeader = request.headers.get('x-api-key') || request.headers.get('authorization')
