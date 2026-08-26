@@ -236,7 +236,17 @@ export default function ClientForm({ client, adminProfiles = [] }: ClientFormPro
       </div>
 
       {/* ── TAB 1: Basic Information */}
-      <div className="card" style={{ display: activeTab === 'basic' ? 'block' : 'none' }}>
+      <div 
+        className="card" 
+        style={{ 
+          display: activeTab === 'basic' ? 'block' : 'none',
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          border: '1px solid rgba(16, 28, 107, 0.08)',
+          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.02), 0 1px 3px rgba(0, 0, 0, 0.01)',
+          padding: '24px'
+        }}
+      >
         <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', marginBottom: 'var(--space-6)' }}>
           Basic Information
         </h2>
@@ -323,7 +333,17 @@ export default function ClientForm({ client, adminProfiles = [] }: ClientFormPro
       </div>
 
       {/* ── TAB 2: Contact Information */}
-      <div className="card" style={{ display: activeTab === 'contact' ? 'block' : 'none' }}>
+      <div 
+        className="card" 
+        style={{ 
+          display: activeTab === 'contact' ? 'block' : 'none',
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          border: '1px solid rgba(16, 28, 107, 0.08)',
+          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.02), 0 1px 3px rgba(0, 0, 0, 0.01)',
+          padding: '24px'
+        }}
+      >
         <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', marginBottom: 'var(--space-6)' }}>
           Contact Information
         </h2>
@@ -377,7 +397,17 @@ export default function ClientForm({ client, adminProfiles = [] }: ClientFormPro
       </div>
 
       {/* ── TAB 3: Address */}
-      <div className="card" style={{ display: activeTab === 'address' ? 'block' : 'none' }}>
+      <div 
+        className="card" 
+        style={{ 
+          display: activeTab === 'address' ? 'block' : 'none',
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          border: '1px solid rgba(16, 28, 107, 0.08)',
+          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.02), 0 1px 3px rgba(0, 0, 0, 0.01)',
+          padding: '24px'
+        }}
+      >
         <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', marginBottom: 'var(--space-6)' }}>
           Address Information
         </h2>
@@ -423,7 +453,17 @@ export default function ClientForm({ client, adminProfiles = [] }: ClientFormPro
       </div>
 
       {/* ── TAB 4: Legal & Registration */}
-      <div className="card" style={{ display: activeTab === 'legal' ? 'block' : 'none' }}>
+      <div 
+        className="card" 
+        style={{ 
+          display: activeTab === 'legal' ? 'block' : 'none',
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          border: '1px solid rgba(16, 28, 107, 0.08)',
+          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.02), 0 1px 3px rgba(0, 0, 0, 0.01)',
+          padding: '24px'
+        }}
+      >
         <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', marginBottom: 'var(--space-6)' }}>
           Legal &amp; Registration
         </h2>
@@ -495,7 +535,17 @@ export default function ClientForm({ client, adminProfiles = [] }: ClientFormPro
       </div>
 
       {/* ── TAB 5: Billing & Payment */}
-      <div className="card" style={{ display: activeTab === 'billing' ? 'block' : 'none' }}>
+      <div 
+        className="card" 
+        style={{ 
+          display: activeTab === 'billing' ? 'block' : 'none',
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          border: '1px solid rgba(16, 28, 107, 0.08)',
+          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.02), 0 1px 3px rgba(0, 0, 0, 0.01)',
+          padding: '24px'
+        }}
+      >
         <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', marginBottom: 'var(--space-6)' }}>
           Billing &amp; Payment
         </h2>
@@ -630,7 +680,17 @@ export default function ClientForm({ client, adminProfiles = [] }: ClientFormPro
       </div>
 
       {/* ── TAB 6: Internal / Admin */}
-      <div className="card" style={{ display: activeTab === 'internal' ? 'block' : 'none' }}>
+      <div 
+        className="card" 
+        style={{ 
+          display: activeTab === 'internal' ? 'block' : 'none',
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          border: '1px solid rgba(16, 28, 107, 0.08)',
+          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.02), 0 1px 3px rgba(0, 0, 0, 0.01)',
+          padding: '24px'
+        }}
+      >
         <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', marginBottom: 'var(--space-6)' }}>
           Internal / Admin Settings
         </h2>

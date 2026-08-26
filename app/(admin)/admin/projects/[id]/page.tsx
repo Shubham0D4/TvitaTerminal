@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { getServerUser, redirectToLogin } from '@/lib/auth/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Building2, Plus, CreditCard } from 'lucide-react'
+import { Building2, Plus, CreditCard, Clock, Layers } from 'lucide-react'
 import AdminProjectLeadSelector from '@/app/components/projects/AdminProjectLeadSelector'
 import ProjectTeamManager from '@/app/components/projects/ProjectTeamManager'
 import PublishUpdateTrigger from '@/app/components/projects/PublishUpdateTrigger'
@@ -73,97 +73,103 @@ export default async function AdminProjectDetailPage({ params }: PageProps) {
   const completedMilestones = project.milestones.filter((m: any) => m.status === 'COMPLETED').length
   const totalMilestones = project.milestones.length
 
+  const STATUS_STYLES: Record<string, { label: string; tone: string }> = {
+    PLANNED: { label: 'Planned', tone: 'slate' },
+    IN_PROGRESS: { label: 'In progress', tone: 'amber' },
+    ON_HOLD: { label: 'On hold', tone: 'orange' },
+    CLIENT_REVIEW: { label: 'In review', tone: 'blue' },
+    COMPLETED: { label: 'Completed', tone: 'green' },
+    CANCELLED: { label: 'Cancelled', tone: 'slate' },
+  }
+
+  const statusStyle = STATUS_STYLES[project.status] ?? { label: project.status, tone: 'slate' }
+  const currentPhase = project.milestones.find((m) => m.status !== 'COMPLETED')?.name
+
   return (
-    <div>
-      {/* Header */}
-      <div className="page-header">
-        <div className="flex items-center gap-3">
-          <Link href="/admin/projects" className="btn btn--ghost btn--icon">
-            <ArrowLeft size={18} />
-          </Link>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="page-header__title">{project.name}</h1>
-              <span className={`badge badge--${project.status.toLowerCase().replace('_', '-')}`}>
-                {project.status.replace('_', ' ')}
-              </span>
+    <div className="pdetail">
+      {/* ── Overview & Side Actions Column ── */}
+      <div className="pdetail__top">
+        <section className={`phero phero--${statusStyle.tone}`}>
+          <div
+            className="phero__banner"
+            style={{ backgroundImage: `url(${project.banner || '/banner.webp'})` }}
+          >
+            <div className="phero__upload">
+              <ProjectBannerUpload projectId={project.id} canUpload={true} />
             </div>
-            <div className="flex items-center gap-2" style={{ marginTop: 'var(--space-1)', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-              <Building2 size={13} />
-              <span>Client:</span>
-              <Link href={`/admin/clients/${project.client.id}`} style={{ color: 'var(--accent-primary)' }}>
+          </div>
+
+          <div className="phero__info">
+            <div className="phero__head">
+              <span
+                className="phero__thumb"
+                style={{ backgroundImage: `url(${project.banner || '/banner.webp'})` }}
+                aria-hidden="true"
+              />
+
+              <span className="phero__body">
+                <h1 className="phero__name">{project.name}</h1>
+                {currentPhase && <span className="phero__phase">{currentPhase}</span>}
+              </span>
+
+              <span className="phero__status">{statusStyle.label}</span>
+            </div>
+
+            {project.description && <p className="phero__desc">{project.description}</p>}
+
+            <div className="phero__meter">
+              <span className="phero__bar" aria-hidden="true">
+                <span className="phero__fill" style={{ width: `${project.progress}%` }} />
+              </span>
+              <span className="phero__pct">{project.progress}%</span>
+            </div>
+
+            <p className="phero__phases">
+              {completedMilestones} of {totalMilestones} milestones complete
+            </p>
+          </div>
+        </section>
+
+        <aside className="pside">
+          <div className="pside__card">
+            {/* Linked Client */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
+              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>CLIENT ACCOUNT</span>
+              <Link href={`/admin/clients/${project.client.id}`} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-sm)', color: 'var(--accent-primary)', fontWeight: 600 }}>
+                <Building2 size={16} />
                 {project.client.name}
               </Link>
             </div>
-          </div>
-        </div>
-        <div className="page-header__actions flex items-center gap-2">
-          <PublishUpdateTrigger projectId={project.id} />
-        </div>
-      </div>
 
-      {/* Project Banner cover image */}
-      <div 
-        style={{ 
-          position: 'relative', 
-          width: '100%', 
-          height: '240px', 
-          borderRadius: 'var(--radius-xl)', 
-          overflow: 'hidden', 
-          marginBottom: 'var(--space-6)',
-          backgroundImage: `url(${project.banner || '/banner.webp'})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          border: '1px solid var(--border-subtle)'
-        }}
-      >
-        <div style={{ position: 'absolute', right: 'var(--space-4)', bottom: 'var(--space-4)' }}>
-          <ProjectBannerUpload projectId={project.id} canUpload={true} />
-        </div>
-      </div>
-
-      {/* Overview Bar */}
-      <div className="card mb-6">
-        <div className="grid grid-cols-4 gap-4">
-          <div>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Milestone Progress</div>
-            <div className="flex items-center gap-2" style={{ marginTop: 'var(--space-1)' }}>
-              <div className="progress-bar-container" style={{ flex: 1 }}>
-                <div className="progress-bar-fill" style={{ width: `${project.progress}%` }} />
-              </div>
-              <span style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)' }}>
-                {project.progress}%
-              </span>
-            </div>
-            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
-              {completedMilestones}/{totalMilestones} milestones
-            </div>
-          </div>
-          <div>
+            {/* Lead Selector */}
             <AdminProjectLeadSelector
               projectId={project.id}
               currentLeadId={project.leadId}
               availableLeads={availableLeads}
             />
+
+            {/* Timelines */}
+            <dl className="pdates" style={{ marginTop: 'var(--space-4)', borderTop: '1px solid var(--border-subtle)', paddingTop: 'var(--space-3)' }}>
+              <div className="pdates__row">
+                <dt>Started</dt>
+                <dd>{formatDate(project.startDate)}</dd>
+              </div>
+              <div className="pdates__row">
+                <dt>Due Date</dt>
+                <dd>{formatDate(project.endDate)}</dd>
+              </div>
+            </dl>
           </div>
-          <div>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Start Date</div>
-            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)', marginTop: 'var(--space-1)' }}>{formatDate(project.startDate)}</div>
+
+          <div style={{ marginTop: 'var(--space-3)' }}>
+            <PublishUpdateTrigger projectId={project.id} />
           </div>
-          <div>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Target Completion</div>
-            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)', marginTop: 'var(--space-1)' }}>{formatDate(project.endDate)}</div>
-          </div>
-        </div>
-        {project.description && (
-          <div style={{ marginTop: 'var(--space-4)', paddingTop: 'var(--space-4)', borderTop: '1px solid var(--border-subtle)', fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-            {project.description}
-          </div>
-        )}
+        </aside>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
-        {/* Main: Milestones + Approvals */}
+      {/* ── Tabs, Team, and Billing Grid ── */}
+      <div className="grid grid-cols-3 gap-6 mt-6">
+        {/* Workspace tabs (Milestones, approving tasks, etc.) */}
         <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
           <ProjectWorkspaceTabs
             projectId={id}
@@ -176,14 +182,12 @@ export default async function AdminProjectDetailPage({ params }: PageProps) {
             isLead={isLead}
           />
 
-          {/* Published Updates */}
+          {/* Published Updates logs list */}
           {project.updates.length > 0 && (
             <div className="card">
-              <div className="flex items-center justify-between mb-4">
-                <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
-                  Published Updates ({project.updates.length})
-                </h2>
-              </div>
+              <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', marginBottom: 'var(--space-4)' }}>
+                Published Updates ({project.updates.length})
+              </h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
                 {project.updates.map((u: any) => (
                   <div key={u.id} style={{ padding: 'var(--space-3)', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
@@ -202,7 +206,7 @@ export default async function AdminProjectDetailPage({ params }: PageProps) {
           )}
         </div>
 
-        {/* Right: Team + Invoices */}
+        {/* Right side widgets: Team & Invoicing */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
           <ProjectTeamManager
             projectId={project.id}
@@ -211,7 +215,7 @@ export default async function AdminProjectDetailPage({ params }: PageProps) {
             isLeadOrAdmin={true}
           />
 
-          {/* Invoices */}
+          {/* Invoices raised */}
           <div className="card">
             <div className="flex items-center justify-between mb-4">
               <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>

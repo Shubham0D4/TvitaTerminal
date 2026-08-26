@@ -2086,11 +2086,11 @@ a:hover { color: var(--accent-primary-hover); }
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  border-radius: 10px;
   font-size: var(--text-sm);
-  font-weight: var(--font-medium);
-  color: var(--text-muted);
+  font-weight: 500;
+  color: #71717a;
   text-decoration: none;
   transition: all var(--transition-fast);
   position: relative;
@@ -2099,24 +2099,26 @@ a:hover { color: var(--accent-primary-hover); }
 }
 
 .sidebar__nav-item:hover {
-  background: var(--bg-elevated);
-  color: var(--text-primary);
+  background: #f4f4f5;
+  color: #18181b;
 }
 
 .sidebar__nav-item--active {
-  background: var(--accent-primary-muted);
-  color: var(--accent-primary);
+  background: #f4f4f5;
+  color: #18181b;
+  font-weight: 600;
 }
 
 .sidebar__nav-item--active:hover {
-  background: var(--accent-primary-muted);
-  color: var(--accent-primary);
+  background: #e4e4e7;
+  color: #18181b;
 }
 
 .sidebar__nav-icon {
   display: flex;
   align-items: center;
   flex-shrink: 0;
+  color: inherit;
 }
 
 .sidebar__nav-label {
@@ -2129,7 +2131,7 @@ a:hover { color: var(--accent-primary-hover); }
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: var(--accent-primary);
+  background: #18181b;
   flex-shrink: 0;
 }
 
@@ -2196,10 +2198,10 @@ a:hover { color: var(--accent-primary-hover); }
   width: 100%;
   padding-left: calc(var(--space-3) + 16px + var(--space-2));
   padding-right: var(--space-3);
-  height: 34px;
-  background: var(--bg-overlay);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-full);
+  height: 36px;
+  background: #fbfbfc;
+  border: 1px solid rgba(16, 28, 107, 0.08);
+  border-radius: 10px;
   font-size: var(--text-sm);
   color: var(--text-primary);
   font-family: var(--font-family);
@@ -2207,12 +2209,12 @@ a:hover { color: var(--accent-primary-hover); }
   transition: all var(--transition-fast);
 }
 
-.topbar__search-input::placeholder { color: var(--text-disabled); }
+.topbar__search-input::placeholder { color: #a1a1aa; }
 
 .topbar__search-input:focus {
-  background: var(--bg-elevated);
-  border-color: var(--border-default);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+  background: #ffffff;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(35, 64, 184, 0.08);
 }
 
 .topbar__right {

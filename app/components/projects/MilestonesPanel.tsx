@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useTransition, useActionState, ChangeEvent } from 'react'
-import { Plus, X, Trash2, CheckCircle2, PlayCircle, PauseCircle, Image as ImageIcon, Lock, ChevronDown, ChevronUp } from 'lucide-react'
+import { useState, useTransition } from 'react'
+import { CheckCircle2, PlayCircle, PauseCircle, Lock, ChevronDown, ChevronUp, X } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { createMilestone, updateMilestoneStatus, deleteMilestone, type MilestoneFormState } from '@/app/(admin)/admin/projects/milestoneActions'
+import { updateMilestoneStatus } from '@/app/(admin)/admin/projects/milestoneActions'
 import type { Milestone } from '@prisma/client'
 import { apiClient } from '@/lib/utils/api-client'
 
@@ -33,13 +33,8 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-const initial: MilestoneFormState = {}
-
 export default function MilestonesPanel({ projectId, isLead, milestones: initialMilestones, projectMembers }: Props) {
   const [milestones, setMilestones] = useState(initialMilestones)
-  const [showCreate, setShowCreate] = useState(false)
-  const [autoAssign, setAutoAssign] = useState(false)
-  const [previewImages, setPreviewImages] = useState<string[]>([])
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -108,17 +103,6 @@ export default function MilestonesPanel({ projectId, isLead, milestones: initial
     }
   }
 
-  const createBound = createMilestone.bind(null, projectId)
-  const [state, formAction, creating] = useActionState(createBound, initial)
-
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const files = Array.from(e.target.files)
-      const previews = files.map((file) => URL.createObjectURL(file))
-      setPreviewImages(previews)
-    }
-  }
-
   const handleStatusChange = (milestoneId: string, status: Parameters<typeof updateMilestoneStatus>[1]) => {
     startTransition(async () => {
       const res = await updateMilestoneStatus(milestoneId, status)
@@ -133,141 +117,18 @@ export default function MilestonesPanel({ projectId, isLead, milestones: initial
     })
   }
 
-  const handleDelete = (milestoneId: string) => {
-    if (!confirm('Delete this milestone?')) return
-    startTransition(async () => {
-      const res = await deleteMilestone(milestoneId)
-      if (res.success) {
-        toast.success(res.message)
-        setMilestones((prev) => prev.filter((m) => m.id !== milestoneId))
-      } else toast.error(res.message)
-    })
-  }
-
   return (
     <div className="card">
       <div className="flex items-center justify-between mb-4">
         <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
           Process Stages ({milestones.length})
         </h2>
-        {isLead && (
-          <button type="button" onClick={() => setShowCreate(!showCreate)} className="btn btn--ghost btn--sm">
-            {showCreate ? <><X size={14} /> Cancel</> : <><Plus size={14} /> Add Stage</>}
-          </button>
-        )}
       </div>
-
-      {/* Create form */}
-      {isLead && showCreate && (
-        <form
-          action={async (fd) => {
-            const res = await formAction(fd) as unknown as MilestoneFormState
-            if (res?.success) {
-              toast.success('Milestone created')
-              setShowCreate(false)
-              setPreviewImages([])
-            } else if (res?.message) {
-              toast.error(res.message!)
-            }
-          }}
-          style={{ marginBottom: 'var(--space-5)', padding: 'var(--space-4)', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)' }}
-        >
-          <div className="settings-grid" style={{ marginBottom: 'var(--space-3)' }}>
-            <div className="form-group" style={{ gridColumn: 'span 2' }}>
-              <label className="form-label" htmlFor="ms-name">Milestone Goal Name <span className="form-required">*</span></label>
-              <input id="ms-name" name="name" className="form-input" placeholder="e.g. Design Mockups Delivered" required />
-              <p className="form-hint">Descriptive title of the milestone objective</p>
-            </div>
-            <div className="form-group" style={{ gridColumn: 'span 2' }}>
-              <label className="form-label" htmlFor="ms-desc">Milestone Scope / Description</label>
-              <textarea id="ms-desc" name="description" className="form-textarea" rows={2} placeholder="What does completing this milestone involve?" />
-              <p className="form-hint">Context, deliverables list, check-off tasks or specific boundaries for delivery</p>
-            </div>
-
-            {/* Internal Image Attachments */}
-            <div className="form-group" style={{ gridColumn: 'span 2' }}>
-              <div className="flex items-center justify-between mb-1">
-                <label className="form-label flex items-center gap-1.5" style={{ margin: 0 }}>
-                  <ImageIcon size={14} style={{ color: 'var(--accent-primary)' }} />
-                  Internal Images (Team Only)
-                </label>
-                <span className="flex items-center gap-1" style={{ fontSize: 10, color: 'var(--text-muted)', background: 'var(--bg-card)', padding: '2px 8px', borderRadius: 12 }}>
-                  <Lock size={10} /> Not visible to Client
-                </span>
-              </div>
-              <input
-                type="file"
-                name="images"
-                accept="image/*"
-                multiple
-                className="form-input"
-                onChange={handleFileChange}
-                style={{ fontSize: 'var(--text-xs)' }}
-              />
-              <p className="form-hint">Upload visual reference material or proof-of-work updates for team inspect</p>
-              {previewImages.length > 0 && (
-                <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)', flexWrap: 'wrap' }}>
-                  {previewImages.map((src, idx) => (
-                    <div key={idx} style={{ position: 'relative', width: 54, height: 54, borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
-                      {/* eslint-disable-next-img-element */}
-                      <img src={src} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="form-group">
-              <label className="form-label" htmlFor="ms-due">Due Date</label>
-              <input id="ms-due" name="dueDate" type="date" className="form-input" />
-              <p className="form-hint">Deadline date for the work</p>
-            </div>
-            <div className="form-group">
-              <label className="form-label" htmlFor="ms-role">Assign Role</label>
-              <select id="ms-role" name="assigneeRole" className="form-select">
-                <option value="">— Any Role —</option>
-                <option value="MEMBER">Team Member</option>
-                <option value="TEAM_LEAD">Team Lead</option>
-              </select>
-              <p className="form-hint">Assigned contributor category profile</p>
-            </div>
-
-            <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', cursor: 'pointer', fontSize: 'var(--text-sm)', height: 38 }}>
-                <input type="checkbox" name="autoAssign" id="ms-auto" style={{ width: 16, height: 16, accentColor: 'var(--accent-primary)' }}
-                  checked={autoAssign} onChange={(e) => setAutoAssign(e.target.checked)} />
-                Auto-assign (least busy)
-              </label>
-              <p className="form-hint">Automated selection of staff member with lowest load</p>
-            </div>
-
-            {!autoAssign && (
-              <div className="form-group">
-                <label className="form-label" htmlFor="ms-assignee">Assign Contributor</label>
-                <select id="ms-assignee" name="assigneeId" className="form-select">
-                  <option value="">— Unassigned —</option>
-                  {projectMembers.map((m) => (
-                    <option key={m.profileId} value={m.profileId}>
-                      {m.profile.name} ({m.role})
-                    </option>
-                  ))}
-                </select>
-                <p className="form-hint">Manually assign a specific project developer, lead, or tester</p>
-              </div>
-            )}
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button type="submit" className={`btn btn--primary btn--sm${creating ? ' btn--loading' : ''}`} disabled={creating}>
-              {creating ? '' : 'Create Milestone'}
-            </button>
-          </div>
-        </form>
-      )}
 
       {/* Milestones list */}
       {milestones.length === 0 ? (
         <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
-          No milestones yet. {isLead ? 'Click "+ New Milestone" to create the first one.' : 'Your lead will create milestones to track progress.'}
+          No milestones set.
         </p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
@@ -349,11 +210,7 @@ export default function MilestonesPanel({ projectId, isLead, milestones: initial
                       Re-open
                     </button>
                   )}
-                  {isLead && (
-                    <button className="btn btn--ghost btn--icon" onClick={() => handleDelete(m.id)} disabled={isPending} style={{ width: 28, height: 28 }} title="Delete">
-                      <Trash2 size={13} style={{ color: 'var(--color-danger)' }} />
-                    </button>
-                  )}
+
                 </div>
               </div>
 

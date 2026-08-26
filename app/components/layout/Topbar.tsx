@@ -155,20 +155,7 @@ export default function Topbar({ user }: TopbarProps) {
 
   return (
     <header className="topbar">
-      {/* Search */}
-      <form
-        className="topbar__search"
-        method="GET"
-        action={getSearchAction()}
-      >
-        <Search size={15} className="topbar__search-icon" />
-        <input
-          type="text"
-          name="search"
-          placeholder="Search projects…"
-          className="topbar__search-input"
-        />
-      </form>
+      <div style={{ flex: 1 }} /> {/* Spacers to push right items to the right side */}
 
       {/* Right side */}
       <div className="topbar__right">
