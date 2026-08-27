@@ -72,11 +72,11 @@ export async function POST(request: NextRequest) {
     }
 
     const PREDEFINED_PROCESS_STAGES = [
-      { name: 'Discovery and Research', description: 'Initial requirements gathering, market research, and scope definition.', sortOrder: 1, clientVisible: true, status: 'IN_PROGRESS' as const },
+      { name: 'Discovery & research', description: 'Initial requirements gathering, market research, and scope definition.', sortOrder: 1, clientVisible: true, status: 'IN_PROGRESS' as const },
       { name: 'Design', description: 'UI/UX designs, wireframes, architectural blueprints, and mockups.', sortOrder: 2, clientVisible: true, status: 'PLANNED' as const },
-      { name: 'Quote and Planning', description: 'Project timeline estimation, resource allocation, and budget approval.', sortOrder: 3, clientVisible: true, status: 'PLANNED' as const },
-      { name: 'Crafting the Artifact', description: 'Active development, coding, build execution, and feature implementation.', sortOrder: 4, clientVisible: true, status: 'PLANNED' as const },
-      { name: 'Testing and Launch', description: 'Quality assurance, UAT, bug fixes, deployment, and final release.', sortOrder: 5, clientVisible: true, status: 'PLANNED' as const },
+      { name: 'Quote & planning', description: 'Project timeline estimation, resource allocation, and budget approval.', sortOrder: 3, clientVisible: true, status: 'PLANNED' as const },
+      { name: 'Crafting the Backend', description: 'Active development, coding, build execution, and feature implementation.', sortOrder: 4, clientVisible: true, status: 'PLANNED' as const },
+      { name: 'Testing & launch', description: 'Quality assurance, UAT, bug fixes, deployment, and final release.', sortOrder: 5, clientVisible: true, status: 'PLANNED' as const },
     ]
 
     const project = await prisma.project.create({

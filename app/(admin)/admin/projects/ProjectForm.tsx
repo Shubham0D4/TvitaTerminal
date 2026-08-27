@@ -61,7 +61,7 @@ export default function ProjectForm({ clients, teamMembers, initialClientId }: P
   const displayError = (field: string) => {
     const errorMsg = localErrors[field]
     if (!errorMsg) return null
-    return <p className="form-error">{errorMsg}</p>
+    return <p className="form-error" style={{ fontSize: '11px', color: 'var(--color-danger)', marginTop: '4px', margin: 0 }}>{errorMsg}</p>
   }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -110,120 +110,176 @@ export default function ProjectForm({ clients, teamMembers, initialClientId }: P
 
   return (
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-      <div className="card">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-6)' }}>
-          <Link href="/admin/projects" className="btn btn--ghost btn--icon" title="Back to projects">
-            <ArrowLeft size={18} />
+      <div className="card" style={{ padding: '24px', borderRadius: '16px', border: '1px solid var(--border-subtle)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-6)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '16px' }}>
+          <Link href="/admin/projects" className="btn btn--ghost btn--icon" title="Back to projects" style={{ border: '1px solid var(--border-default)', borderRadius: '50%', padding: '6px' }}>
+            <ArrowLeft size={16} />
           </Link>
-          <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
+          <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
             Project Setup
           </h2>
         </div>
 
-        <div className="settings-grid">
-          <div className="form-group" style={{ gridColumn: 'span 2' }}>
-            <label className="form-label" htmlFor="name">
-              Project Name <span className="form-required">*</span>
-            </label>
-            <input
-              id="name"
-              name="name"
-              className={fieldClass('name')}
-              placeholder="e.g. Website Redesign & Branding"
-              required
-              onChange={handleChange}
-              onBlur={handleBlur}
-            />
-            {displayError('name')}
-            <p className="form-hint">Descriptive and clear name for the engagement</p>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {/* Row 1: Project Name */}
+          <div className="form-row">
+            <div className="form-row__meta">
+              <label className="form-label" htmlFor="name" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>
+                Project Name <span className="form-required">*</span>
+              </label>
+              <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Descriptive and clear name for the engagement</p>
+              {displayError('name')}
+            </div>
+            <div className="form-row__control">
+              <input
+                id="name"
+                name="name"
+                className={fieldClass('name')}
+                placeholder="e.g. Website Redesign & Branding"
+                required
+                onChange={handleChange}
+                onBlur={handleBlur}
+                style={{ width: '100%' }}
+              />
+            </div>
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="clientId">
-              Client / Organization <span className="form-required">*</span>
-            </label>
-            <select
-              id="clientId"
-              name="clientId"
-              className={selectClass('clientId')}
-              defaultValue={initialClientId ?? ''}
-              required
-              onChange={handleChange}
-              onBlur={handleBlur}
-            >
-              <option value="" disabled>Select client</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-            {displayError('clientId')}
-            <p className="form-hint">Select the active company/client this project belongs to</p>
+          {/* Row 2: Client / Organization */}
+          <div className="form-row">
+            <div className="form-row__meta">
+              <label className="form-label" htmlFor="clientId" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>
+                Client / Organization <span className="form-required">*</span>
+              </label>
+              <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Select the active company/client this project belongs to</p>
+              {displayError('clientId')}
+            </div>
+            <div className="form-row__control">
+              <select
+                id="clientId"
+                name="clientId"
+                className={selectClass('clientId')}
+                defaultValue={initialClientId ?? ''}
+                required
+                onChange={handleChange}
+                onBlur={handleBlur}
+                style={{ width: '100%' }}
+              >
+                <option value="" disabled>Select client</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="leadId">Project Lead</label>
-            <select id="leadId" name="leadId" className="form-select">
-              <option value="">Unassigned</option>
-              {teamMembers.map((m) => (
-                <option key={m.id} value={m.id}>{m.name}</option>
-              ))}
-            </select>
-            <p className="form-hint">The primary manager responsible for milestone scheduling and delivery</p>
+          {/* Row 3: Project Lead */}
+          <div className="form-row">
+            <div className="form-row__meta">
+              <label className="form-label" htmlFor="leadId" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>
+                Project Lead
+              </label>
+              <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>The primary manager responsible for milestone scheduling and delivery</p>
+            </div>
+            <div className="form-row__control">
+              <select id="leadId" name="leadId" className="form-select" style={{ width: '100%' }}>
+                <option value="">Unassigned</option>
+                {teamMembers.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="status">Initial Status</label>
-            <select id="status" name="status" className="form-select" defaultValue="PLANNED">
-              <option value="PLANNED">Planned</option>
-              <option value="IN_PROGRESS">In Progress</option>
-              <option value="ON_HOLD">On Hold</option>
-            </select>
-            <p className="form-hint">Current phase status for administrative sorting</p>
+          {/* Row 4: Initial Status */}
+          <div className="form-row">
+            <div className="form-row__meta">
+              <label className="form-label" htmlFor="status" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>
+                Initial Status
+              </label>
+              <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Current phase status for administrative sorting</p>
+            </div>
+            <div className="form-row__control">
+              <select id="status" name="status" className="form-select" defaultValue="PLANNED" style={{ width: '100%' }}>
+                <option value="PLANNED">Planned</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="ON_HOLD">On Hold</option>
+              </select>
+            </div>
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="progress">Initial Progress (%)</label>
-            <input
-              id="progress"
-              name="progress"
-              type="number"
-              min={0}
-              max={100}
-              defaultValue={0}
-              className={fieldClass('progress')}
-              onChange={handleChange}
-              onBlur={handleBlur}
-            />
-            {displayError('progress')}
-            <p className="form-hint">Estimated completion percent (calculated from milestones)</p>
+          {/* Row 5: Initial Progress (%) */}
+          <div className="form-row">
+            <div className="form-row__meta">
+              <label className="form-label" htmlFor="progress" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>
+                Initial Progress (%)
+              </label>
+              <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Estimated completion percent (calculated from milestones)</p>
+              {displayError('progress')}
+            </div>
+            <div className="form-row__control">
+              <input
+                id="progress"
+                name="progress"
+                type="number"
+                min={0}
+                max={100}
+                defaultValue={0}
+                className={fieldClass('progress')}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                style={{ width: '100%' }}
+              />
+            </div>
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="startDate">Start Date</label>
-            <input id="startDate" name="startDate" type="date" className="form-input" />
-            <p className="form-hint">Scheduled kick-off date</p>
+          {/* Row 6: Start Date */}
+          <div className="form-row">
+            <div className="form-row__meta">
+              <label className="form-label" htmlFor="startDate" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>
+                Start Date
+              </label>
+              <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Scheduled kick-off date</p>
+            </div>
+            <div className="form-row__control">
+              <input id="startDate" name="startDate" type="date" className="form-input" style={{ width: '100%' }} />
+            </div>
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="endDate">Target End Date</label>
-            <input id="endDate" name="endDate" type="date" className="form-input" />
-            <p className="form-hint">Target files handover / release milestone date</p>
+          {/* Row 7: Target End Date */}
+          <div className="form-row">
+            <div className="form-row__meta">
+              <label className="form-label" htmlFor="endDate" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>
+                Target End Date
+              </label>
+              <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Target files handover / release milestone date</p>
+            </div>
+            <div className="form-row__control">
+              <input id="endDate" name="endDate" type="date" className="form-input" style={{ width: '100%' }} />
+            </div>
           </div>
 
-          <div className="form-group" style={{ gridColumn: 'span 2' }}>
-            <label className="form-label" htmlFor="description">Project Description & Scope</label>
-            <textarea
-              id="description"
-              name="description"
-              className="form-textarea"
-              placeholder="Outline project deliverables, requirements, and scope."
-              rows={4}
-            />
-            <p className="form-hint">Brief summary of terms of reference, design direction, or scope bounds</p>
+          {/* Row 8: Project Description & Scope */}
+          <div className="form-row" style={{ borderBottom: 'none' }}>
+            <div className="form-row__meta">
+              <label className="form-label" htmlFor="description" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>
+                Project Description & Scope
+              </label>
+              <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Brief summary of terms of reference, design direction, or scope bounds</p>
+            </div>
+            <div className="form-row__control">
+              <textarea
+                id="description"
+                name="description"
+                className="form-textarea"
+                placeholder="Outline project deliverables, requirements, and scope."
+                rows={4}
+                style={{ width: '100%', borderRadius: '12px', border: '1px solid var(--border-default)', padding: '10px 12px', fontSize: 'var(--text-sm)', background: '#ffffff', outline: 'none', transition: 'border-color 0.15s ease' }}
+              />
+            </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-3)', marginTop: 'var(--space-6)' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-3)', marginTop: 'var(--space-6)', borderTop: '1px solid var(--border-subtle)', paddingTop: '20px' }}>
           <Link href="/admin/projects" className="btn btn--ghost">Cancel</Link>
           <button
             type="submit"

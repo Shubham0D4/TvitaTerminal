@@ -14,14 +14,11 @@ import {
   ShieldCheck,
   KeyRound,
   Activity,
-  CheckCircle2,
-  Lock,
-  Server,
-  Database,
-  FileCheck,
-  AlertTriangle,
+  ScrollText,
   RefreshCw,
-  ScrollText
+  Mail,
+  Receipt,
+  PiggyBank
 } from 'lucide-react'
 
 const INDIAN_STATES = [
@@ -49,6 +46,7 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
       setActiveTab(tabParam)
     }
   }, [tabParam])
+
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({})
   const [pending, setPending] = useState(false)
 
@@ -56,11 +54,6 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordPending, setPasswordPending] = useState(false)
-
-  // Security policy states (toggles)
-  const [enforceMfa, setEnforceMfa] = useState(true)
-  const [auditLoggingEnabled, setAuditLoggingEnabled] = useState(true)
-  const [strictSessionTimeout, setStrictSessionTimeout] = useState(true)
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -143,10 +136,15 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
     return `form-input${hasError ? ' form-input--error' : ''}`
   }
 
+  const selectClass = (field: string) => {
+    const hasError = !!localErrors[field]
+    return `form-select${hasError ? ' form-select--error' : ''}`
+  }
+
   const displayError = (field: string) => {
     const errorMsg = localErrors[field]
     if (!errorMsg) return null
-    return <p className="form-error">{errorMsg}</p>
+    return <p className="form-error" style={{ fontSize: '11px', color: 'var(--color-danger)', marginTop: '4px', margin: 0 }}>{errorMsg}</p>
   }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -204,295 +202,292 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
   ]
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: '32px', alignItems: 'flex-start' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 0.8fr) minmax(0, 2.2fr)', gap: '32px', alignItems: 'flex-start' }}>
       {/* ── Sidebar Navigation ── */}
-      <aside
-        style={{
-          background: 'var(--bg-surface, #ffffff)',
-          border: '1px solid var(--border-default, #e2e8f0)',
-          borderRadius: '12px',
-          padding: '12px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '6px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
-        }}
-      >
-        <div style={{ padding: '8px 12px', fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+      <aside className="settings-menu">
+        <div style={{ padding: '0 12px 8px 12px', fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-subtle)', marginBottom: '8px' }}>
           Settings Menu
         </div>
 
         <button
           type="button"
           onClick={() => setActiveTab('general')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            padding: '10px 14px',
-            borderRadius: '8px',
-            border: 'none',
-            background: activeTab === 'general' ? '#1e40af' : 'transparent',
-            color: activeTab === 'general' ? '#ffffff' : 'var(--text-primary, #0f172a)',
-            fontWeight: activeTab === 'general' ? 600 : 500,
-            fontSize: '14px',
-            cursor: 'pointer',
-            textAlign: 'left',
-            transition: 'all 0.15s ease',
-          }}
+          className={`settings-tab-btn ${activeTab === 'general' ? 'settings-tab-btn--active' : ''}`}
         >
-          <Building2 size={18} />
+          <Building2 size={16} />
           <span>General & Agency</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('finance')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            padding: '10px 14px',
-            borderRadius: '8px',
-            border: 'none',
-            background: activeTab === 'finance' ? '#1e40af' : 'transparent',
-            color: activeTab === 'finance' ? '#ffffff' : 'var(--text-primary, #0f172a)',
-            fontWeight: activeTab === 'finance' ? 600 : 500,
-            fontSize: '14px',
-            cursor: 'pointer',
-            textAlign: 'left',
-            transition: 'all 0.15s ease',
-          }}
+          className={`settings-tab-btn ${activeTab === 'finance' ? 'settings-tab-btn--active' : ''}`}
         >
-          <Landmark size={18} />
+          <Landmark size={16} />
           <span>Finance & GST</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('security')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            padding: '10px 14px',
-            borderRadius: '8px',
-            border: 'none',
-            background: activeTab === 'security' ? '#1e40af' : 'transparent',
-            color: activeTab === 'security' ? '#ffffff' : 'var(--text-primary, #0f172a)',
-            fontWeight: activeTab === 'security' ? 600 : 500,
-            fontSize: '14px',
-            cursor: 'pointer',
-            textAlign: 'left',
-            transition: 'all 0.15s ease',
-          }}
+          className={`settings-tab-btn ${activeTab === 'security' ? 'settings-tab-btn--active' : ''}`}
         >
-          <ShieldCheck size={18} />
-          <span>Security & Route Health</span>
+          <ShieldCheck size={16} />
+          <span>Security & Health</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('audit')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            padding: '10px 14px',
-            borderRadius: '8px',
-            border: 'none',
-            background: activeTab === 'audit' ? '#1e40af' : 'transparent',
-            color: activeTab === 'audit' ? '#ffffff' : 'var(--text-primary, #0f172a)',
-            fontWeight: activeTab === 'audit' ? 600 : 500,
-            fontSize: '14px',
-            cursor: 'pointer',
-            textAlign: 'left',
-            transition: 'all 0.15s ease',
-          }}
+          className={`settings-tab-btn ${activeTab === 'audit' ? 'settings-tab-btn--active' : ''}`}
         >
-          <ScrollText size={18} />
-          <span>Audit Logs & History</span>
+          <ScrollText size={16} />
+          <span>Audit Logs</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('password')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            padding: '10px 14px',
-            borderRadius: '8px',
-            border: 'none',
-            background: activeTab === 'password' ? '#1e40af' : 'transparent',
-            color: activeTab === 'password' ? '#ffffff' : 'var(--text-primary, #0f172a)',
-            fontWeight: activeTab === 'password' ? 600 : 500,
-            fontSize: '14px',
-            cursor: 'pointer',
-            textAlign: 'left',
-            transition: 'all 0.15s ease',
-          }}
+          className={`settings-tab-btn ${activeTab === 'password' ? 'settings-tab-btn--active' : ''}`}
         >
-          <KeyRound size={18} />
+          <KeyRound size={16} />
           <span>Password Reset</span>
         </button>
       </aside>
 
       {/* ── Main Content Area ── */}
-      <main>
+      <main style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
         {/* 1. GENERAL & AGENCY TAB */}
         {activeTab === 'general' && (
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            <section className="card">
-              <h2 className="settings-section__title flex items-center gap-2">
-                <Building2 size={20} style={{ color: '#1e40af' }} />
-                Company Information
-              </h2>
-              <p className="settings-section__desc">
-                This information appears on tax invoices, client portals, and official emails.
-              </p>
-              <div className="settings-grid">
-                <div className="form-group" style={{ gridColumn: 'span 2' }}>
-                  <label className="form-label" htmlFor="companyName">
-                    Company Name <span className="form-required">*</span>
-                  </label>
-                  <input
-                    id="companyName"
-                    name="companyName"
-                    className={fieldClass('companyName')}
-                    defaultValue={settings?.companyName ?? 'Tvita'}
-                    placeholder="Tvita"
-                    required
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                  />
-                  {displayError('companyName')}
-                  <p className="form-hint">Official agency name printed across the platform</p>
+            <section className="card" style={{ padding: '24px', borderRadius: '16px', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-6)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '16px' }}>
+                <Building2 size={20} style={{ color: 'var(--accent-primary)' }} />
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+                    Company Information
+                  </h2>
+                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+                    This information appears on tax invoices, client portals, and official emails.
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {/* Row 1: Company Name */}
+                <div className="form-row">
+                  <div className="form-row__meta">
+                    <label className="form-label" htmlFor="companyName" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>
+                      Company Name <span className="form-required">*</span>
+                    </label>
+                    <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Official agency name printed across the platform</p>
+                    {displayError('companyName')}
+                  </div>
+                  <div className="form-row__control">
+                    <input
+                      id="companyName"
+                      name="companyName"
+                      className={fieldClass('companyName')}
+                      defaultValue={settings?.companyName ?? 'Tvita'}
+                      placeholder="Tvita"
+                      required
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      style={{ width: '100%' }}
+                    />
+                  </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label" htmlFor="companyEmail">Email</label>
-                  <input
-                    id="companyEmail"
-                    name="companyEmail"
-                    type="email"
-                    className={fieldClass('companyEmail')}
-                    defaultValue={settings?.companyEmail ?? ''}
-                    placeholder="contact@tvita.dev"
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                  />
-                  {displayError('companyEmail')}
-                  <p className="form-hint">Main corporate contact email address</p>
+                {/* Row 2: Email */}
+                <div className="form-row">
+                  <div className="form-row__meta">
+                    <label className="form-label" htmlFor="companyEmail" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>
+                      Email
+                    </label>
+                    <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Main corporate contact email address</p>
+                    {displayError('companyEmail')}
+                  </div>
+                  <div className="form-row__control">
+                    <input
+                      id="companyEmail"
+                      name="companyEmail"
+                      type="email"
+                      className={fieldClass('companyEmail')}
+                      defaultValue={settings?.companyEmail ?? ''}
+                      placeholder="contact@tvita.dev"
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      style={{ width: '100%' }}
+                    />
+                  </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label" htmlFor="companyPhone">Phone</label>
-                  <input
-                    id="companyPhone"
-                    name="companyPhone"
-                    className="form-input"
-                    defaultValue={settings?.companyPhone ?? ''}
-                    placeholder="+91 98765 43210"
-                  />
-                  <p className="form-hint">Official agency support phone number</p>
+                {/* Row 3: Phone */}
+                <div className="form-row">
+                  <div className="form-row__meta">
+                    <label className="form-label" htmlFor="companyPhone" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>
+                      Phone
+                    </label>
+                    <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Official agency support phone number</p>
+                  </div>
+                  <div className="form-row__control">
+                    <input
+                      id="companyPhone"
+                      name="companyPhone"
+                      className="form-input"
+                      defaultValue={settings?.companyPhone ?? ''}
+                      placeholder="+91 98765 43210"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
                 </div>
 
-                <div className="form-group" style={{ gridColumn: 'span 2' }}>
-                  <label className="form-label" htmlFor="companyAddress">Address</label>
-                  <textarea
-                    id="companyAddress"
-                    name="companyAddress"
-                    className="form-textarea"
-                    defaultValue={settings?.companyAddress ?? ''}
-                    placeholder="123, Tech Park, Mumbai, Maharashtra - 400001"
-                    rows={3}
-                  />
-                  <p className="form-hint">Physical company office address printed on invoice headers</p>
+                {/* Row 4: Address */}
+                <div className="form-row">
+                  <div className="form-row__meta">
+                    <label className="form-label" htmlFor="companyAddress" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>
+                      Address
+                    </label>
+                    <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Physical company office address printed on invoice headers</p>
+                  </div>
+                  <div className="form-row__control">
+                    <textarea
+                      id="companyAddress"
+                      name="companyAddress"
+                      className="form-textarea"
+                      defaultValue={settings?.companyAddress ?? ''}
+                      placeholder="123, Tech Park, Mumbai, Maharashtra - 400001"
+                      rows={3}
+                      style={{ width: '100%' }}
+                    />
+                  </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label" htmlFor="companyState">State (for GST)</label>
-                  <select
-                    id="companyState"
-                    name="companyState"
-                    className="form-select"
-                    defaultValue={settings?.companyState ?? ''}
-                  >
-                    <option value="">Select state</option>
-                    {INDIAN_STATES.map(state => (
-                      <option key={state} value={state}>{state}</option>
-                    ))}
-                  </select>
-                  <p className="form-hint">State region required for GST tax rules</p>
+                {/* Row 5: State */}
+                <div className="form-row" style={{ borderBottom: 'none' }}>
+                  <div className="form-row__meta">
+                    <label className="form-label" htmlFor="companyState" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>
+                      State (for GST)
+                    </label>
+                    <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>State region required for GST tax rules</p>
+                  </div>
+                  <div className="form-row__control">
+                    <select
+                      id="companyState"
+                      name="companyState"
+                      className="form-select"
+                      defaultValue={settings?.companyState ?? ''}
+                      style={{ width: '100%' }}
+                    >
+                      <option value="">Select state</option>
+                      {INDIAN_STATES.map(state => (
+                        <option key={state} value={state}>{state}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
             </section>
 
-            {/* SMTP & Email Section inside General */}
-            <section className="card">
-              <h2 className="settings-section__title">SMTP & Email Configuration</h2>
-              <p className="settings-section__desc">
-                Configure SMTP server details for automated notifications, magic link invites, and client reports.
-              </p>
-              <div className="settings-grid">
-                <div className="form-group">
-                  <label className="form-label" htmlFor="smtpHost">SMTP Host</label>
-                  <input
-                    id="smtpHost"
-                    name="smtpHost"
-                    className="form-input"
-                    defaultValue={(settings as any)?.smtpHost ?? 'smtp.gmail.com'}
-                    placeholder="smtp.gmail.com"
-                  />
+            {/* SMTP & Email Section */}
+            <section className="card" style={{ padding: '24px', borderRadius: '16px', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-6)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '16px' }}>
+                <Mail size={20} style={{ color: 'var(--accent-primary)' }} />
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+                    SMTP & Email Configuration
+                  </h2>
+                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+                    Configure SMTP server details for automated notifications, magic link invites, and client reports.
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {/* SMTP Host */}
+                <div className="form-row">
+                  <div className="form-row__meta">
+                    <label className="form-label" htmlFor="smtpHost" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>SMTP Host</label>
+                    <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Outgoing mail server (e.g. smtp.gmail.com)</p>
+                  </div>
+                  <div className="form-row__control">
+                    <input
+                      id="smtpHost"
+                      name="smtpHost"
+                      className="form-input"
+                      defaultValue={(settings as any)?.smtpHost ?? 'smtp.gmail.com'}
+                      placeholder="smtp.gmail.com"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label" htmlFor="smtpPort">SMTP Port</label>
-                  <input
-                    id="smtpPort"
-                    name="smtpPort"
-                    type="number"
-                    className="form-input"
-                    defaultValue={(settings as any)?.smtpPort ?? 587}
-                    placeholder="587"
-                  />
+                {/* SMTP Port */}
+                <div className="form-row">
+                  <div className="form-row__meta">
+                    <label className="form-label" htmlFor="smtpPort" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>SMTP Port</label>
+                    <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Server port number (usually 587 for TLS, 465 for SSL)</p>
+                  </div>
+                  <div className="form-row__control">
+                    <input
+                      id="smtpPort"
+                      name="smtpPort"
+                      type="number"
+                      className="form-input"
+                      defaultValue={(settings as any)?.smtpPort ?? 587}
+                      placeholder="587"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label" htmlFor="smtpUser">SMTP Username / Email</label>
-                  <input
-                    id="smtpUser"
-                    name="smtpUser"
-                    type="email"
-                    className="form-input"
-                    defaultValue={(settings as any)?.smtpUser ?? ''}
-                    placeholder="your@gmail.com"
-                  />
+                {/* SMTP Username */}
+                <div className="form-row">
+                  <div className="form-row__meta">
+                    <label className="form-label" htmlFor="smtpUser" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>SMTP Username / Email</label>
+                    <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Authentication account email address</p>
+                  </div>
+                  <div className="form-row__control">
+                    <input
+                      id="smtpUser"
+                      name="smtpUser"
+                      type="email"
+                      className="form-input"
+                      defaultValue={(settings as any)?.smtpUser ?? ''}
+                      placeholder="your@gmail.com"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label" htmlFor="smtpPass">SMTP Password / App Password</label>
-                  <input
-                    id="smtpPass"
-                    name="smtpPass"
-                    type="password"
-                    className="form-input"
-                    defaultValue={(settings as any)?.smtpPass ?? ''}
-                    placeholder="••••••••••••••••"
-                  />
+                {/* SMTP Password */}
+                <div className="form-row" style={{ borderBottom: 'none' }}>
+                  <div className="form-row__meta">
+                    <label className="form-label" htmlFor="smtpPass" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>SMTP Password / App Password</label>
+                    <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Authentication password or app-specific secure token</p>
+                  </div>
+                  <div className="form-row__control">
+                    <input
+                      id="smtpPass"
+                      name="smtpPass"
+                      type="password"
+                      className="form-input"
+                      defaultValue={(settings as any)?.smtpPass ?? ''}
+                      placeholder="••••••••••••••••"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
                 </div>
               </div>
             </section>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-subtle)', paddingTop: '20px' }}>
               <button
                 type="submit"
                 className={`btn btn--primary${pending ? ' btn--loading' : ''}`}
                 disabled={pending}
-                style={{ background: '#1e40af', borderColor: '#1e40af' }}
               >
-                {pending ? 'Saving...' : 'Save General Settings'}
+                {pending ? '' : 'Save General Settings'}
               </button>
             </div>
           </form>
@@ -501,219 +496,319 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
         {/* 2. FINANCE & GST TAB */}
         {activeTab === 'finance' && (
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            {/* Tax & Legal */}
-            <section className="card">
-              <h2 className="settings-section__title flex items-center gap-2">
-                <Landmark size={20} style={{ color: '#1e40af' }} />
-                Tax & Legal (GST Compliance)
-              </h2>
-              <p className="settings-section__desc">
-                GSTIN, PAN, SAC Code, and State Code details for legal tax invoices.
-              </p>
-              <div className="settings-grid">
-                <div className="form-group">
-                  <label className="form-label" htmlFor="companyGstin">GSTIN</label>
-                  <input
-                    id="companyGstin"
-                    name="companyGstin"
-                    className={fieldClass('companyGstin')}
-                    defaultValue={settings?.companyGstin ?? ''}
-                    placeholder="27AAAAA0000A1Z5"
-                    maxLength={15}
-                    style={{ textTransform: 'uppercase', fontFamily: 'monospace' }}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                  />
-                  {displayError('companyGstin')}
-                  <p className="form-hint">15-character GSTIN number (e.g. 27AAAAA0000A1Z5)</p>
+            <section className="card" style={{ padding: '24px', borderRadius: '16px', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-6)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '16px' }}>
+                <Landmark size={20} style={{ color: 'var(--accent-primary)' }} />
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+                    Tax & Legal (GST Compliance)
+                  </h2>
+                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+                    GSTIN, PAN, SAC Code, and State Code details for legal tax invoices.
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {/* GSTIN */}
+                <div className="form-row">
+                  <div className="form-row__meta">
+                    <label className="form-label" htmlFor="companyGstin" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>GSTIN</label>
+                    <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>15-character GSTIN number (e.g. 27AAAAA0000A1Z5)</p>
+                    {displayError('companyGstin')}
+                  </div>
+                  <div className="form-row__control">
+                    <input
+                      id="companyGstin"
+                      name="companyGstin"
+                      className={fieldClass('companyGstin')}
+                      defaultValue={settings?.companyGstin ?? ''}
+                      placeholder="27AAAAA0000A1Z5"
+                      maxLength={15}
+                      style={{ textTransform: 'uppercase', fontFamily: 'monospace', width: '100%' }}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                    />
+                  </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label" htmlFor="companyPan">PAN</label>
-                  <input
-                    id="companyPan"
-                    name="companyPan"
-                    className={fieldClass('companyPan')}
-                    defaultValue={settings?.companyPan ?? ''}
-                    placeholder="AAAAA1234A"
-                    maxLength={10}
-                    style={{ textTransform: 'uppercase', fontFamily: 'monospace' }}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                  />
-                  {displayError('companyPan')}
-                  <p className="form-hint">10-character Permanent Account Number</p>
+                {/* PAN */}
+                <div className="form-row">
+                  <div className="form-row__meta">
+                    <label className="form-label" htmlFor="companyPan" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>PAN</label>
+                    <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>10-character Permanent Account Number (e.g. AAAAA1234A)</p>
+                    {displayError('companyPan')}
+                  </div>
+                  <div className="form-row__control">
+                    <input
+                      id="companyPan"
+                      name="companyPan"
+                      className={fieldClass('companyPan')}
+                      defaultValue={settings?.companyPan ?? ''}
+                      placeholder="AAAAA1234A"
+                      maxLength={10}
+                      style={{ textTransform: 'uppercase', fontFamily: 'monospace', width: '100%' }}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                    />
+                  </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label" htmlFor="companyStateCode">State Code (GST)</label>
-                  <input
-                    id="companyStateCode"
-                    name="companyStateCode"
-                    className="form-input"
-                    defaultValue={(settings as any)?.companyStateCode ?? '27'}
-                    placeholder="27"
-                    maxLength={2}
-                    style={{ fontFamily: 'monospace' }}
-                  />
-                  <p className="form-hint">2-digit State Code (e.g. 27 for Maharashtra)</p>
+                {/* State Code */}
+                <div className="form-row">
+                  <div className="form-row__meta">
+                    <label className="form-label" htmlFor="companyStateCode" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>State Code (GST)</label>
+                    <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>2-digit State Code (e.g. 27 for Maharashtra)</p>
+                  </div>
+                  <div className="form-row__control">
+                    <input
+                      id="companyStateCode"
+                      name="companyStateCode"
+                      className="form-input"
+                      defaultValue={(settings as any)?.companyStateCode ?? '27'}
+                      placeholder="27"
+                      maxLength={2}
+                      style={{ fontFamily: 'monospace', width: '100%' }}
+                    />
+                  </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label" htmlFor="defaultSacCode">Default Service Code (SAC)</label>
-                  <input
-                    id="defaultSacCode"
-                    name="defaultSacCode"
-                    className="form-input"
-                    defaultValue={(settings as any)?.defaultSacCode ?? '998314'}
-                    placeholder="998314"
-                  />
-                  <p className="form-hint">Service Accounting Code for IT & software services (998314)</p>
+                {/* SAC Code */}
+                <div className="form-row">
+                  <div className="form-row__meta">
+                    <label className="form-label" htmlFor="defaultSacCode" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>Default Service Code (SAC)</label>
+                    <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Service Accounting Code for IT & software services (998314)</p>
+                  </div>
+                  <div className="form-row__control">
+                    <input
+                      id="defaultSacCode"
+                      name="defaultSacCode"
+                      className="form-input"
+                      defaultValue={(settings as any)?.defaultSacCode ?? '998314'}
+                      placeholder="998314"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label" htmlFor="taxRate">Default GST Tax Rate (%)</label>
-                  <input
-                    id="taxRate"
-                    name="taxRate"
-                    type="number"
-                    min={0}
-                    max={30}
-                    step={0.01}
-                    className={fieldClass('taxRate')}
-                    defaultValue={settings?.taxRate ? String(settings.taxRate) : '18'}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                  />
-                  {displayError('taxRate')}
-                  <p className="form-hint">Standard GST percentage (e.g. 18%)</p>
+                {/* GST Tax Rate */}
+                <div className="form-row">
+                  <div className="form-row__meta">
+                    <label className="form-label" htmlFor="taxRate" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>Default GST Tax Rate (%)</label>
+                    <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Standard GST percentage (e.g. 18%)</p>
+                    {displayError('taxRate')}
+                  </div>
+                  <div className="form-row__control">
+                    <input
+                      id="taxRate"
+                      name="taxRate"
+                      type="number"
+                      min={0}
+                      max={30}
+                      step={0.01}
+                      className={fieldClass('taxRate')}
+                      defaultValue={settings?.taxRate ? String(settings.taxRate) : '18'}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      style={{ width: '100%' }}
+                    />
+                  </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label" htmlFor="currency">Default Currency</label>
-                  <select id="currency" name="currency" className="form-select" defaultValue={settings?.currency ?? 'INR'}>
-                    <option value="INR">INR — Indian Rupee (₹)</option>
-                    <option value="USD">USD — US Dollar ($)</option>
-                    <option value="EUR">EUR — Euro (€)</option>
-                    <option value="GBP">GBP — British Pound (£)</option>
-                  </select>
-                  <p className="form-hint">Standard currency for domestic or international billing</p>
+                {/* Currency */}
+                <div className="form-row" style={{ borderBottom: 'none' }}>
+                  <div className="form-row__meta">
+                    <label className="form-label" htmlFor="currency" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>Default Currency</label>
+                    <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Standard currency for domestic or international billing</p>
+                  </div>
+                  <div className="form-row__control">
+                    <select id="currency" name="currency" className="form-select" defaultValue={settings?.currency ?? 'INR'} style={{ width: '100%' }}>
+                      <option value="INR">INR — Indian Rupee (₹)</option>
+                      <option value="USD">USD — US Dollar ($)</option>
+                      <option value="EUR">EUR — Euro (€)</option>
+                      <option value="GBP">GBP — British Pound (£)</option>
+                    </select>
+                  </div>
                 </div>
               </div>
             </section>
 
             {/* Bank Details */}
-            <section className="card">
-              <h2 className="settings-section__title">Bank Account Details</h2>
-              <p className="settings-section__desc">
-                These details are rendered on printable tax invoices and client payment options.
-              </p>
-              <div className="settings-grid">
-                <div className="form-group">
-                  <label className="form-label" htmlFor="bankName">Bank Name</label>
-                  <input
-                    id="bankName"
-                    name="bankName"
-                    className="form-input"
-                    defaultValue={settings?.bankName ?? ''}
-                    placeholder="HDFC Bank"
-                  />
+            <section className="card" style={{ padding: '24px', borderRadius: '16px', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-6)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '16px' }}>
+                <PiggyBank size={20} style={{ color: 'var(--accent-primary)' }} />
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+                    Bank Account Details
+                  </h2>
+                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+                    These details are rendered on printable tax invoices and client payment options.
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {/* Bank Name */}
+                <div className="form-row">
+                  <div className="form-row__meta">
+                    <label className="form-label" htmlFor="bankName" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>Bank Name</label>
+                    <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Corporate bank handler name</p>
+                  </div>
+                  <div className="form-row__control">
+                    <input
+                      id="bankName"
+                      name="bankName"
+                      className="form-input"
+                      defaultValue={settings?.bankName ?? ''}
+                      placeholder="HDFC Bank"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label" htmlFor="bankBranch">Branch</label>
-                  <input
-                    id="bankBranch"
-                    name="bankBranch"
-                    className="form-input"
-                    defaultValue={settings?.bankBranch ?? ''}
-                    placeholder="Andheri West, Mumbai"
-                  />
+                {/* Branch */}
+                <div className="form-row">
+                  <div className="form-row__meta">
+                    <label className="form-label" htmlFor="bankBranch" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>Branch</label>
+                    <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Regional branch name or address code</p>
+                  </div>
+                  <div className="form-row__control">
+                    <input
+                      id="bankBranch"
+                      name="bankBranch"
+                      className="form-input"
+                      defaultValue={settings?.bankBranch ?? ''}
+                      placeholder="Andheri West, Mumbai"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label" htmlFor="bankAccount">Account Number</label>
-                  <input
-                    id="bankAccount"
-                    name="bankAccount"
-                    className="form-input"
-                    defaultValue={settings?.bankAccount ?? ''}
-                    placeholder="50100123456789"
-                    style={{ fontFamily: 'monospace' }}
-                  />
+                {/* Account Number */}
+                <div className="form-row">
+                  <div className="form-row__meta">
+                    <label className="form-label" htmlFor="bankAccount" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>Account Number</label>
+                    <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Unique account identification index number</p>
+                  </div>
+                  <div className="form-row__control">
+                    <input
+                      id="bankAccount"
+                      name="bankAccount"
+                      className="form-input"
+                      defaultValue={settings?.bankAccount ?? ''}
+                      placeholder="50100123456789"
+                      style={{ fontFamily: 'monospace', width: '100%' }}
+                    />
+                  </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label" htmlFor="bankIfsc">IFSC Code</label>
-                  <input
-                    id="bankIfsc"
-                    name="bankIfsc"
-                    className="form-input"
-                    defaultValue={settings?.bankIfsc ?? ''}
-                    placeholder="HDFC0001234"
-                    maxLength={11}
-                    style={{ textTransform: 'uppercase', fontFamily: 'monospace' }}
-                  />
+                {/* IFSC Code */}
+                <div className="form-row">
+                  <div className="form-row__meta">
+                    <label className="form-label" htmlFor="bankIfsc" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>IFSC Code</label>
+                    <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>11-character Indian Financial System Code (IFSC)</p>
+                  </div>
+                  <div className="form-row__control">
+                    <input
+                      id="bankIfsc"
+                      name="bankIfsc"
+                      className="form-input"
+                      defaultValue={settings?.bankIfsc ?? ''}
+                      placeholder="HDFC0001234"
+                      maxLength={11}
+                      style={{ textTransform: 'uppercase', fontFamily: 'monospace', width: '100%' }}
+                    />
+                  </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label" htmlFor="bankUpiId">UPI ID / VPA</label>
-                  <input
-                    id="bankUpiId"
-                    name="bankUpiId"
-                    className="form-input"
-                    defaultValue={(settings as any)?.bankUpiId ?? ''}
-                    placeholder="billing@bankupi"
-                  />
+                {/* UPI ID */}
+                <div className="form-row" style={{ borderBottom: 'none' }}>
+                  <div className="form-row__meta">
+                    <label className="form-label" htmlFor="bankUpiId" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>UPI ID / VPA</label>
+                    <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Virtual Payment Address for direct scan payment options</p>
+                  </div>
+                  <div className="form-row__control">
+                    <input
+                      id="bankUpiId"
+                      name="bankUpiId"
+                      className="form-input"
+                      defaultValue={(settings as any)?.bankUpiId ?? ''}
+                      placeholder="billing@bankupi"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
                 </div>
               </div>
             </section>
 
             {/* Invoice Config */}
-            <section className="card">
-              <h2 className="settings-section__title">Invoice Configuration</h2>
-              <p className="settings-section__desc">Customize invoice prefixing and footer signature text.</p>
-              <div className="settings-grid">
-                <div className="form-group">
-                  <label className="form-label" htmlFor="invoicePrefix">
-                    Invoice Prefix <span className="form-required">*</span>
-                  </label>
-                  <input
-                    id="invoicePrefix"
-                    name="invoicePrefix"
-                    className={fieldClass('invoicePrefix')}
-                    defaultValue={settings?.invoicePrefix ?? 'INV'}
-                    placeholder="INV"
-                    required
-                    maxLength={10}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                  />
-                  {displayError('invoicePrefix')}
+            <section className="card" style={{ padding: '24px', borderRadius: '16px', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-6)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '16px' }}>
+                <Receipt size={20} style={{ color: 'var(--accent-primary)' }} />
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+                    Invoice Configuration
+                  </h2>
+                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+                    Customize invoice prefixing and footer signature text.
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {/* Invoice Prefix */}
+                <div className="form-row">
+                  <div className="form-row__meta">
+                    <label className="form-label" htmlFor="invoicePrefix" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>
+                      Invoice Prefix <span className="form-required">*</span>
+                    </label>
+                    <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Prefix letters for invoice sequencing (e.g. INV)</p>
+                    {displayError('invoicePrefix')}
+                  </div>
+                  <div className="form-row__control">
+                    <input
+                      id="invoicePrefix"
+                      name="invoicePrefix"
+                      className={fieldClass('invoicePrefix')}
+                      defaultValue={settings?.invoicePrefix ?? 'INV'}
+                      placeholder="INV"
+                      required
+                      maxLength={10}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      style={{ width: '100%' }}
+                    />
+                  </div>
                 </div>
 
-                <div className="form-group" style={{ gridColumn: 'span 2' }}>
-                  <label className="form-label" htmlFor="invoiceFooter">Invoice Footer / Terms</label>
-                  <textarea
-                    id="invoiceFooter"
-                    name="invoiceFooter"
-                    className="form-textarea"
-                    defaultValue={settings?.invoiceFooter ?? ''}
-                    placeholder="Thank you for your business. Payment due within 15 days of receipt."
-                    rows={3}
-                  />
+                {/* Invoice Footer */}
+                <div className="form-row" style={{ borderBottom: 'none' }}>
+                  <div className="form-row__meta">
+                    <label className="form-label" htmlFor="invoiceFooter" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>Invoice Footer / Terms</label>
+                    <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Legal notes or terms of payment printed at the bottom of the PDF</p>
+                  </div>
+                  <div className="form-row__control">
+                    <textarea
+                      id="invoiceFooter"
+                      name="invoiceFooter"
+                      className="form-textarea"
+                      defaultValue={settings?.invoiceFooter ?? ''}
+                      placeholder="Thank you for your business. Payment due within 15 days of receipt."
+                      rows={3}
+                      style={{ width: '100%' }}
+                    />
+                  </div>
                 </div>
               </div>
             </section>
 
-                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-subtle)', paddingTop: '20px' }}>
               <button
                 type="submit"
                 className={`btn btn--primary${pending ? ' btn--loading' : ''}`}
                 disabled={pending}
-                style={{ background: '#1e40af', borderColor: '#1e40af' }}
               >
-                {pending ? 'Saving...' : 'Save Financial Settings'}
+                {pending ? '' : 'Save Financial Settings'}
               </button>
             </div>
           </form>
@@ -726,14 +821,14 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
             <DynamicSecurityDashboard />
 
             {/* Route Health Dashboard Table */}
-            <section className="card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <section className="card" style={{ padding: '24px', borderRadius: '16px', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '16px' }}>
                 <div>
-                  <h2 className="settings-section__title flex items-center gap-2" style={{ margin: 0 }}>
-                    <Activity size={20} style={{ color: '#1e40af' }} />
+                  <h2 className="settings-section__title flex items-center gap-2" style={{ margin: 0, fontWeight: 600, fontSize: 'var(--text-md)' }}>
+                    <Activity size={20} style={{ color: 'var(--accent-primary)' }} />
                     Route Health Dashboard
                   </h2>
-                  <p className="settings-section__desc" style={{ marginTop: '4px' }}>
+                  <p className="settings-section__desc" style={{ marginTop: '4px', margin: 0, fontSize: 'var(--text-xs)' }}>
                     Monitoring endpoint availability, authorization policies, and response benchmarks across key routes.
                   </p>
                 </div>
@@ -748,27 +843,27 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
               </div>
 
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
                   <thead>
-                    <tr style={{ background: '#1e40af', color: '#ffffff' }}>
-                      <th style={{ padding: '10px 14px', textAlign: 'left', borderRadius: '6px 0 0 0' }}>API / Page Route</th>
-                      <th style={{ padding: '10px 14px', textAlign: 'center' }}>Method</th>
-                      <th style={{ padding: '10px 14px', textAlign: 'left' }}>Required Auth Policy</th>
-                      <th style={{ padding: '10px 14px', textAlign: 'center' }}>HTTP Status</th>
-                      <th style={{ padding: '10px 14px', textAlign: 'center' }}>SLA Latency</th>
-                      <th style={{ padding: '10px 14px', textAlign: 'right', borderRadius: '0 6px 0 0' }}>Health State</th>
+                    <tr style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-default)' }}>
+                      <th style={{ padding: '12px 14px', textAlign: 'left', fontWeight: 600 }}>API / Page Route</th>
+                      <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 600 }}>Method</th>
+                      <th style={{ padding: '12px 14px', textAlign: 'left', fontWeight: 600 }}>Required Auth Policy</th>
+                      <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 600 }}>HTTP Status</th>
+                      <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 600 }}>SLA Latency</th>
+                      <th style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 600 }}>Health State</th>
                     </tr>
                   </thead>
                   <tbody>
                     {routeHealthList.map((item, idx) => (
-                      <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0', background: idx % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
-                        <td style={{ padding: '12px 14px', fontFamily: 'monospace', fontWeight: 600, color: '#0f172a' }}>{item.route}</td>
-                        <td style={{ padding: '12px 14px', textAlign: 'center', fontSize: '11px', fontWeight: 700, color: '#1e40af' }}>{item.method}</td>
-                        <td style={{ padding: '12px 14px', color: '#475569', fontSize: '12px' }}>{item.auth}</td>
-                        <td style={{ padding: '12px 14px', textAlign: 'center', fontFamily: 'monospace', fontWeight: 700, color: '#15803d' }}>{item.status}</td>
-                        <td style={{ padding: '12px 14px', textAlign: 'center', fontFamily: 'monospace', color: '#475569' }}>{item.latency}</td>
+                      <tr key={idx} style={{ borderBottom: '1px solid var(--border-subtle)', background: idx % 2 === 0 ? 'transparent' : 'var(--bg-elevated)' }}>
+                        <td style={{ padding: '12px 14px', fontFamily: 'monospace', fontWeight: 600, color: 'var(--text-primary)' }}>{item.route}</td>
+                        <td style={{ padding: '12px 14px', textAlign: 'center', fontSize: '11px', fontWeight: 700, color: 'var(--accent-primary)' }}>{item.method}</td>
+                        <td style={{ padding: '12px 14px', color: 'var(--text-secondary)' }}>{item.auth}</td>
+                        <td style={{ padding: '12px 14px', textAlign: 'center', fontFamily: 'monospace', fontWeight: 700, color: 'var(--color-success)' }}>{item.status}</td>
+                        <td style={{ padding: '12px 14px', textAlign: 'center', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{item.latency}</td>
                         <td style={{ padding: '12px 14px', textAlign: 'right' }}>
-                          <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', background: item.health === 'Healthy' ? '#dcfce7' : '#eff6ff', color: item.health === 'Healthy' ? '#15803d' : '#1e40af', fontWeight: 700 }}>
+                          <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', background: item.health === 'Healthy' ? 'var(--color-success-muted)' : 'var(--color-info-muted)', color: item.health === 'Healthy' ? 'var(--color-success)' : 'var(--color-info)', fontWeight: 700 }}>
                             {item.health === 'Healthy' ? '🟢 Healthy' : '🔒 Protected'}
                           </span>
                         </td>
@@ -787,51 +882,68 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
         {/* 5. PASSWORD RESET TAB */}
         {activeTab === 'password' && (
           <form onSubmit={handlePasswordChange} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            <section className="card">
-              <h2 className="settings-section__title flex items-center gap-2">
-                <KeyRound size={20} style={{ color: '#1e40af' }} />
-                Change Admin Password
-              </h2>
-              <p className="settings-section__desc">
-                Update your account password for secure workspace access. Minimum 6 characters required.
-              </p>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '480px', marginTop: '16px' }}>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="newPassword">New Password</label>
-                  <input
-                    id="newPassword"
-                    type="password"
-                    className="form-input"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="••••••••"
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label" htmlFor="confirmPassword">Confirm New Password</label>
-                  <input
-                    id="confirmPassword"
-                    type="password"
-                    className="form-input"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="••••••••"
-                    required
-                  />
+            <section className="card" style={{ padding: '24px', borderRadius: '16px', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-6)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '16px' }}>
+                <KeyRound size={20} style={{ color: 'var(--accent-primary)' }} />
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+                    Change Admin Password
+                  </h2>
+                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+                    Update your account password for secure workspace access. Minimum 6 characters required.
+                  </p>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {/* New Password */}
+                <div className="form-row">
+                  <div className="form-row__meta">
+                    <label className="form-label" htmlFor="newPassword" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>New Password</label>
+                    <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Password value must be at least 6 characters in length</p>
+                  </div>
+                  <div className="form-row__control">
+                    <input
+                      id="newPassword"
+                      type="password"
+                      className="form-input"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Confirm Password */}
+                <div className="form-row" style={{ borderBottom: 'none' }}>
+                  <div className="form-row__meta">
+                    <label className="form-label" htmlFor="confirmPassword" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>Confirm New Password</label>
+                    <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Re-enter password value exactly to confirm modification</p>
+                  </div>
+                  <div className="form-row__control">
+                    <input
+                      id="confirmPassword"
+                      type="password"
+                      className="form-input"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-subtle)', paddingTop: '20px', marginTop: '24px' }}>
                 <button
                   type="submit"
                   className={`btn btn--primary${passwordPending ? ' btn--loading' : ''}`}
                   disabled={passwordPending}
-                  style={{ background: '#1e40af', borderColor: '#1e40af' }}
                 >
-                  {passwordPending ? 'Updating...' : 'Update Password'}
+                  {passwordPending ? '' : 'Update Password'}
                 </button>
               </div>
             </section>

@@ -37,34 +37,65 @@ export default function ProjectTeamManager({
   const handleAddMember = async () => {
     if (!selectedMemberId) return
     setSubmitting(true)
-    const res = await apiClient(`/api/team/projects/${projectId}/members`, {
-      method: 'POST',
-      body: JSON.stringify({ profileId: selectedMemberId, role: selectedRole }),
-    })
-    setSubmitting(false)
-
-    if (res.success) {
-      toast.success('Project member added.')
-      setSelectedMemberId('')
-      setSelectedRole('MEMBER')
-      window.location.reload()
-    } else {
-      toast.error(res.error?.message || 'Failed to add member.')
+    try {
+      const res = await apiClient(`/api/admin/projects/${projectId}/members`, {
+        method: 'POST',
+        body: JSON.stringify({ profileId: selectedMemberId, role: selectedRole }),
+      })
+      if (res.success) {
+        toast.success('Project member added.')
+        setSelectedMemberId('')
+        setSelectedRole('MEMBER')
+        window.location.reload()
+      } else {
+        toast.error(res.error?.message || 'Failed to add member.')
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to add member.')
+    } finally {
+      setSubmitting(false)
     }
   }
 
   const handleRemoveMember = async (profileId: string) => {
+    if (!confirm('Are you sure you want to remove this member from the project?')) {
+      return
+    }
     setSubmitting(true)
-    const res = await apiClient(`/api/team/projects/${projectId}/members?profileId=${profileId}`, {
-      method: 'DELETE',
-    })
-    setSubmitting(false)
+    try {
+      const res = await apiClient(`/api/admin/projects/${projectId}/members?profileId=${profileId}`, {
+        method: 'DELETE',
+      })
+      if (res.success) {
+        toast.success('Project member removed.')
+        window.location.reload()
+      } else {
+        toast.error(res.error?.message || 'Failed to remove member.')
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to remove member.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
-    if (res.success) {
-      toast.success('Project member removed.')
-      window.location.reload()
-    } else {
-      toast.error(res.error?.message || 'Failed to remove member.')
+  const handleUpdateMemberRole = async (profileId: string, newRole: string) => {
+    setSubmitting(true)
+    try {
+      const res = await apiClient(`/api/admin/projects/${projectId}/members`, {
+        method: 'POST',
+        body: JSON.stringify({ profileId, role: newRole }),
+      })
+      if (res.success) {
+        toast.success('Member role updated.')
+        window.location.reload()
+      } else {
+        toast.error(res.error?.message || 'Failed to update role.')
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update role.')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -92,6 +123,7 @@ export default function ProjectTeamManager({
               value={selectedMemberId}
               onChange={(e) => setSelectedMemberId(e.target.value)}
               style={{ fontSize: 'var(--text-xs)' }}
+              disabled={submitting}
             >
               <option value="">Select member to add…</option>
               {unassignedStaff.map((s) => (
@@ -107,6 +139,7 @@ export default function ProjectTeamManager({
                 value={selectedRole}
                 onChange={(e) => setSelectedRole(e.target.value)}
                 style={{ fontSize: 'var(--text-xs)', flex: 1 }}
+                disabled={submitting}
               >
                 {SUBROLES.map((r) => (
                   <option key={r.value} value={r.value}>{r.label}</option>
@@ -158,9 +191,34 @@ export default function ProjectTeamManager({
                     <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-medium)', color: 'var(--text-primary)' }}>
                       {m.profile.name}
                     </div>
-                    <span className="badge" style={{ fontSize: 9, background: rs.bg, color: rs.color, marginTop: 2 }}>
-                      {m.role.replace(/_/g, ' ')}
-                    </span>
+                    {isLeadOrAdmin ? (
+                      <select
+                        className="form-select"
+                        value={m.role}
+                        disabled={submitting}
+                        onChange={(e) => handleUpdateMemberRole(m.profileId, e.target.value)}
+                        style={{
+                          fontSize: '10px',
+                          padding: '2px 18px 2px 6px',
+                          height: 'auto',
+                          width: 'auto',
+                          background: '#ffffff',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          border: '1px solid var(--border-default)',
+                          borderRadius: '8px',
+                          fontFamily: 'inherit',
+                          marginTop: 2
+                        }}
+                      >
+                        <option value="TEAM_LEAD">Team Lead</option>
+                        <option value="MEMBER">Team Member</option>
+                      </select>
+                    ) : (
+                      <span className="badge" style={{ fontSize: 9, background: rs.bg, color: rs.color, marginTop: 2 }}>
+                        {m.role.replace(/_/g, ' ')}
+                      </span>
+                    )}
                   </div>
                 </div>
 

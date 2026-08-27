@@ -4,13 +4,10 @@ import { prisma } from '@/lib/prisma'
 import { getServerUser, redirectToLogin } from '@/lib/auth/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-
 import { createSupabaseAdminClient } from '@/lib/supabase/server'
+import { recalcProgress } from '@/lib/utils/project-progress'
 
-// ─────────────────────────────────────────────
 // Helpers
-// ─────────────────────────────────────────────
-
 async function uploadMilestoneImage(file: File): Promise<string | null> {
   if (!file || file.size === 0) return null
   try {
@@ -31,7 +28,6 @@ async function uploadMilestoneImage(file: File): Promise<string | null> {
     console.error('Storage upload fallback:', e)
   }
 
-  // Fallback: Convert to Base64 Data URL if storage bucket fails
   const buffer = Buffer.from(await file.arrayBuffer())
   return `data:${file.type || 'image/jpeg'};base64,${buffer.toString('base64')}`
 }
@@ -40,7 +36,7 @@ async function requireLead(projectId: string) {
   const user = await getServerUser()
   if (!user) redirectToLogin()
 
-  if (user.role === 'ADMIN') return user // admin always allowed
+  if (user.role === 'ADMIN') return user
 
   const project = await prisma.project.findUnique({ where: { id: projectId } })
   if (project?.leadId !== user.id) {
@@ -49,12 +45,7 @@ async function requireLead(projectId: string) {
   return user
 }
 
-async function recalcProgress(projectId: string) {
-  const all = await prisma.milestone.findMany({ where: { projectId } })
-  const done = all.filter((m) => m.status === 'COMPLETED').length
-  const pct = all.length > 0 ? Math.round((done / all.length) * 100) : 0
-  await prisma.project.update({ where: { id: projectId }, data: { progress: pct } })
-}
+
 
 async function findLeastBusyMember(projectId: string, role?: string) {
   const project = await prisma.project.findUnique({ where: { id: projectId }, select: { leadId: true } })
@@ -218,5 +209,48 @@ export async function deleteMilestone(
   revalidatePath(`/team/projects/${milestone.projectId}`)
   return { success: true, message: 'Milestone deleted.' }
 }
+
+// ─────────────────────────────────────────────
+// RESET TO DEFAULT MILESTONES (lead only)
+// ─────────────────────────────────────────────
+
+export async function resetToDefaultMilestones(
+  projectId: string
+): Promise<{ success: boolean; message: string }> {
+  const user = await requireLead(projectId)
+
+  // Delete all existing milestones (Cascade will delete their tasks)
+  await prisma.milestone.deleteMany({ where: { projectId } })
+
+  const PREDEFINED_PROCESS_STAGES = [
+    { name: 'Discovery & research', description: 'Initial requirements gathering, market research, and scope definition.', sortOrder: 1, clientVisible: true, status: 'IN_PROGRESS' as const },
+    { name: 'Design', description: 'UI/UX designs, wireframes, architectural blueprints, and mockups.', sortOrder: 2, clientVisible: true, status: 'PLANNED' as const },
+    { name: 'Quote & planning', description: 'Project timeline estimation, resource allocation, and budget approval.', sortOrder: 3, clientVisible: true, status: 'PLANNED' as const },
+    { name: 'Crafting the Backend', description: 'Active development, coding, build execution, and feature implementation.', sortOrder: 4, clientVisible: true, status: 'PLANNED' as const },
+    { name: 'Testing & launch', description: 'Quality assurance, UAT, bug fixes, deployment, and final release.', sortOrder: 5, clientVisible: true, status: 'PLANNED' as const },
+  ]
+
+  // Re-create default milestones
+  await prisma.milestone.createMany({
+    data: PREDEFINED_PROCESS_STAGES.map((s) => ({
+      projectId,
+      name: s.name,
+      description: s.description,
+      sortOrder: s.sortOrder,
+      clientVisible: s.clientVisible,
+      status: s.status,
+      createdById: user.id,
+    })),
+  })
+
+  await recalcProgress(projectId)
+
+  revalidatePath(`/admin/projects/${projectId}`)
+  revalidatePath(`/team/projects/${projectId}`)
+  revalidatePath(`/client/projects/${projectId}`)
+
+  return { success: true, message: 'Default stages restored successfully.' }
+}
+
 
 

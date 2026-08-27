@@ -7,7 +7,7 @@ export const metadata = {
 
 export default function NewTeamMemberPage() {
   return (
-    <div>
+    <div style={{ maxWidth: 640, margin: '0 auto', padding: '0 var(--space-4)' }}>
       <div className="page-header">
         <div>
           <h1 className="page-header__title">Onboard Staff</h1>

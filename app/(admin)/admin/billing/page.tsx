@@ -82,32 +82,134 @@ export default async function AdminBillingPage({
       </div>
 
       {/* Revenue Summary Cards */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="stat-card">
-          <div className="stat-card__header">
-            <span className="stat-card__title">Total Revenue Collected</span>
-            <div className="stat-card__icon text-success"><CheckCircle2 size={16} /></div>
+      <div className="grid grid-cols-3 gap-5" style={{ gap: '20px', marginBottom: '24px' }}>
+        {/* Metric 1: Total Revenue Collected */}
+        <div 
+          className="stat-card hover-lift" 
+          style={{ 
+            backgroundColor: '#ffffff', 
+            borderRadius: '16px', 
+            border: '1px solid rgba(16, 28, 107, 0.08)',
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.015), 0 1px 2px rgba(0, 0, 0, 0.005)',
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <div 
+              style={{ 
+                width: '42px', 
+                height: '42px', 
+                borderRadius: '50%', 
+                background: 'rgba(30, 107, 80, 0.08)', 
+                color: '#1e6b50', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center' 
+              }}
+            >
+              <CheckCircle2 size={20} />
+            </div>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: '#1e6b50', background: 'rgba(30, 107, 80, 0.08)', padding: '3px 10px', borderRadius: '12px' }}>
+              Paid
+            </span>
           </div>
-          <div className="stat-card__value text-success">{formatCurrency(totalCollected)}</div>
-          <div className="stat-card__change">Paid invoices to date</div>
+          <div>
+            <div className="stat-card__value" style={{ fontSize: 'var(--text-3xl)', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>
+              {formatCurrency(totalCollected)}
+            </div>
+            <div className="stat-card__label" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+              Total Revenue Collected
+            </div>
+          </div>
         </div>
 
-        <div className="stat-card">
-          <div className="stat-card__header">
-            <span className="stat-card__title">Outstanding Balance</span>
-            <div className="stat-card__icon text-warning"><Clock size={16} /></div>
+        {/* Metric 2: Outstanding Balance */}
+        <div 
+          className="stat-card hover-lift" 
+          style={{ 
+            backgroundColor: '#ffffff', 
+            borderRadius: '16px', 
+            border: '1px solid rgba(16, 28, 107, 0.08)',
+            borderLeft: totalPending > 0 ? '4px solid #ea580c' : '1px solid rgba(16, 28, 107, 0.08)',
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.015), 0 1px 2px rgba(0, 0, 0, 0.005)',
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <div 
+              style={{ 
+                width: '42px', 
+                height: '42px', 
+                borderRadius: '50%', 
+                background: 'rgba(234, 88, 12, 0.08)', 
+                color: '#ea580c', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center' 
+              }}
+            >
+              <Clock size={20} />
+            </div>
+            {totalPending > 0 && (
+              <span style={{ fontSize: '11px', fontWeight: 600, color: '#ea580c', background: 'rgba(234, 88, 12, 0.08)', padding: '3px 10px', borderRadius: '12px' }}>
+                Pending
+              </span>
+            )}
           </div>
-          <div className="stat-card__value text-warning">{formatCurrency(totalPending)}</div>
-          <div className="stat-card__change">Pending client payments</div>
+          <div>
+            <div className="stat-card__value" style={{ fontSize: 'var(--text-3xl)', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>
+              {formatCurrency(totalPending)}
+            </div>
+            <div className="stat-card__label" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+              Outstanding Balance
+            </div>
+          </div>
         </div>
 
-        <div className="stat-card">
-          <div className="stat-card__header">
-            <span className="stat-card__title">Total Invoices Issued</span>
-            <div className="stat-card__icon"><FileText size={16} /></div>
+        {/* Metric 3: Total Invoices Issued */}
+        <div 
+          className="stat-card hover-lift" 
+          style={{ 
+            backgroundColor: '#ffffff', 
+            borderRadius: '16px', 
+            border: '1px solid rgba(16, 28, 107, 0.08)',
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.015), 0 1px 2px rgba(0, 0, 0, 0.005)',
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <div 
+              style={{ 
+                width: '42px', 
+                height: '42px', 
+                borderRadius: '50%', 
+                background: 'rgba(35, 64, 184, 0.08)', 
+                color: 'var(--accent-primary)', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center' 
+              }}
+            >
+              <FileText size={20} />
+            </div>
           </div>
-          <div className="stat-card__value">{invoices.length}</div>
-          <div className="stat-card__change">Generated records</div>
+          <div>
+            <div className="stat-card__value" style={{ fontSize: 'var(--text-3xl)', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>
+              {invoices.length}
+            </div>
+            <div className="stat-card__label" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+              Total Invoices Issued
+            </div>
+          </div>
         </div>
       </div>
 

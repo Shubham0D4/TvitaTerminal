@@ -50,7 +50,7 @@ export default function TeamMemberForm() {
   const displayError = (field: string) => {
     const errorMsg = localErrors[field]
     if (!errorMsg) return null
-    return <span className="form-error">{errorMsg}</span>
+    return <p className="form-error" style={{ fontSize: '11px', color: 'var(--color-danger)', marginTop: '4px', margin: 0 }}>{errorMsg}</p>
   }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -98,70 +98,137 @@ export default function TeamMemberForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ maxWidth: 640 }}>
-      <div className="card">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-6)' }}>
-          <Link href="/admin/team" className="btn btn--ghost btn--icon" title="Back to team">
-            <ArrowLeft size={18} />
+    <form onSubmit={handleSubmit} style={{ maxWidth: 640, margin: '0 auto' }}>
+      <div className="card" style={{ padding: '24px', borderRadius: '16px', border: '1px solid var(--border-subtle)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-6)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '16px' }}>
+          <Link href="/admin/team" className="btn btn--ghost btn--icon" title="Back to team" style={{ border: '1px solid var(--border-default)', borderRadius: '50%', padding: '6px' }}>
+            <ArrowLeft size={16} />
           </Link>
-          <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
+          <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
             Add New Member
           </h2>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-          <div className="form-group">
-            <label className="form-label" htmlFor="name">Full Name <span className="form-required">*</span></label>
-            <input id="name" name="name" className={fieldClass('name')} placeholder="e.g. Rahul Sharma" required
-              onChange={handleChange} onBlur={handleBlur} />
-            {displayError('name')}
-            <p className="form-hint">Member name as listed in legal identification forms</p>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label" htmlFor="email">Work Email <span className="form-required">*</span></label>
-            <input id="email" name="email" type="email" className={fieldClass('email')} placeholder="rahul@agency.com" required
-              onChange={handleChange} onBlur={handleBlur} />
-            {displayError('email')}
-            <p className="form-hint">Corporate email address to receive project invitations and updates</p>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label" htmlFor="teamRole">Project Sub-Role</label>
-            <select id="teamRole" name="teamRole" className="form-select" defaultValue="MEMBER">
-              <option value="TEAM_LEAD">Team Lead</option>
-              <option value="MEMBER">Team Member</option>
-            </select>
-            <p className="form-hint">Specifies default workspace permission level and auto-assignment queue</p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="form-group">
-              <label className="form-label" htmlFor="phone">Phone Number (Optional)</label>
-              <input id="phone" name="phone" className="form-input" placeholder="+91 98765 43210" />
-              <p className="form-hint">Contact number for messages (with country code)</p>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {/* Row 1: Full Name */}
+          <div className="form-row">
+            <div className="form-row__meta">
+              <label className="form-label" htmlFor="name" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>
+                Full Name <span className="form-required">*</span>
+              </label>
+              <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Member name as listed in legal identification forms</p>
+              {displayError('name')}
             </div>
+            <div className="form-row__control">
+              <input
+                id="name"
+                name="name"
+                className={fieldClass('name')}
+                placeholder="e.g. Rahul Sharma"
+                required
+                onChange={handleChange}
+                onBlur={handleBlur}
+                style={{ width: '100%' }}
+              />
+            </div>
+          </div>
 
-            <div className="form-group">
-              <label className="form-label" htmlFor="salary">Monthly Salary (₹)</label>
-              <input id="salary" name="salary" type="number" min="0" step="any" className={fieldClass('salary')} placeholder="e.g. 65000"
-                onChange={handleChange} onBlur={handleBlur} />
+          {/* Row 2: Work Email */}
+          <div className="form-row">
+            <div className="form-row__meta">
+              <label className="form-label" htmlFor="email" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>
+                Work Email <span className="form-required">*</span>
+              </label>
+              <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Corporate email address to receive project invitations and updates</p>
+              {displayError('email')}
+            </div>
+            <div className="form-row__control">
+              <input
+                id="email"
+                name="email"
+                type="email"
+                className={fieldClass('email')}
+                placeholder="rahul@agency.com"
+                required
+                onChange={handleChange}
+                onBlur={handleBlur}
+                style={{ width: '100%' }}
+              />
+            </div>
+          </div>
+
+          {/* Row 3: Project Sub-Role */}
+          <div className="form-row">
+            <div className="form-row__meta">
+              <label className="form-label" htmlFor="teamRole" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>
+                Project Sub-Role
+              </label>
+              <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Specifies default workspace permission level and auto-assignment queue</p>
+            </div>
+            <div className="form-row__control">
+              <select id="teamRole" name="teamRole" className="form-select" defaultValue="MEMBER" style={{ width: '100%' }}>
+                <option value="TEAM_LEAD">Team Lead</option>
+                <option value="MEMBER">Team Member</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Row 4: Phone Number */}
+          <div className="form-row">
+            <div className="form-row__meta">
+              <label className="form-label" htmlFor="phone" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>
+                Phone Number
+              </label>
+              <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Contact number for messages (with country code)</p>
+            </div>
+            <div className="form-row__control">
+              <input id="phone" name="phone" className="form-input" placeholder="+91 98765 43210" style={{ width: '100%' }} />
+            </div>
+          </div>
+
+          {/* Row 5: Monthly Salary */}
+          <div className="form-row">
+            <div className="form-row__meta">
+              <label className="form-label" htmlFor="salary" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>
+                Monthly Salary (₹)
+              </label>
+              <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Base monthly remuneration value (gross, in INR)</p>
               {displayError('salary')}
-              <p className="form-hint">Base monthly remuneration value (gross, in INR)</p>
+            </div>
+            <div className="form-row__control">
+              <input
+                id="salary"
+                name="salary"
+                type="number"
+                min="0"
+                step="any"
+                className={fieldClass('salary')}
+                placeholder="e.g. 65000"
+                onChange={handleChange}
+                onBlur={handleBlur}
+                style={{ width: '100%' }}
+              />
             </div>
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="role">Platform Role <span className="form-required">*</span></label>
-            <select id="role" name="role" className="form-select" defaultValue="TEAM_MEMBER" required>
-              <option value="TEAM_MEMBER">Team Member</option>
-              <option value="ADMIN">Administrator</option>
-            </select>
-            <p className="form-hint">Top-level permissions profile (Admin vs. Standard Member)</p>
+          {/* Row 6: Platform Role */}
+          <div className="form-row" style={{ borderBottom: 'none' }}>
+            <div className="form-row__meta">
+              <label className="form-label" htmlFor="role" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>
+                Platform Role <span className="form-required">*</span>
+              </label>
+              <p className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Top-level permissions profile (Admin vs. Standard Member)</p>
+            </div>
+            <div className="form-row__control">
+              <select id="role" name="role" className="form-select" defaultValue="TEAM_MEMBER" required style={{ width: '100%' }}>
+                <option value="TEAM_MEMBER">Team Member</option>
+                <option value="ADMIN">Administrator</option>
+              </select>
+            </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-3)', marginTop: 'var(--space-6)' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-3)', marginTop: 'var(--space-6)', borderTop: '1px solid var(--border-subtle)', paddingTop: '20px' }}>
           <Link href="/admin/team" className="btn btn--ghost">Cancel</Link>
           <button type="submit" className={`btn btn--primary${pending ? ' btn--loading' : ''}`} disabled={pending}>
             {pending ? '' : 'Create Member'}

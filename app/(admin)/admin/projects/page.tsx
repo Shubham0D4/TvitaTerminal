@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
-import { FolderKanban, Plus, Search, Building2, User } from 'lucide-react'
+import { FolderKanban, Plus, Search, Building2, User, Calendar, CheckCircle2 } from 'lucide-react'
 
 export const metadata = {
   title: 'Projects — Tvita Admin',
@@ -24,7 +24,9 @@ async function getProjects(search?: string, status?: string) {
       name: true,
       status: true,
       progress: true,
-      banner: true,
+      startDate: true,
+      endDate: true,
+      description: true,
       client: { select: { name: true } },
       lead: { select: { name: true } },
       milestones: {
@@ -120,10 +122,12 @@ export default async function AdminProjectsPage({
           </div>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 'var(--space-4)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 'var(--space-4)' }}>
           {projects.map((project) => {
             const statusStyle = STATUS_STYLES[project.status] ?? { label: project.status, tone: 'slate' }
             const activePhase = project.milestones[0]?.name
+            const isCompleted = project.status === 'COMPLETED'
+            
             return (
               <Link
                 key={project.id}
@@ -132,69 +136,119 @@ export default async function AdminProjectsPage({
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
-                  overflow: 'hidden',
-                  padding: 0,
+                  gap: 'var(--space-3)',
+                  padding: 'var(--space-5)',
                   textDecoration: 'none',
                   cursor: 'pointer',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '16px',
+                  background: '#ffffff',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.015), 0 1px 3px rgba(0,0,0,0.005)'
                 }}
               >
-                <div
-                  style={{
-                    height: 120,
-                    backgroundImage: `url(${project.banner || '/menu%20img.webp'})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                  }}
-                />
-                <div style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                  {/* Status & Phase tags */}
-                  <div className="flex items-center justify-between">
-                    <span className={`badge badge--${statusStyle.tone}`}>
-                      {statusStyle.label}
-                    </span>
-                    {activePhase && (
-                      <span className="text-xs text-muted truncate" style={{ maxWidth: 140 }}>
-                        {activePhase}
-                      </span>
-                    )}
-                  </div>
+                {/* Client & Status Badge */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    {project.client.name}
+                  </span>
+                  <span className={`badge badge--${statusStyle.tone}`} style={{ fontSize: '10px' }}>
+                    {statusStyle.label}
+                  </span>
+                </div>
 
-                  {/* Project Name */}
-                  <div
+                {/* Project Title & Description */}
+                <div style={{ flex: 1 }}>
+                  <h3
                     style={{
                       fontSize: 'var(--text-md)',
-                      fontWeight: 'var(--font-semibold)',
+                      fontWeight: 600,
                       color: 'var(--text-primary)',
                       lineHeight: 1.3,
-                      wordBreak: 'break-word',
+                      margin: 0
                     }}
                   >
                     {project.name}
-                  </div>
+                  </h3>
+                  {project.description && (
+                    <p 
+                      style={{ 
+                        fontSize: 'var(--text-xs)', 
+                        color: 'var(--text-secondary)', 
+                        marginTop: '4px', 
+                        display: '-webkit-box', 
+                        WebkitLineClamp: 2, 
+                        WebkitBoxOrient: 'vertical', 
+                        overflow: 'hidden', 
+                        lineHeight: 1.4 
+                      }}
+                    >
+                      {project.description}
+                    </p>
+                  )}
+                </div>
 
-                  {/* Client & Lead information */}
-                  <div className="flex flex-col gap-1 text-xs text-muted" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 'var(--space-2)' }}>
-                    <div className="flex items-center gap-1">
-                      <Building2 size={12} />
-                      <span className="truncate">{project.client.name}</span>
-                    </div>
-                    {project.lead && (
-                      <div className="flex items-center gap-1">
-                        <User size={12} />
-                        <span className="truncate">{project.lead.name}</span>
+                {/* Divider */}
+                <div style={{ height: '1px', background: 'var(--border-subtle)', margin: 'var(--space-1) 0' }} />
+
+                {/* Active Milestone / Phase */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                  <FolderKanban size={13} style={{ color: 'var(--accent-primary)' }} />
+                  <span className="truncate" style={{ fontWeight: 500 }}>
+                    {activePhase ? `Active Stage: ${activePhase}` : 'All stages complete'}
+                  </span>
+                </div>
+
+                {/* Lead and End Date */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                  {project.lead ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div 
+                        style={{ 
+                          width: '18px', 
+                          height: '18px', 
+                          borderRadius: '50%', 
+                          background: 'var(--bg-elevated)', 
+                          border: '1px solid var(--border-default)', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center', 
+                          fontSize: '9px', 
+                          fontWeight: 600,
+                          color: 'var(--text-primary)'
+                        }}
+                      >
+                        {project.lead.name.substring(0, 2).toUpperCase()}
                       </div>
-                    )}
-                  </div>
+                      <span className="truncate" style={{ maxWidth: '110px' }}>{project.lead.name}</span>
+                    </div>
+                  ) : (
+                    <span style={{ color: 'var(--text-muted)' }}>Unassigned</span>
+                  )}
+                  
+                  {project.endDate && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Calendar size={11} style={{ color: 'var(--text-muted)' }} />
+                      <span>Due {new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short' }).format(new Date(project.endDate))}</span>
+                    </div>
+                  )}
+                </div>
 
-                  {/* Progress Bar */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                      <span>Progress</span>
-                      <span>{project.progress}%</span>
-                    </div>
-                    <div className="progress-bar-container">
-                      <div className="progress-bar-fill" style={{ width: `${project.progress}%` }} />
-                    </div>
+                {/* Progress Bar Indicator */}
+                <div style={{ marginTop: 'var(--space-1)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px', fontSize: '10px', color: 'var(--text-muted)', fontWeight: 500 }}>
+                    <span>Milestone Progress</span>
+                    <span>{project.progress}%</span>
+                  </div>
+                  <div style={{ height: '4px', width: '100%', background: 'var(--bg-elevated)', borderRadius: '2px', overflow: 'hidden' }}>
+                    <div 
+                      style={{ 
+                        height: '100%', 
+                        width: `${project.progress}%`, 
+                        background: isCompleted ? '#10b981' : 'var(--accent-primary)', 
+                        borderRadius: '2px', 
+                        transition: 'width 0.3s ease' 
+                      }} 
+                    />
                   </div>
                 </div>
               </Link>

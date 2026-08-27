@@ -2,13 +2,8 @@ import { apiSuccess, Errors } from '@/lib/utils/api-response'
 import { getServerUser, isAdmin } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'
+import { recalcProgress } from '@/lib/utils/project-progress'
 
-async function recalcProgress(projectId: string) {
-  const all = await prisma.milestone.findMany({ where: { projectId } })
-  const done = all.filter((m) => m.status === 'COMPLETED').length
-  const pct = all.length > 0 ? Math.round((done / all.length) * 100) : 0
-  await prisma.project.update({ where: { id: projectId }, data: { progress: pct } })
-}
 
 export async function PUT(
   request: NextRequest,
