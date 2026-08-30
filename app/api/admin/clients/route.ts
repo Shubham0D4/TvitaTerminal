@@ -81,49 +81,35 @@ export async function POST(request: NextRequest) {
       const expires = new Date(Date.now() + 24 * 60 * 60 * 1000)
 
       const existingProfile = await prisma.profile.findUnique({
-        where: { email: loginEmail },
-        include: { clientProfile: true },
+        where: { email: loginEmail }
       })
-
-      if (existingProfile) {
-        if (existingProfile.clientProfile) {
-          return Errors.VALIDATION('This email is already linked to another client portal account')
-        }
-        if (existingProfile.role === 'ADMIN' || existingProfile.role === 'TEAM_MEMBER') {
-          return Errors.VALIDATION('This email is already registered as an admin or team member account')
-        }
-      }
 
       const authUserId = existingProfile?.id || crypto.randomUUID()
       const inviteLink = `${appUrl}/auth/callback?token=${token}&email=${loginEmail}&next=/reset-password`
 
-      if (existingProfile) {
-        await prisma.profile.update({
-          where: { id: existingProfile.id },
-          data: {
-            role: 'CLIENT',
-            name: body.contactPerson || body.legalName || '',
-            isActive: true,
-            invitedAt: new Date(),
-            magicLinkToken: token,
-            magicLinkExpires: expires,
-          },
-        })
-      } else {
-        await prisma.profile.create({
-          data: {
-            id: authUserId,
-            email: loginEmail,
-            role: 'CLIENT',
-            name: body.contactPerson || body.legalName || '',
-            phone: body.phone || null,
-            isActive: true,
-            invitedAt: new Date(),
-            magicLinkToken: token,
-            magicLinkExpires: expires,
-          },
-        })
-      }
+      await prisma.profile.upsert({
+        where: { email: loginEmail },
+        update: {
+          id: authUserId,
+          role: 'CLIENT',
+          name: body.contactPerson || body.legalName || '',
+          isActive: true,
+          invitedAt: new Date(),
+          magicLinkToken: token,
+          magicLinkExpires: expires,
+        },
+        create: {
+          id: authUserId,
+          email: loginEmail,
+          role: 'CLIENT',
+          name: body.contactPerson || body.legalName || '',
+          phone: body.phone || null,
+          isActive: true,
+          invitedAt: new Date(),
+          magicLinkToken: token,
+          magicLinkExpires: expires,
+        },
+      })
       profileId = authUserId
 
       await sendClientInvite({

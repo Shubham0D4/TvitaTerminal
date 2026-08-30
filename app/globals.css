@@ -2090,11 +2090,11 @@ a:hover { color: var(--accent-primary-hover); }
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: 10px 14px;
-  border-radius: 10px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
   font-size: var(--text-sm);
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.7);
+  font-weight: var(--font-medium);
+  color: var(--text-muted);
   text-decoration: none;
   transition: all var(--transition-fast);
   position: relative;
@@ -2103,26 +2103,24 @@ a:hover { color: var(--accent-primary-hover); }
 }
 
 .sidebar__nav-item:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
 }
 
 .sidebar__nav-item--active {
-  background: #ffffff;
-  color: #0f172a;
-  font-weight: 600;
+  background: var(--accent-primary-muted);
+  color: var(--accent-primary);
 }
 
 .sidebar__nav-item--active:hover {
-  background: rgba(255, 255, 255, 0.95);
-  color: #0f172a;
+  background: var(--accent-primary-muted);
+  color: var(--accent-primary);
 }
 
 .sidebar__nav-icon {
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  color: inherit;
 }
 
 .sidebar__nav-label {
@@ -2202,10 +2200,10 @@ a:hover { color: var(--accent-primary-hover); }
   width: 100%;
   padding-left: calc(var(--space-3) + 16px + var(--space-2));
   padding-right: var(--space-3);
-  height: 36px;
-  background: #fbfbfc;
-  border: 1px solid rgba(16, 28, 107, 0.08);
-  border-radius: 10px;
+  height: 34px;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
   font-size: var(--text-sm);
   color: var(--text-primary);
   font-family: var(--font-family);
@@ -2213,12 +2211,12 @@ a:hover { color: var(--accent-primary-hover); }
   transition: all var(--transition-fast);
 }
 
-.topbar__search-input::placeholder { color: #a1a1aa; }
+.topbar__search-input::placeholder { color: var(--text-disabled); }
 
 .topbar__search-input:focus {
-  background: #ffffff;
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px rgba(35, 64, 184, 0.08);
+  background: var(--bg-elevated);
+  border-color: var(--border-default);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
 }
 
 .topbar__right {

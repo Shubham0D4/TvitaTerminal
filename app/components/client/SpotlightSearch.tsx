@@ -14,7 +14,6 @@ export type SearchableProject = {
 
 interface SpotlightSearchProps {
   projects: SearchableProject[]
-  urlPrefix?: string
 }
 
 const MAX_RESULTS = 6
@@ -31,7 +30,7 @@ const STATUS_LABELS: Record<string, string> = {
   CANCELLED: 'Cancelled',
 }
 
-export default function SpotlightSearch({ projects, urlPrefix = '/client/projects' }: SpotlightSearchProps) {
+export default function SpotlightSearch({ projects }: SpotlightSearchProps) {
   // `mounted` keeps the overlay in the DOM while it animates out; `open`
   // drives the transition. Unmounting immediately would skip the exit.
   const [mounted, setMounted] = useState(false)
@@ -146,7 +145,7 @@ export default function SpotlightSearch({ projects, urlPrefix = '/client/project
                   {results.map((project) => (
                     <li key={project.id}>
                       <Link
-                        href={`${urlPrefix}/${project.id}`}
+                        href={`/client/projects/${project.id}`}
                         className="spot__item"
                         onClick={closeSearch}
                       >

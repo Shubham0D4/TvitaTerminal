@@ -4,10 +4,6 @@ import { getServerUser, isAdmin } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'
 import { createSupabaseAdminClient } from '@/lib/supabase/server'
-import crypto from 'crypto'
-import { sendClientInvite } from '@/lib/email'
-import { createNotification } from '@/lib/notifications'
-import { getAppBaseUrl } from '@/lib/utils/url'
 
 export async function GET(
   request: NextRequest,
@@ -71,77 +67,10 @@ export async function PUT(
     const body = await request.json()
     const displayName = body.legalName || body.displayName || existing.name
 
-    const email = body.email || existing.email
-    let profileId = existing.profileId
-
-    if (email && (!existing.profileId || email !== existing.email)) {
-      const existingProfile = await prisma.profile.findUnique({
-        where: { email },
-        include: { clientProfile: true },
-      })
-
-      if (existingProfile) {
-        if (existingProfile.clientProfile && existingProfile.clientProfile.id !== id) {
-          return Errors.VALIDATION('This email is already linked to another client portal account')
-        }
-        if (existingProfile.role === 'ADMIN' || existingProfile.role === 'TEAM_MEMBER') {
-          return Errors.VALIDATION('This email is already registered as an admin or team member account')
-        }
-        // Link to this existing profile
-        profileId = existingProfile.id
-      } else if (existing.profileId) {
-        // Update the existing linked profile's email
-        await prisma.profile.update({
-          where: { id: existing.profileId },
-          data: {
-            email,
-            name: body.contactPerson || body.legalName || existing.contactPerson || existing.name || '',
-          },
-        })
-      } else {
-        // Create a new profile for this client
-        const appUrl = getAppBaseUrl(request)
-        const token = crypto.randomBytes(32).toString('hex')
-        const expires = new Date(Date.now() + 24 * 60 * 60 * 1000)
-        const authUserId = crypto.randomUUID()
-        const inviteLink = `${appUrl}/auth/callback?token=${token}&email=${email}&next=/reset-password`
-
-        await prisma.profile.create({
-          data: {
-            id: authUserId,
-            email,
-            role: 'CLIENT',
-            name: body.contactPerson || body.legalName || existing.contactPerson || existing.name || '',
-            phone: body.phone || existing.phone || null,
-            isActive: true,
-            invitedAt: new Date(),
-            magicLinkToken: token,
-            magicLinkExpires: expires,
-          },
-        })
-
-        profileId = authUserId
-
-        await sendClientInvite({
-          to: email,
-          name: body.contactPerson || body.legalName || existing.contactPerson || existing.name || 'Client',
-          inviteLink,
-        })
-
-        await createNotification({
-          userId: authUserId,
-          title: 'Welcome to Tvita!',
-          message: 'Your client portal account has been created. Set up your password to begin!',
-          type: 'INFO',
-        })
-      }
-    }
-
     const updated = await prisma.client.update({
       where: { id },
       data: {
         name: displayName,
-        profileId: profileId || null,
         status: body.status || existing.status,
         onboardingStatus: body.onboardingStatus || existing.onboardingStatus,
         verificationStatus: body.verificationStatus || existing.verificationStatus,

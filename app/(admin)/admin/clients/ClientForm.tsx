@@ -374,13 +374,19 @@ export default function ClientForm({ client, adminProfiles = [] }: ClientFormPro
                 </select>
               </FormRow>
 
-              <FormRow label="Account Status" htmlFor="status" show={showAdvanced}>
-                <select id="status" name="status" className="form-select" defaultValue={client?.status ?? 'ACTIVE'}>
-                  <option value="ACTIVE">Active</option>
-                  <option value="INACTIVE">Inactive</option>
-                  <option value="SUSPENDED">Suspended</option>
-                </select>
-              </FormRow>
+      {/* ── TAB 1: Basic Information */}
+      <div className="card" style={{ display: activeTab === 'basic' ? 'block' : 'none' }}>
+        <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', marginBottom: 'var(--space-6)' }}>
+          Basic Information
+        </h2>
+        <div className="settings-grid">
+          <div className="form-group">
+            <label className="form-label" htmlFor="clientType">Client Type</label>
+            <select id="clientType" name="clientType" className="form-select" defaultValue={client?.clientType ?? 'ORGANIZATION'}>
+              <option value="ORGANIZATION">Organization / Company</option>
+              <option value="INDIVIDUAL">Individual / Freelancer</option>
+            </select>
+          </div>
 
               <FormRow label="Legal / Full Name" htmlFor="legalName" required hint="Exact legal name as per registration / incorporation documents" error={displayError('legalName')}>
                 <input id="legalName" name="legalName" className={fieldClass('legalName')}
@@ -422,11 +428,262 @@ export default function ClientForm({ client, adminProfiles = [] }: ClientFormPro
                 </select>
               </FormRow>
 
-              <FormRow label="Website" htmlFor="website" show={showAdvanced} hint="Must start with http:// or https://" error={displayError('website')}>
-                <input id="website" name="website" type="url" className={fieldClass('website')}
-                  defaultValue={client?.website ?? ''} placeholder="https://acme.com"
-                  onChange={handleChange} onBlur={handleBlur} />
-              </FormRow>
+          <div className="form-group">
+            <label className="form-label" htmlFor="timezone">Time Zone</label>
+            <select id="timezone" name="timezone" className="form-select" defaultValue={client?.timezone ?? ''}>
+              <option value="">— Select Timezone —</option>
+              {TIMEZONES.map((tz) => <option key={tz} value={tz}>{tz}</option>)}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="website">Website</label>
+            <input id="website" name="website" type="url" className={fieldClass('website')}
+              defaultValue={client?.website ?? ''} placeholder="https://acme.com"
+              onChange={handleChange} onBlur={handleBlur} />
+            {displayError('website')}
+            <p className="form-hint">Must start with http:// or https://</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── TAB 2: Contact Information */}
+      <div className="card" style={{ display: activeTab === 'contact' ? 'block' : 'none' }}>
+        <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', marginBottom: 'var(--space-6)' }}>
+          Contact Information
+        </h2>
+        <div className="settings-grid">
+          <div className="form-group">
+            <label className="form-label" htmlFor="contactPerson">Primary Contact Name <span className="form-required">*</span></label>
+            <input id="contactPerson" name="contactPerson" className={fieldClass('contactPerson')}
+              defaultValue={client?.contactPerson ?? ''} placeholder="Rahul Sharma" required
+              onChange={handleChange} onBlur={handleBlur} />
+            {displayError('contactPerson')}
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="designation">Designation / Role</label>
+            <input id="designation" name="designation" className="form-input"
+              defaultValue={client?.designation ?? ''} placeholder="CEO, CTO, Founder…" />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="email">Primary Email <span className="form-required">*</span></label>
+            <input id="email" name="email" type="email" className={fieldClass('email')}
+              defaultValue={client?.email ?? ''} placeholder="contact@acme.com" required
+              onChange={handleChange} onBlur={handleBlur} />
+            {displayError('email')}
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="phone">Phone</label>
+            <input id="phone" name="phone" className="form-input"
+              defaultValue={client?.phone ?? ''} placeholder="+91 98765 43210" />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="whatsapp">WhatsApp</label>
+            <input id="whatsapp" name="whatsapp" className="form-input"
+              defaultValue={client?.whatsapp ?? ''} placeholder="+91 98765 43210" />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="preferredComm">Preferred Communication</label>
+            <select id="preferredComm" name="preferredComm" className="form-select" defaultValue={client?.preferredComm ?? ''}>
+              <option value="">— Select —</option>
+              <option value="email">Email</option>
+              <option value="phone">Phone</option>
+              <option value="whatsapp">WhatsApp</option>
+              <option value="slack">Slack</option>
+              <option value="teams">Microsoft Teams</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* ── TAB 3: Address */}
+      <div className="card" style={{ display: activeTab === 'address' ? 'block' : 'none' }}>
+        <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', marginBottom: 'var(--space-6)' }}>
+          Address Information
+        </h2>
+        <div className="settings-grid">
+          <div className="form-group" style={{ gridColumn: 'span 2' }}>
+            <label className="form-label" htmlFor="address">Billing Address <span className="form-required">*</span></label>
+            <textarea id="address" name="address" className={fieldClass('address')} rows={3}
+              defaultValue={client?.address ?? ''} placeholder="Full billing address including street, area, landmark…" required
+              onChange={handleChange} onBlur={handleBlur} />
+            {displayError('address')}
+          </div>
+
+          <div className="form-group" style={{ gridColumn: 'span 2' }}>
+            <label className="form-label" htmlFor="registeredAddress">Registered / Business Address</label>
+            <textarea id="registeredAddress" name="registeredAddress" className="form-textarea" rows={3}
+              defaultValue={client?.registeredAddress ?? ''} placeholder="Registered office address as per legal documents…" />
+            <p className="form-hint">Leave blank if same as billing address</p>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="billingCity">City</label>
+            <input id="billingCity" name="billingCity" className="form-input"
+              defaultValue={client?.billingCity ?? ''} placeholder="Mumbai" />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="billingState">State / Province</label>
+            <input id="billingState" name="billingState" className="form-input"
+              defaultValue={client?.billingState ?? ''} placeholder="Maharashtra" />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="billingCountry">Country (Billing)</label>
+            <CountrySelect name="billingCountry" id="billingCountry" defaultValue={client?.billingCountry ?? ''} placeholder="Same as primary…" />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="postalCode">Postal / ZIP Code</label>
+            <input id="postalCode" name="postalCode" className="form-input"
+              defaultValue={client?.postalCode ?? ''} placeholder="400001" />
+          </div>
+        </div>
+      </div>
+
+      {/* ── TAB 4: Legal & Registration */}
+      <div className="card" style={{ display: activeTab === 'legal' ? 'block' : 'none' }}>
+        <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', marginBottom: 'var(--space-6)' }}>
+          Legal &amp; Registration
+        </h2>
+        <div className="settings-grid">
+          <div className="form-group">
+            <label className="form-label" htmlFor="entityType">Entity Type</label>
+            <select id="entityType" name="entityType" className="form-select" defaultValue={client?.entityType ?? ''}>
+              <option value="">— Select —</option>
+              <option value="Private Limited">Private Limited (Pvt Ltd)</option>
+              <option value="Public Limited">Public Limited</option>
+              <option value="LLP">LLP (Limited Liability Partnership)</option>
+              <option value="Partnership">Partnership Firm</option>
+              <option value="Sole Proprietorship">Sole Proprietorship</option>
+              <option value="Individual">Individual</option>
+              <option value="Trust/NGO">Trust / NGO</option>
+              <option value="Government">Government Entity</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="registrationNo">Registration / Company No.</label>
+            <input id="registrationNo" name="registrationNo" className="form-input"
+              defaultValue={client?.registrationNo ?? ''} placeholder="CIN / Company No." style={{ fontFamily: 'monospace' }} />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="countryOfRegistration">Country of Registration</label>
+            <CountrySelect name="countryOfRegistration" id="countryOfRegistration"
+              defaultValue={client?.countryOfRegistration ?? ''} placeholder="Where registered…" />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="taxId">Tax ID (Generic)</label>
+            <input id="taxId" name="taxId" className="form-input"
+              defaultValue={client?.taxId ?? ''} placeholder="EIN, TIN, ABN, etc." style={{ fontFamily: 'monospace' }} />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="pan">PAN (India)</label>
+            <input id="pan" name="pan" className={fieldClass('pan')}
+              defaultValue={client?.pan ?? ''} placeholder="AAAAA1234A" maxLength={10}
+              style={{ textTransform: 'uppercase', fontFamily: 'monospace' }}
+              onChange={handleChange} onBlur={handleBlur} />
+            {displayError('pan')}
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="gstin">GSTIN (India)</label>
+            <input id="gstin" name="gstin" className={fieldClass('gstin')}
+              defaultValue={client?.gstin ?? ''} placeholder="27AAAAA0000A1Z5" maxLength={15}
+              style={{ textTransform: 'uppercase', fontFamily: 'monospace' }}
+              onChange={handleChange} onBlur={handleBlur} />
+            {displayError('gstin')}
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="vatNumber">VAT / GST Number (International)</label>
+            <input id="vatNumber" name="vatNumber" className="form-input"
+              defaultValue={client?.vatNumber ?? ''} placeholder="VAT / GST registration no." style={{ fontFamily: 'monospace' }} />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="authorizedRep">Authorized Representative</label>
+            <input id="authorizedRep" name="authorizedRep" className="form-input"
+              defaultValue={client?.authorizedRep ?? ''} placeholder="Name of authorized signatory" />
+          </div>
+        </div>
+      </div>
+
+      {/* ── TAB 5: Billing & Payment */}
+      <div className="card" style={{ display: activeTab === 'billing' ? 'block' : 'none' }}>
+        <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', marginBottom: 'var(--space-6)' }}>
+          Billing &amp; Payment
+        </h2>
+        <div className="settings-grid">
+          <div className="form-group">
+            <label className="form-label" htmlFor="billingName">Billing Name <span className="form-required">*</span></label>
+            <input id="billingName" name="billingName" className={fieldClass('billingName')}
+              defaultValue={client?.billingName ?? ''} placeholder="Name to appear on invoices" required
+              onChange={handleChange} onBlur={handleBlur} />
+            {displayError('billingName')}
+            <p className="form-hint">The full organization name to receive invoices</p>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="billingEmail">Billing Email <span className="form-required">*</span></label>
+            <input id="billingEmail" name="billingEmail" type="email" className={fieldClass('billingEmail')}
+              defaultValue={client?.billingEmail ?? ''} placeholder="accounts@acme.com" required
+              onChange={handleChange} onBlur={handleBlur} />
+            {displayError('billingEmail')}
+            <p className="form-hint">Invoices and payment updates will be sent here</p>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="currency">Invoice Currency <span className="form-required">*</span></label>
+            <select id="currency" name="currency" className="form-select" defaultValue={client?.currency ?? 'INR'} required
+              onChange={handleChange} onBlur={handleBlur}>
+              <option value="INR">🇮🇳 INR — Indian Rupee</option>
+              <option value="USD">🇺🇸 USD — US Dollar</option>
+              <option value="EUR">🇪🇺 EUR — Euro</option>
+              <option value="GBP">🇬🇧 GBP — British Pound</option>
+              <option value="AED">🇦🇪 AED — UAE Dirham</option>
+              <option value="SGD">🇸🇬 SGD — Singapore Dollar</option>
+              <option value="AUD">🇦🇺 AUD — Australian Dollar</option>
+              <option value="CAD">🇨🇦 CAD — Canadian Dollar</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="paymentTerms">Payment Terms</label>
+            <select id="paymentTerms" name="paymentTerms" className="form-select" defaultValue={client?.paymentTerms ?? ''}>
+              <option value="">— Select —</option>
+              <option value="immediate">Immediate / Advance</option>
+              <option value="Net 7">Net 7 Days</option>
+              <option value="Net 15">Net 15 Days</option>
+              <option value="Net 30">Net 30 Days</option>
+              <option value="Net 45">Net 45 Days</option>
+              <option value="Net 60">Net 60 Days</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+
+          <div className="form-group" style={{ gridColumn: 'span 2' }}>
+            <div style={{ display: 'flex', gap: 'var(--space-6)' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', cursor: 'pointer' }}>
+                <input type="checkbox" name="taxApplicable" id="taxApplicable" style={{ width: 16, height: 16, accentColor: 'var(--accent-primary)' }}
+                  checked={taxApplicable} onChange={(e) => setTaxApplicable(e.target.checked)} />
+                <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>Tax / GST Applicable</span>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', cursor: 'pointer' }}>
+                <input type="checkbox" name="poRequired" id="poRequired" style={{ width: 16, height: 16, accentColor: 'var(--accent-primary)' }}
+                  checked={poRequired} onChange={(e) => setPoRequired(e.target.checked)} />
+                <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>PO Required for Invoicing</span>
+              </label>
             </div>
           </div>
 
@@ -897,6 +1154,119 @@ export default function ClientForm({ client, adminProfiles = [] }: ClientFormPro
             </button>
           )}
         </div>
+      </div>
+
+      {/* ── TAB 6: Internal / Admin */}
+      <div className="card" style={{ display: activeTab === 'internal' ? 'block' : 'none' }}>
+        <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', marginBottom: 'var(--space-6)' }}>
+          Internal / Admin Settings
+        </h2>
+        <div className="settings-grid">
+          <div className="form-group">
+            <label className="form-label" htmlFor="clientSource">Client Source</label>
+            <select id="clientSource" name="clientSource" className="form-select" defaultValue={client?.clientSource ?? ''}>
+              <option value="">— Select Source —</option>
+              <option value="referral">Referral</option>
+              <option value="direct">Direct / Walk-in</option>
+              <option value="linkedin">LinkedIn</option>
+              <option value="website">Website / Inbound</option>
+              <option value="upwork">Upwork</option>
+              <option value="freelancer">Freelancer.com</option>
+              <option value="fiverr">Fiverr</option>
+              <option value="toptal">Toptal</option>
+              <option value="guru">Guru</option>
+              <option value="peopleperhour">PeoplePerHour</option>
+              <option value="instagram">Instagram</option>
+              <option value="twitter">X / Twitter</option>
+              <option value="cold_outreach">Cold Outreach</option>
+              <option value="partnership">Partnership</option>
+              <option value="event">Event / Conference</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="externalPlatformUrl">External Platform URL</label>
+            <input
+              id="externalPlatformUrl"
+              name="externalPlatformUrl"
+              className="form-input"
+              type="url"
+              defaultValue={(client as any)?.externalPlatformUrl ?? ''}
+              placeholder="https://www.upwork.com/jobs/… or contract profile link"
+            />
+            <p className="form-hint">Contract or profile link on Upwork, Freelancer, Fiverr, etc. Client will be redirected here for payments.</p>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="clientPriority">Client Priority</label>
+            <select id="clientPriority" name="clientPriority" className="form-select" defaultValue={client?.clientPriority ?? 'MEDIUM'}>
+              <option value="LOW">Low</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HIGH">High</option>
+              <option value="VIP">VIP</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="riskLevel">Risk Level</label>
+            <select id="riskLevel" name="riskLevel" className="form-select" defaultValue={client?.riskLevel ?? 'LOW'}>
+              <option value="LOW">Low</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HIGH">High</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="accountManagerId">Account Manager</label>
+            <select id="accountManagerId" name="accountManagerId" className="form-select" defaultValue={client?.accountManagerId ?? ''}>
+              <option value="">— Unassigned —</option>
+              {adminProfiles.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="onboardingStatus">Onboarding Status</label>
+            <select id="onboardingStatus" name="onboardingStatus" className="form-select" defaultValue={client?.onboardingStatus ?? 'PENDING'}>
+              <option value="PENDING">Pending</option>
+              <option value="IN_PROGRESS">In Progress</option>
+              <option value="COMPLETED">Completed</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="verificationStatus">Verification Status</label>
+            <select id="verificationStatus" name="verificationStatus" className="form-select" defaultValue={client?.verificationStatus ?? 'UNVERIFIED'}>
+              <option value="UNVERIFIED">Unverified</option>
+              <option value="PENDING">Pending Verification</option>
+              <option value="VERIFIED">Verified</option>
+            </select>
+          </div>
+
+          <div className="form-group" style={{ gridColumn: 'span 2' }}>
+            <label className="form-label" htmlFor="internalTags">Internal Tags</label>
+            <input id="internalTags" name="internalTags" className="form-input"
+              defaultValue={client?.internalTags?.join(', ') ?? ''} placeholder="enterprise, fintech, priority-support (comma-separated)" />
+            <p className="form-hint">Comma-separated tags for internal categorisation</p>
+          </div>
+
+          <div className="form-group" style={{ gridColumn: 'span 2' }}>
+            <label className="form-label" htmlFor="internalNotes">Internal Notes</label>
+            <textarea id="internalNotes" name="internalNotes" className="form-textarea" rows={4}
+              defaultValue={client?.internalNotes ?? ''} placeholder="Private notes, escalation history, known issues…" />
+            <p className="form-hint">Visible to admins only — not shared with the client</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Submit */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-3)' }}>
+        <Link href="/admin/clients" className="btn btn--ghost">Cancel</Link>
+        <button type="submit" className={`btn btn--primary${pending ? ' btn--loading' : ''}`} disabled={pending}>
+          {pending ? '' : isEditing ? 'Save Changes' : 'Create Client'}
+        </button>
       </div>
     </form>
   )

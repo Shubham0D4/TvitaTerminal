@@ -79,8 +79,6 @@ export default async function PortalLayout({ children, allowedRoles }: PortalLay
     )
   }
 
-
-
   // Sidebar + Topbar layout for ADMIN and TEAM portals
   return (
     <div className="portal-root">

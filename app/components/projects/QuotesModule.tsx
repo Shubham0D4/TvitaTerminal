@@ -154,7 +154,7 @@ export default function QuotesModule({ clientId, userRole, userId }: Props) {
   }
 
   return (
-    <div className="card dashboard-card quotes-card">
+    <div className="card" style={{ backgroundColor: '#ffffff' }}>
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div>
           <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', margin: 0 }}>
