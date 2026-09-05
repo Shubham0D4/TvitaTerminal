@@ -94,21 +94,23 @@ export default async function AdminInvoiceDetailPage({ params }: PageProps) {
               {invoice.invoiceNo}
             </div>
             <div style={{ marginTop: '10px' }}>
-              <span
-                style={{
-                  display: 'inline-block',
-                  padding: '4px 12px',
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  letterSpacing: '0.05em',
-                  textTransform: 'uppercase',
-                  background: isPaid ? '#1e40af' : due > 0 ? '#dc2626' : '#1e40af',
-                  color: '#ffffff',
-                }}
-              >
-                STATUS: {invoice.status}
-              </span>
+              {!isPaid && (
+                <span
+                  style={{
+                    display: 'inline-block',
+                    padding: '4px 12px',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    letterSpacing: '0.05em',
+                    textTransform: 'uppercase',
+                    background: due > 0 ? '#dc2626' : '#1e40af',
+                    color: '#ffffff',
+                  }}
+                >
+                  STATUS: {invoice.status}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -309,12 +311,25 @@ export default async function AdminInvoiceDetailPage({ params }: PageProps) {
           </div>
         </div>
 
-        {/* Footer Note */}
+        {/* Paid stamp + Notes */}
+        {isPaid && (
+          <div className="invoice-paid-wrap">
+            <div className="invoice-paid-stamp" aria-label="Paid">
+              <span className="invoice-paid-stamp__paid">PAID</span>
+              <span className="invoice-paid-stamp__co">
+                {settings?.companyName ?? 'Tvita'}
+              </span>
+            </div>
+          </div>
+        )}
+
         {invoice.notes && (
           <div style={{ fontSize: '12px', color: '#0f172a', padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: '6px', marginBottom: '24px', background: '#ffffff' }}>
             <strong>Notes & Terms:</strong> {invoice.notes}
           </div>
         )}
+
+        {!invoice.notes && isPaid && <div style={{ marginBottom: 24 }} />}
 
         <div style={{ textAlign: 'center', fontSize: '11px', color: '#0f172a', paddingTop: '16px', borderTop: '1px solid #e2e8f0' }}>
           {settings?.invoiceFooter || 'Thank you for your business! This is an official computer-generated tax invoice issued via Tvita Platform.'}

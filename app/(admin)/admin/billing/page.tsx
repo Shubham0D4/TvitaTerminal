@@ -3,12 +3,10 @@ import Link from 'next/link'
 import {
   CreditCard,
   Plus,
-  Building2,
-  Calendar,
   CheckCircle2,
   Clock,
-  AlertCircle,
   FileText,
+  Search,
 } from 'lucide-react'
 
 import AdminInvoiceStatusToggle from './AdminInvoiceStatusToggle'
@@ -68,12 +66,18 @@ export default async function AdminBillingPage({
       {/* Page Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-header__title">Invoices & Billing</h1>
+          <h1 className="page-header__title">Billing</h1>
           <p className="page-header__subtitle">
-            Create GST invoices, track receipts, and review client payment status.
+            Invoice ledger · create, track, and settle client payments
           </p>
         </div>
         <div className="page-header__actions">
+          <Link href="/admin/quotes" className="btn btn--secondary btn--sm">
+            Quotes
+          </Link>
+          <Link href="/admin/finance" className="btn btn--secondary btn--sm">
+            Finance Analytics
+          </Link>
           <Link href="/admin/billing/new" className="btn btn--primary">
             <Plus size={16} />
             Create Invoice
@@ -82,133 +86,44 @@ export default async function AdminBillingPage({
       </div>
 
       {/* Revenue Summary Cards */}
-      <div className="grid grid-cols-3 gap-5" style={{ gap: '20px', marginBottom: '24px' }}>
-        {/* Metric 1: Total Revenue Collected */}
-        <div 
-          className="stat-card hover-lift" 
-          style={{ 
-            backgroundColor: '#ffffff', 
-            borderRadius: '16px', 
-            border: '1px solid rgba(16, 28, 107, 0.08)',
-            padding: '24px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px',
-            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.015), 0 1px 2px rgba(0, 0, 0, 0.005)',
-          }}
-        >
-          <div className="flex items-center justify-between">
-            <div 
-              style={{ 
-                width: '42px', 
-                height: '42px', 
-                borderRadius: '50%', 
-                background: 'rgba(30, 107, 80, 0.08)', 
-                color: '#1e6b50', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center' 
-              }}
-            >
+      <div className="admin-stat-row">
+        <div className="admin-stat">
+          <div className="admin-stat__top">
+            <div className="admin-stat__icon admin-stat__icon--green">
               <CheckCircle2 size={20} />
             </div>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: '#1e6b50', background: 'rgba(30, 107, 80, 0.08)', padding: '3px 10px', borderRadius: '12px' }}>
-              Paid
-            </span>
+            <span className="admin-stat__chip admin-stat__chip--green">Paid</span>
           </div>
           <div>
-            <div className="stat-card__value" style={{ fontSize: 'var(--text-3xl)', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>
-              {formatCurrency(totalCollected)}
-            </div>
-            <div className="stat-card__label" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
-              Total Revenue Collected
-            </div>
+            <div className="admin-stat__value">{formatCurrency(totalCollected)}</div>
+            <div className="admin-stat__label">Total Revenue Collected</div>
           </div>
         </div>
 
-        {/* Metric 2: Outstanding Balance */}
-        <div 
-          className="stat-card hover-lift" 
-          style={{ 
-            backgroundColor: '#ffffff', 
-            borderRadius: '16px', 
-            border: '1px solid rgba(16, 28, 107, 0.08)',
-            borderLeft: totalPending > 0 ? '4px solid #ea580c' : '1px solid rgba(16, 28, 107, 0.08)',
-            padding: '24px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px',
-            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.015), 0 1px 2px rgba(0, 0, 0, 0.005)',
-          }}
-        >
-          <div className="flex items-center justify-between">
-            <div 
-              style={{ 
-                width: '42px', 
-                height: '42px', 
-                borderRadius: '50%', 
-                background: 'rgba(234, 88, 12, 0.08)', 
-                color: '#ea580c', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center' 
-              }}
-            >
+        <div className={`admin-stat${totalPending > 0 ? ' admin-stat--warn' : ''}`}>
+          <div className="admin-stat__top">
+            <div className="admin-stat__icon admin-stat__icon--orange">
               <Clock size={20} />
             </div>
             {totalPending > 0 && (
-              <span style={{ fontSize: '11px', fontWeight: 600, color: '#ea580c', background: 'rgba(234, 88, 12, 0.08)', padding: '3px 10px', borderRadius: '12px' }}>
-                Pending
-              </span>
+              <span className="admin-stat__chip admin-stat__chip--orange">Pending</span>
             )}
           </div>
           <div>
-            <div className="stat-card__value" style={{ fontSize: 'var(--text-3xl)', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>
-              {formatCurrency(totalPending)}
-            </div>
-            <div className="stat-card__label" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
-              Outstanding Balance
-            </div>
+            <div className="admin-stat__value">{formatCurrency(totalPending)}</div>
+            <div className="admin-stat__label">Outstanding Balance</div>
           </div>
         </div>
 
-        {/* Metric 3: Total Invoices Issued */}
-        <div 
-          className="stat-card hover-lift" 
-          style={{ 
-            backgroundColor: '#ffffff', 
-            borderRadius: '16px', 
-            border: '1px solid rgba(16, 28, 107, 0.08)',
-            padding: '24px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px',
-            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.015), 0 1px 2px rgba(0, 0, 0, 0.005)',
-          }}
-        >
-          <div className="flex items-center justify-between">
-            <div 
-              style={{ 
-                width: '42px', 
-                height: '42px', 
-                borderRadius: '50%', 
-                background: 'rgba(35, 64, 184, 0.08)', 
-                color: 'var(--accent-primary)', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center' 
-              }}
-            >
+        <div className="admin-stat">
+          <div className="admin-stat__top">
+            <div className="admin-stat__icon admin-stat__icon--blue">
               <FileText size={20} />
             </div>
           </div>
           <div>
-            <div className="stat-card__value" style={{ fontSize: 'var(--text-3xl)', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>
-              {invoices.length}
-            </div>
-            <div className="stat-card__label" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
-              Total Invoices Issued
-            </div>
+            <div className="admin-stat__value">{invoices.length}</div>
+            <div className="admin-stat__label">Total Invoices Issued</div>
           </div>
         </div>
       </div>
@@ -216,7 +131,7 @@ export default async function AdminBillingPage({
       {/* Filter Bar */}
       <div className="filter-bar">
         <form className="filter-bar__search" method="GET">
-          <CreditCard size={15} className="filter-bar__search-icon" />
+          <Search size={15} className="filter-bar__search-icon" />
           <input
             name="search"
             className="filter-bar__search-input"

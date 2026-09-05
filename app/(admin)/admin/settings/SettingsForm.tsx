@@ -202,44 +202,41 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
   ]
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 0.8fr) minmax(0, 2.2fr)', gap: '32px', alignItems: 'flex-start' }}>
-      {/* ── Sidebar Navigation ── */}
-      <aside className="settings-menu">
-        <div style={{ padding: '0 12px 8px 12px', fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-subtle)', marginBottom: '8px' }}>
-          Settings Menu
-        </div>
+    <div className="asettings">
+      <aside className="asettings__nav" aria-label="Settings sections">
+        <p className="asettings__nav-label">Sections</p>
 
         <button
           type="button"
           onClick={() => setActiveTab('general')}
-          className={`settings-tab-btn ${activeTab === 'general' ? 'settings-tab-btn--active' : ''}`}
+          className={`asettings__tab${activeTab === 'general' ? ' is-active' : ''}`}
         >
           <Building2 size={16} />
-          <span>General & Agency</span>
+          <span>General &amp; Agency</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('finance')}
-          className={`settings-tab-btn ${activeTab === 'finance' ? 'settings-tab-btn--active' : ''}`}
+          className={`asettings__tab${activeTab === 'finance' ? ' is-active' : ''}`}
         >
           <Landmark size={16} />
-          <span>Finance & GST</span>
+          <span>Finance &amp; GST</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('security')}
-          className={`settings-tab-btn ${activeTab === 'security' ? 'settings-tab-btn--active' : ''}`}
+          className={`asettings__tab${activeTab === 'security' ? ' is-active' : ''}`}
         >
           <ShieldCheck size={16} />
-          <span>Security & Health</span>
+          <span>Security &amp; Health</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('audit')}
-          className={`settings-tab-btn ${activeTab === 'audit' ? 'settings-tab-btn--active' : ''}`}
+          className={`asettings__tab${activeTab === 'audit' ? ' is-active' : ''}`}
         >
           <ScrollText size={16} />
           <span>Audit Logs</span>
@@ -248,27 +245,24 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
         <button
           type="button"
           onClick={() => setActiveTab('password')}
-          className={`settings-tab-btn ${activeTab === 'password' ? 'settings-tab-btn--active' : ''}`}
+          className={`asettings__tab${activeTab === 'password' ? ' is-active' : ''}`}
         >
           <KeyRound size={16} />
           <span>Password Reset</span>
         </button>
       </aside>
 
-      {/* ── Main Content Area ── */}
-      <main style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div className="asettings__main">
         {/* 1. GENERAL & AGENCY TAB */}
         {activeTab === 'general' && (
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            <section className="card" style={{ padding: '24px', borderRadius: '16px', border: '1px solid var(--border-subtle)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-6)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '16px' }}>
-                <Building2 size={20} style={{ color: 'var(--accent-primary)' }} />
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
-                    Company Information
-                  </h2>
-                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
-                    This information appears on tax invoices, client portals, and official emails.
+          <form onSubmit={handleSubmit} className="asettings__stack">
+            <section className="asettings__panel">
+              <div className="asettings__panel-head">
+                <Building2 size={18} className="asettings__panel-icon" />
+                <div>
+                  <h2 className="asettings__panel-title">Company Information</h2>
+                  <p className="asettings__panel-sub">
+                    Appears on tax invoices, client portals, and official emails.
                   </p>
                 </div>
               </div>
@@ -390,14 +384,12 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
             </section>
 
             {/* SMTP & Email Section */}
-            <section className="card" style={{ padding: '24px', borderRadius: '16px', border: '1px solid var(--border-subtle)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-6)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '16px' }}>
-                <Mail size={20} style={{ color: 'var(--accent-primary)' }} />
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
-                    SMTP & Email Configuration
-                  </h2>
-                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+            <section className="asettings__panel">
+              <div className="asettings__panel-head">
+                <Mail size={18} className="asettings__panel-icon" />
+                <div>
+                  <h2 className="asettings__panel-title">SMTP & Email Configuration</h2>
+                  <p className="asettings__panel-sub">
                     Configure SMTP server details for automated notifications, magic link invites, and client reports.
                   </p>
                 </div>
@@ -481,7 +473,7 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
               </div>
             </section>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-subtle)', paddingTop: '20px' }}>
+            <div className="asettings__actions">
               <button
                 type="submit"
                 className={`btn btn--primary${pending ? ' btn--loading' : ''}`}
@@ -495,15 +487,13 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
 
         {/* 2. FINANCE & GST TAB */}
         {activeTab === 'finance' && (
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            <section className="card" style={{ padding: '24px', borderRadius: '16px', border: '1px solid var(--border-subtle)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-6)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '16px' }}>
-                <Landmark size={20} style={{ color: 'var(--accent-primary)' }} />
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
-                    Tax & Legal (GST Compliance)
-                  </h2>
-                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+          <form onSubmit={handleSubmit} className="asettings__stack">
+            <section className="asettings__panel">
+              <div className="asettings__panel-head">
+                <Landmark size={18} className="asettings__panel-icon" />
+                <div>
+                  <h2 className="asettings__panel-title">Tax & Legal (GST Compliance)</h2>
+                  <p className="asettings__panel-sub">
                     GSTIN, PAN, SAC Code, and State Code details for legal tax invoices.
                   </p>
                 </div>
@@ -634,14 +624,12 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
             </section>
 
             {/* Bank Details */}
-            <section className="card" style={{ padding: '24px', borderRadius: '16px', border: '1px solid var(--border-subtle)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-6)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '16px' }}>
-                <PiggyBank size={20} style={{ color: 'var(--accent-primary)' }} />
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
-                    Bank Account Details
-                  </h2>
-                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+            <section className="asettings__panel">
+              <div className="asettings__panel-head">
+                <PiggyBank size={18} className="asettings__panel-icon" />
+                <div>
+                  <h2 className="asettings__panel-title">Bank Account Details</h2>
+                  <p className="asettings__panel-sub">
                     These details are rendered on printable tax invoices and client payment options.
                   </p>
                 </div>
@@ -742,14 +730,12 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
             </section>
 
             {/* Invoice Config */}
-            <section className="card" style={{ padding: '24px', borderRadius: '16px', border: '1px solid var(--border-subtle)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-6)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '16px' }}>
-                <Receipt size={20} style={{ color: 'var(--accent-primary)' }} />
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
-                    Invoice Configuration
-                  </h2>
-                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+            <section className="asettings__panel">
+              <div className="asettings__panel-head">
+                <Receipt size={18} className="asettings__panel-icon" />
+                <div>
+                  <h2 className="asettings__panel-title">Invoice Configuration</h2>
+                  <p className="asettings__panel-sub">
                     Customize invoice prefixing and footer signature text.
                   </p>
                 </div>
@@ -802,7 +788,7 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
               </div>
             </section>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-subtle)', paddingTop: '20px' }}>
+            <div className="asettings__actions">
               <button
                 type="submit"
                 className={`btn btn--primary${pending ? ' btn--loading' : ''}`}
@@ -816,55 +802,54 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
 
         {/* 3. SECURITY & ROUTE HEALTH TAB */}
         {activeTab === 'security' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div className="asettings__stack">
             {/* Dynamic Risk-Oriented Security Dashboard */}
             <DynamicSecurityDashboard />
 
             {/* Route Health Dashboard Table */}
-            <section className="card" style={{ padding: '24px', borderRadius: '16px', border: '1px solid var(--border-subtle)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '16px' }}>
-                <div>
-                  <h2 className="settings-section__title flex items-center gap-2" style={{ margin: 0, fontWeight: 600, fontSize: 'var(--text-md)' }}>
-                    <Activity size={20} style={{ color: 'var(--accent-primary)' }} />
-                    Route Health Dashboard
-                  </h2>
-                  <p className="settings-section__desc" style={{ marginTop: '4px', margin: 0, fontSize: 'var(--text-xs)' }}>
-                    Monitoring endpoint availability, authorization policies, and response benchmarks across key routes.
-                  </p>
+            <section className="asettings__panel">
+              <div className="asettings__panel-head--row">
+                <div className="asettings__panel-head">
+                  <Activity size={18} className="asettings__panel-icon" />
+                  <div>
+                    <h2 className="asettings__panel-title">Route Health Dashboard</h2>
+                    <p className="asettings__panel-sub">
+                      Endpoint availability, auth policies, and response benchmarks.
+                    </p>
+                  </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => toast.success('Route health statuses refreshed!')}
                   className="btn btn--secondary btn--sm"
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
-                  <RefreshCw size={14} /> Refresh Telemetry
+                  <RefreshCw size={14} /> Refresh
                 </button>
               </div>
 
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
+              <div className="asettings__table-wrap">
+                <table className="asettings__table">
                   <thead>
-                    <tr style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-default)' }}>
-                      <th style={{ padding: '12px 14px', textAlign: 'left', fontWeight: 600 }}>API / Page Route</th>
-                      <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 600 }}>Method</th>
-                      <th style={{ padding: '12px 14px', textAlign: 'left', fontWeight: 600 }}>Required Auth Policy</th>
-                      <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 600 }}>HTTP Status</th>
-                      <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 600 }}>SLA Latency</th>
-                      <th style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 600 }}>Health State</th>
+                    <tr>
+                      <th>API / Page Route</th>
+                      <th>Method</th>
+                      <th>Auth Policy</th>
+                      <th>Status</th>
+                      <th>Latency</th>
+                      <th>Health</th>
                     </tr>
                   </thead>
                   <tbody>
                     {routeHealthList.map((item, idx) => (
-                      <tr key={idx} style={{ borderBottom: '1px solid var(--border-subtle)', background: idx % 2 === 0 ? 'transparent' : 'var(--bg-elevated)' }}>
-                        <td style={{ padding: '12px 14px', fontFamily: 'monospace', fontWeight: 600, color: 'var(--text-primary)' }}>{item.route}</td>
-                        <td style={{ padding: '12px 14px', textAlign: 'center', fontSize: '11px', fontWeight: 700, color: 'var(--accent-primary)' }}>{item.method}</td>
-                        <td style={{ padding: '12px 14px', color: 'var(--text-secondary)' }}>{item.auth}</td>
-                        <td style={{ padding: '12px 14px', textAlign: 'center', fontFamily: 'monospace', fontWeight: 700, color: 'var(--color-success)' }}>{item.status}</td>
-                        <td style={{ padding: '12px 14px', textAlign: 'center', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{item.latency}</td>
-                        <td style={{ padding: '12px 14px', textAlign: 'right' }}>
-                          <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', background: item.health === 'Healthy' ? 'var(--color-success-muted)' : 'var(--color-info-muted)', color: item.health === 'Healthy' ? 'var(--color-success)' : 'var(--color-info)', fontWeight: 700 }}>
-                            {item.health === 'Healthy' ? '🟢 Healthy' : '🔒 Protected'}
+                      <tr key={idx}>
+                        <td className="asettings__mono">{item.route}</td>
+                        <td className="asettings__method">{item.method}</td>
+                        <td>{item.auth}</td>
+                        <td className="asettings__mono asettings__ok">{item.status}</td>
+                        <td className="asettings__mono">{item.latency}</td>
+                        <td>
+                          <span className={`asettings__health${item.health === 'Healthy' ? ' is-ok' : ' is-protected'}`}>
+                            {item.health === 'Healthy' ? 'Healthy' : 'Protected'}
                           </span>
                         </td>
                       </tr>
@@ -881,15 +866,13 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
 
         {/* 5. PASSWORD RESET TAB */}
         {activeTab === 'password' && (
-          <form onSubmit={handlePasswordChange} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            <section className="card" style={{ padding: '24px', borderRadius: '16px', border: '1px solid var(--border-subtle)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-6)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '16px' }}>
-                <KeyRound size={20} style={{ color: 'var(--accent-primary)' }} />
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
-                    Change Admin Password
-                  </h2>
-                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+          <form onSubmit={handlePasswordChange} className="asettings__stack">
+            <section className="asettings__panel">
+              <div className="asettings__panel-head">
+                <KeyRound size={18} className="asettings__panel-icon" />
+                <div>
+                  <h2 className="asettings__panel-title">Change Admin Password</h2>
+                  <p className="asettings__panel-sub">
                     Update your account password for secure workspace access. Minimum 6 characters required.
                   </p>
                 </div>
@@ -937,7 +920,7 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-subtle)', paddingTop: '20px', marginTop: '24px' }}>
+              <div className="asettings__actions">
                 <button
                   type="submit"
                   className={`btn btn--primary${passwordPending ? ' btn--loading' : ''}`}
@@ -949,7 +932,7 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
             </section>
           </form>
         )}
-      </main>
+      </div>
     </div>
   )
 }

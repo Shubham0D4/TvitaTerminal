@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition, useActionState, ChangeEvent } from 'react'
-import { Plus, X, Trash2, CheckCircle2, PlayCircle, PauseCircle, Image as ImageIcon, Lock, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, X, Trash2, CheckCircle2, PlayCircle, PauseCircle, Image as ImageIcon, Lock, ChevronDown, ChevronUp, Check, Clock } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { createMilestone, updateMilestoneStatus, deleteMilestone, type MilestoneFormState } from '@/app/(admin)/admin/projects/milestoneActions'
 import type { Milestone } from '@prisma/client'

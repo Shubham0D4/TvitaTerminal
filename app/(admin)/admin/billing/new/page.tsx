@@ -27,12 +27,12 @@ export default async function NewInvoicePage({
   ])
 
   return (
-    <div>
+    <div className="form-shell form-shell--wide">
       <div className="page-header">
         <div>
           <h1 className="page-header__title">Generate Invoice</h1>
           <p className="page-header__subtitle">
-            Create an official tax invoice with automatic CGST, SGST, or IGST computation.
+            Compose a GST tax invoice — party details, line items, and tax mode
           </p>
         </div>
       </div>

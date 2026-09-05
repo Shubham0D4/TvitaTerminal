@@ -2,11 +2,10 @@ import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import {
-  ArrowLeft, Building2, Mail, Phone, MapPin, FileText, FolderKanban,
-  CreditCard, Plus, Layers, Globe, Edit, Users, User, ShieldCheck,
-  Star, AlertTriangle, Clock, CheckCircle2, ExternalLink,
+  ArrowLeft, Mail, Phone, MapPin, FolderKanban,
+  CreditCard, Plus, Globe, Edit, User,
 } from 'lucide-react'
-import { getCountryDisplay, getFlagEmoji } from '@/lib/utils/countries'
+import { getCountryDisplay } from '@/lib/utils/countries'
 import ClientContactsSection from './ClientContactsSection'
 import AdminSubTeamsSection from './AdminSubTeamsSection'
 import ClientDangerZone from './ClientDangerZone'
@@ -50,12 +49,157 @@ const riskColors: Record<string, string> = {
   LOW: '#10b981', MEDIUM: '#f59e0b', HIGH: '#ef4444',
 }
 
-type PageProps = { params: Promise<{ id: string }> }
+const TABS = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'people', label: 'People' },
+  { id: 'delivery', label: 'Delivery' },
+  { id: 'billing', label: 'Billing' },
+  { id: 'risk', label: 'Risk' },
+] as const
 
-export default async function ClientDetailPage({ params }: PageProps) {
+type TabId = (typeof TABS)[number]['id']
+
+type PageProps = {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ tab?: string }>
+}
+
+function BillingConfigCard({ client }: { client: any }) {
+  return (
+    <div className="card">
+      <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', marginBottom: 'var(--space-4)' }}>
+        Billing Configuration
+      </h2>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 2 }}>Billing Name</div>
+          <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>{client.billingName || client.name}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 2 }}>Billing Email</div>
+          <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>{client.billingEmail || client.email || '—'}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 2 }}>Currency</div>
+          <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)', fontWeight: 'var(--font-semibold)' }}>{client.currency}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 2 }}>Payment Terms</div>
+          <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>{client.paymentTerms || '—'}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 2 }}>Tax Applicable</div>
+          <span className={`badge badge--${client.taxApplicable ? 'active' : 'inactive'}`}>
+            {client.taxApplicable
+              ? `Yes (${client.taxRate != null ? Number(client.taxRate) : '—'}%)`
+              : 'No'}
+          </span>
+        </div>
+        <div>
+          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 2 }}>PO Required</div>
+          <span className={`badge badge--${client.poRequired ? 'active' : 'inactive'}`}>
+            {client.poRequired ? `Yes${client.poNumber ? ` — ${client.poNumber}` : ''}` : 'No'}
+          </span>
+        </div>
+        {client.paymentMethod && (
+          <div>
+            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 2 }}>Payment Method</div>
+            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>{client.paymentMethod.replace('_', ' ')}</div>
+          </div>
+        )}
+        {client.paymentProvider && (
+          <div>
+            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 2 }}>Payment Provider</div>
+            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>{client.paymentProvider}</div>
+          </div>
+        )}
+      </div>
+      {client.paymentInstructions && (
+        <div style={{ marginTop: 'var(--space-4)', paddingTop: 'var(--space-4)', borderTop: '1px solid var(--border-subtle)' }}>
+          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 4 }}>Payment Instructions</div>
+          <pre style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', lineHeight: 1.6, whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
+            {client.paymentInstructions}
+          </pre>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function InternalCard({ client }: { client: any }) {
+  return (
+    <div className="card">
+      <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', marginBottom: 'var(--space-4)' }}>
+        Internal
+      </h2>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+        <div className="flex items-center justify-between">
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Priority</span>
+          <span className="badge" style={{ background: `${priorityColors[client.clientPriority] ?? '#64748b'}20`, color: priorityColors[client.clientPriority] ?? '#64748b' }}>
+            {client.clientPriority}
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Risk Level</span>
+          <span className="badge" style={{ background: `${riskColors[client.riskLevel] ?? '#64748b'}20`, color: riskColors[client.riskLevel] ?? '#64748b' }}>
+            {client.riskLevel}
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Onboarding</span>
+          <span className="badge" style={{ background: client.onboardingStatus === 'COMPLETED' ? 'rgba(16,185,129,0.12)' : 'var(--bg-overlay)', color: client.onboardingStatus === 'COMPLETED' ? '#10b981' : 'var(--text-muted)' }}>
+            {client.onboardingStatus.replace('_', ' ')}
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Verification</span>
+          <span className="badge" style={{ background: client.verificationStatus === 'VERIFIED' ? 'rgba(16,185,129,0.12)' : 'var(--bg-overlay)', color: client.verificationStatus === 'VERIFIED' ? '#10b981' : 'var(--text-muted)' }}>
+            {client.verificationStatus}
+          </span>
+        </div>
+        {client.accountManager && (
+          <div className="flex items-center justify-between">
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Account Mgr</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-primary)' }}>{client.accountManager.name}</span>
+          </div>
+        )}
+        {client.clientSource && (
+          <div className="flex items-center justify-between">
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Source</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>{client.clientSource}</span>
+          </div>
+        )}
+        {client.internalTags.length > 0 && (
+          <div>
+            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 6 }}>Tags</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              {client.internalTags.map((tag: string) => (
+                <span key={tag} className="badge" style={{ background: 'var(--bg-overlay)', color: 'var(--text-muted)', fontSize: 10 }}>
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+        {client.internalNotes && (
+          <div style={{ paddingTop: 'var(--space-3)', borderTop: '1px solid var(--border-subtle)' }}>
+            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 4 }}>Internal Notes</div>
+            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+              {client.internalNotes}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default async function ClientDetailPage({ params, searchParams }: PageProps) {
   const { id } = await params
+  const { tab: tabParam } = await searchParams
+  const tab: TabId = TABS.some((t) => t.id === tabParam) ? (tabParam as TabId) : 'overview'
 
-  const [client, adminProfiles] = await Promise.all([
+  const [client] = await Promise.all([
     prisma.client.findUnique({
       where: { id },
       include: {
@@ -80,11 +224,11 @@ export default async function ClientDetailPage({ params }: PageProps) {
 
   if (!client) notFound()
 
-  const activeSub = client.subscriptions.find((s: any) => s.status === 'ACTIVE')
   const totalBilled = client.invoices.reduce((acc: number, inv: any) => acc + Number(inv.amount), 0)
   const pendingAmount = client.invoices
     .filter((i: any) => i.status === 'PENDING' || i.status === 'OVERDUE')
     .reduce((acc: number, inv: any) => acc + Number(inv.amount), 0)
+  const activeProjects = client.projects.filter((p: any) => p.status === 'IN_PROGRESS').length
 
   return (
     <div>
@@ -133,109 +277,168 @@ export default async function ClientDetailPage({ params }: PageProps) {
       </div>
 
       {/* ── Stats Row ── */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        {[
-          { label: 'Total Invoiced', value: formatCurrency(totalBilled, client.currency), icon: <CreditCard size={18} /> },
-          { label: 'Outstanding', value: formatCurrency(pendingAmount, client.currency), icon: <Clock size={18} />, warn: pendingAmount > 0 },
-          { label: 'Active Projects', value: String(client.projects.filter((p: any) => p.status === 'IN_PROGRESS').length), icon: <FolderKanban size={18} /> },
-          { label: 'Total Projects', value: String(client.projects.length), icon: <Layers size={18} /> },
-        ].map((stat) => (
-          <div key={stat.label} className="card" style={{ textAlign: 'center', padding: 'var(--space-4)' }}>
-            <div style={{ color: stat.warn ? 'var(--color-warning)' : 'var(--accent-primary)', marginBottom: 'var(--space-2)', display: 'flex', justifyContent: 'center' }}>
-              {stat.icon}
-            </div>
-            <div style={{ fontSize: 'var(--text-xl)', fontWeight: 'var(--font-bold)', color: stat.warn ? 'var(--color-warning)' : 'var(--text-primary)' }}>
-              {stat.value}
-            </div>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 2 }}>{stat.label}</div>
+      <div className="adetail-stats">
+        <div className="adetail-stat">
+          <div className="adetail-stat__label">Total Invoiced</div>
+          <div className="adetail-stat__value">{formatCurrency(totalBilled, client.currency)}</div>
+        </div>
+        <div className="adetail-stat">
+          <div className="adetail-stat__label">Outstanding</div>
+          <div className={`adetail-stat__value${pendingAmount > 0 ? ' adetail-stat__value--warn' : ''}`}>
+            {formatCurrency(pendingAmount, client.currency)}
           </div>
-        ))}
+        </div>
+        <div className="adetail-stat">
+          <div className="adetail-stat__label">Active Projects</div>
+          <div className="adetail-stat__value">{activeProjects}</div>
+        </div>
+        <div className="adetail-stat">
+          <div className="adetail-stat__label">Total Projects</div>
+          <div className="adetail-stat__value">{client.projects.length}</div>
+        </div>
       </div>
 
-      {/* ── Main 3-col layout ── */}
-      <div className="grid grid-cols-3 gap-6">
-        {/* Left sidebar: Profile info */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+      {/* ── Tab Nav ── */}
+      <nav className="adetail-tabs" aria-label="Client sections">
+        {TABS.map((t) => (
+          <Link
+            key={t.id}
+            href={`/admin/clients/${id}?tab=${t.id}`}
+            className={`adetail-tab${tab === t.id ? ' adetail-tab--active' : ''}`}
+          >
+            {t.label}
+          </Link>
+        ))}
+      </nav>
 
-          {/* Quick Profile Card */}
-          <div className="card">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
-              <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
-                Quick Profile
-              </h2>
+      {/* ── Tab Content ── */}
+      {tab === 'overview' && (
+        <div className="cov-bento">
+          <section className="cov-bento__panel cov-bento__panel--profile">
+            <div className="cov-bento__head">
+              <h2 className="cov-bento__title">Quick Profile</h2>
               <Link href={`/admin/clients/${id}/edit`} className="btn btn--ghost btn--xs">
                 <Edit size={12} /> Edit
               </Link>
             </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <div className="cov-bento__body">
               <InfoRow label="Client Type" value={client.clientType} />
               <InfoRow label="Legal Name" value={client.legalName} />
               <InfoRow label="Display Name" value={client.displayName} />
               <InfoRow label="Country" value={client.country ? getCountryDisplay(client.country) : null} />
-              <InfoRow label="City / State" value={[client.city, client.stateProvince].filter(Boolean).join(', ') || null} />
+              <InfoRow
+                label="City / State"
+                value={[client.city, client.stateProvince].filter(Boolean).join(', ') || null}
+              />
               <InfoRow label="Timezone" value={client.timezone} />
               <InfoRow label="Industry" value={client.industry} />
               {client.website && (
-                <div className="flex items-center justify-between" style={{ padding: 'var(--space-2) 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                <div
+                  className="flex items-center justify-between"
+                  style={{ padding: 'var(--space-2) 0', borderBottom: '1px solid var(--border-subtle)' }}
+                >
                   <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Website</span>
-                  <a href={client.website} target="_blank" rel="noreferrer"
-                    style={{ fontSize: 'var(--text-sm)', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <a
+                    href={client.website}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      fontSize: 'var(--text-sm)',
+                      color: 'var(--accent-primary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                  >
                     <Globe size={12} /> Visit
                   </a>
                 </div>
               )}
             </div>
-          </div>
+          </section>
 
-          {/* Contact Info */}
-          <div className="card">
-            <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', marginBottom: 'var(--space-4)' }}>
-              Contact
-            </h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+          <section className="cov-bento__panel cov-bento__panel--contact">
+            <div className="cov-bento__head">
+              <h2 className="cov-bento__title">Contact</h2>
+            </div>
+            <div className="cov-bento__body cov-bento__body--stack">
               {client.contactPerson && (
                 <div>
                   <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Primary Contact</div>
-                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-medium)', color: 'var(--text-primary)' }}>
+                  <div
+                    style={{
+                      fontSize: 'var(--text-sm)',
+                      fontWeight: 'var(--font-medium)',
+                      color: 'var(--text-primary)',
+                    }}
+                  >
                     {client.contactPerson}
-                    {client.designation && <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}> · {client.designation}</span>}
+                    {client.designation && (
+                      <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}>
+                        {' '}
+                        · {client.designation}
+                      </span>
+                    )}
                   </div>
                 </div>
               )}
               {client.email && (
-                <a href={`mailto:${client.email}`} className="flex items-center gap-2" style={{ fontSize: 'var(--text-sm)', color: 'var(--accent-primary)', textDecoration: 'none' }}>
+                <a
+                  href={`mailto:${client.email}`}
+                  className="flex items-center gap-2"
+                  style={{ fontSize: 'var(--text-sm)', color: 'var(--accent-primary)', textDecoration: 'none' }}
+                >
                   <Mail size={13} /> {client.email}
                 </a>
               )}
               {client.phone && (
-                <div className="flex items-center gap-2" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
+                <div
+                  className="flex items-center gap-2"
+                  style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}
+                >
                   <Phone size={13} /> {client.phone}
                 </div>
               )}
               {client.whatsapp && (
-                <div className="flex items-center gap-2" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                  <span>📱</span> WA: {client.whatsapp}
+                <div
+                  className="flex items-center gap-2"
+                  style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}
+                >
+                  WA: {client.whatsapp}
                 </div>
               )}
               {client.address && (
-                <div className="flex items-start gap-2" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
+                <div
+                  className="flex items-start gap-2"
+                  style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}
+                >
                   <MapPin size={13} style={{ marginTop: 2, flexShrink: 0 }} />
                   <span style={{ lineHeight: 1.5 }}>{client.address}</span>
                 </div>
               )}
+              {!client.contactPerson && !client.email && !client.phone && !client.address && (
+                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: 0 }}>
+                  No contact details on file.
+                </p>
+              )}
             </div>
-          </div>
+          </section>
 
-          {/* Legal & Tax */}
-          <div className="card">
-            <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', marginBottom: 'var(--space-4)' }}>
-              Legal &amp; Tax
-            </h2>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <section className="cov-bento__panel cov-bento__panel--flush cov-bento__panel--internal">
+            <InternalCard client={client} />
+          </section>
+
+          <section className="cov-bento__panel cov-bento__panel--legal">
+            <div className="cov-bento__head">
+              <h2 className="cov-bento__title">Legal &amp; Tax</h2>
+            </div>
+            <div className="cov-bento__body">
               <InfoRow label="Entity Type" value={client.entityType} />
               <InfoRow label="Reg. Number" value={client.registrationNo} mono />
-              <InfoRow label="Reg. Country" value={client.countryOfRegistration ? getCountryDisplay(client.countryOfRegistration) : null} />
+              <InfoRow
+                label="Reg. Country"
+                value={client.countryOfRegistration ? getCountryDisplay(client.countryOfRegistration) : null}
+              />
               <InfoRow label="Tax ID" value={client.taxId} mono />
               <InfoRow label="PAN" value={client.pan} mono />
               <InfoRow label="GSTIN" value={client.gstin} mono />
@@ -243,198 +446,80 @@ export default async function ClientDetailPage({ params }: PageProps) {
               <InfoRow label="Auth. Rep." value={client.authorizedRep} />
               <InfoRow label="Member Since" value={formatDate(client.createdAt)} />
             </div>
-          </div>
+          </section>
 
-          {/* Internal */}
-          <div className="card">
-            <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', marginBottom: 'var(--space-4)' }}>
-              Internal
-            </h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-              <div className="flex items-center justify-between">
-                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Priority</span>
-                <span className="badge" style={{ background: `${priorityColors[client.clientPriority] ?? '#64748b'}20`, color: priorityColors[client.clientPriority] ?? '#64748b' }}>
-                  {client.clientPriority}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Risk Level</span>
-                <span className="badge" style={{ background: `${riskColors[client.riskLevel] ?? '#64748b'}20`, color: riskColors[client.riskLevel] ?? '#64748b' }}>
-                  {client.riskLevel}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Onboarding</span>
-                <span className="badge" style={{ background: client.onboardingStatus === 'COMPLETED' ? 'rgba(16,185,129,0.12)' : 'var(--bg-overlay)', color: client.onboardingStatus === 'COMPLETED' ? '#10b981' : 'var(--text-muted)' }}>
-                  {client.onboardingStatus.replace('_', ' ')}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Verification</span>
-                <span className="badge" style={{ background: client.verificationStatus === 'VERIFIED' ? 'rgba(16,185,129,0.12)' : 'var(--bg-overlay)', color: client.verificationStatus === 'VERIFIED' ? '#10b981' : 'var(--text-muted)' }}>
-                  {client.verificationStatus}
-                </span>
-              </div>
-              {client.accountManager && (
-                <div className="flex items-center justify-between">
-                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Account Mgr</span>
-                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-primary)' }}>{client.accountManager.name}</span>
-                </div>
-              )}
-              {client.clientSource && (
-                <div className="flex items-center justify-between">
-                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Source</span>
-                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>{client.clientSource}</span>
-                </div>
-              )}
-              {client.internalTags.length > 0 && (
-                <div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 6 }}>Tags</div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                    {client.internalTags.map((tag: string) => (
-                      <span key={tag} className="badge" style={{ background: 'var(--bg-overlay)', color: 'var(--text-muted)', fontSize: 10 }}>
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {client.internalNotes && (
-                <div style={{ paddingTop: 'var(--space-3)', borderTop: '1px solid var(--border-subtle)' }}>
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 4 }}>Internal Notes</div>
-                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                    {client.internalNotes}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-          <ClientDangerZone clientId={id} clientName={client.name} />
+          <section className="cov-bento__panel cov-bento__panel--flush cov-bento__panel--billing">
+            <BillingConfigCard client={client} />
+          </section>
         </div>
+      )}
 
-        {/* Right 2-col area: Projects, Contacts, Invoices, Billing Info */}
-        <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-
-          {/* Additional Contacts */}
+      {tab === 'people' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
           <ClientContactsSection clientId={id} contacts={client.contacts} />
-
-          {/* Client Internal Sub-Teams */}
           <AdminSubTeamsSection clientId={id} subTeams={client.subTeams} />
+        </div>
+      )}
 
-          {/* Billing Profile */}
-          <div className="card">
-            <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', marginBottom: 'var(--space-4)' }}>
-              Billing Configuration
+      {tab === 'delivery' && (
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
+              Projects ({client.projects.length})
             </h2>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 2 }}>Billing Name</div>
-                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>{client.billingName || client.name}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 2 }}>Billing Email</div>
-                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>{client.billingEmail || client.email || '—'}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 2 }}>Currency</div>
-                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)', fontWeight: 'var(--font-semibold)' }}>{client.currency}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 2 }}>Payment Terms</div>
-                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>{client.paymentTerms || '—'}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 2 }}>Tax Applicable</div>
-                <span className={`badge badge--${client.taxApplicable ? 'active' : 'inactive'}`}>
-                  {client.taxApplicable ? `Yes (${client.taxRate ?? '—'}%)` : 'No'}
-                </span>
-              </div>
-              <div>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 2 }}>PO Required</div>
-                <span className={`badge badge--${client.poRequired ? 'active' : 'inactive'}`}>
-                  {client.poRequired ? `Yes${client.poNumber ? ` — ${client.poNumber}` : ''}` : 'No'}
-                </span>
-              </div>
-              {client.paymentMethod && (
-                <div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 2 }}>Payment Method</div>
-                  <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>{client.paymentMethod.replace('_', ' ')}</div>
-                </div>
-              )}
-              {client.paymentProvider && (
-                <div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 2 }}>Payment Provider</div>
-                  <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>{client.paymentProvider}</div>
-                </div>
-              )}
-            </div>
-            {client.paymentInstructions && (
-              <div style={{ marginTop: 'var(--space-4)', paddingTop: 'var(--space-4)', borderTop: '1px solid var(--border-subtle)' }}>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 4 }}>Payment Instructions</div>
-                <pre style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', lineHeight: 1.6, whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
-                  {client.paymentInstructions}
-                </pre>
-              </div>
-            )}
+            <Link href={`/admin/projects/new?clientId=${id}`} className="btn btn--ghost btn--sm">
+              <Plus size={14} /> New Project
+            </Link>
           </div>
-
-
-
-          {/* Projects */}
-          <div className="card">
-            <div className="flex items-center justify-between mb-4">
-              <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
-                Projects ({client.projects.length})
-              </h2>
-              <Link href={`/admin/projects/new?clientId=${id}`} className="btn btn--ghost btn--sm">
-                <Plus size={14} /> New Project
-              </Link>
+          {client.projects.length === 0 ? (
+            <div className="empty-state" style={{ padding: 'var(--space-6)' }}>
+              <FolderKanban size={24} />
+              <p className="empty-state__desc">No projects for this client yet.</p>
             </div>
-            {client.projects.length === 0 ? (
-              <div className="empty-state" style={{ padding: 'var(--space-6)' }}>
-                <FolderKanban size={24} />
-                <p className="empty-state__desc">No projects for this client yet.</p>
-              </div>
-            ) : (
-              <div className="table-wrapper">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Project</th><th>Status</th><th>Progress</th><th>Tasks</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {client.projects.map((project: any) => (
-                      <tr key={project.id}>
-                        <td>
-                          <Link href={`/admin/projects/${project.id}`}
-                            style={{ color: 'var(--text-primary)', fontWeight: 'var(--font-medium)' }}>
-                            {project.name}
-                          </Link>
-                        </td>
-                        <td>
-                          <span className={`badge badge--${project.status.toLowerCase().replace('_', '-')}`}>
-                            {project.status.replace('_', ' ')}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="flex items-center gap-2">
-                            <div className="progress-bar-container" style={{ width: 80 }}>
-                              <div className="progress-bar-fill" style={{ width: `${project.progress}%` }} />
-                            </div>
-                            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{project.progress}%</span>
+          ) : (
+            <div className="table-wrapper">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Project</th><th>Status</th><th>Progress</th><th>Tasks</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {client.projects.map((project: any) => (
+                    <tr key={project.id}>
+                      <td>
+                        <Link href={`/admin/projects/${project.id}`}
+                          style={{ color: 'var(--text-primary)', fontWeight: 'var(--font-medium)' }}>
+                          {project.name}
+                        </Link>
+                      </td>
+                      <td>
+                        <span className={`badge badge--${project.status.toLowerCase().replace('_', '-')}`}>
+                          {project.status.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="flex items-center gap-2">
+                          <div className="progress-bar-container" style={{ width: 80 }}>
+                            <div className="progress-bar-fill" style={{ width: `${project.progress}%` }} />
                           </div>
-                        </td>
-                        <td style={{ color: 'var(--text-muted)' }}>{project._count.tasks}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+                          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{project.progress}%</span>
+                        </div>
+                      </td>
+                      <td style={{ color: 'var(--text-muted)' }}>{project._count.tasks}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
-          {/* Invoices */}
+      {tab === 'billing' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+          <BillingConfigCard client={client} />
+
           <div className="card">
             <div className="flex items-center justify-between mb-4">
               <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
@@ -478,9 +563,15 @@ export default async function ClientDetailPage({ params }: PageProps) {
               </div>
             )}
           </div>
-
         </div>
-      </div>
+      )}
+
+      {tab === 'risk' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', maxWidth: 560 }}>
+          <InternalCard client={client} />
+          <ClientDangerZone clientId={id} clientName={client.name} />
+        </div>
+      )}
     </div>
   )
 }

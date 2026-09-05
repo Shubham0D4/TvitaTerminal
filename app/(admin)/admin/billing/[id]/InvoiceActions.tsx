@@ -91,13 +91,13 @@ export default function InvoiceActions({ invoiceId, status: currentStatus }: Inv
   }
 
   return (
-    <div className="no-print flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 mb-6">
-      <Link href="/admin/billing" className="btn btn--ghost align-self-start">
+    <div className="no-print invoice-actions">
+      <Link href="/admin/billing" className="btn btn--ghost invoice-actions__back">
         <ArrowLeft size={16} />
         Back to Invoices
       </Link>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="invoice-actions__tools">
         {/* Direct PDF Download */}
         <a
           href={`/api/invoices/${invoiceId}/pdf`}

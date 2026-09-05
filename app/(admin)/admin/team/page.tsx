@@ -1,21 +1,29 @@
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
-import { Users, Plus, Mail, Phone, FolderKanban, CheckCircle2, Shield } from 'lucide-react'
+import { Users, Plus, Mail, ArrowUpRight, Search } from 'lucide-react'
 import TeamRowActions from './TeamRowActions'
+import PeopleToolbarFilters from './PeopleToolbarFilters'
 
 export const metadata = {
-  title: 'Members — Tvita Admin',
-  description: 'Manage agency members, assign roles, and review active project workloads.',
+  title: 'People — Tvita Admin',
+  description: 'Manage agency people, roles, invitations, and project workloads.',
 }
 
-type SearchParams = Promise<{ search?: string; role?: string }>
+type SearchParams = Promise<{ search?: string; role?: string; status?: string; sort?: string }>
 
-export default async function AdminTeamPage({
+function peopleStatus(m: { passwordHash: string | null; isActive: boolean }) {
+  if (!m.passwordHash) return { label: 'Invited', className: 'badge badge--pending' }
+  if (m.isActive) return { label: 'Active', className: 'badge badge--active' }
+  return { label: 'Inactive', className: 'badge badge--inactive' }
+}
+
+export default async function AdminPeoplePage({
   searchParams,
 }: {
   searchParams: SearchParams
 }) {
   const params = await searchParams
+  const sort = params.sort || 'name'
 
   const teamMembers = await prisma.profile.findMany({
     where: {
@@ -27,6 +35,9 @@ export default async function AdminTeamPage({
         ],
       }),
       ...(params.role && params.role !== 'ALL' && { role: params.role as any }),
+      ...(params.status === 'ACTIVE' && { isActive: true, passwordHash: { not: null } }),
+      ...(params.status === 'INACTIVE' && { isActive: false, passwordHash: { not: null } }),
+      ...(params.status === 'INVITED' && { passwordHash: null }),
     },
     include: {
       _count: {
@@ -37,156 +48,190 @@ export default async function AdminTeamPage({
         },
       },
     },
-    orderBy: { createdAt: 'desc' },
+    orderBy:
+      sort === 'recent'
+        ? { createdAt: 'desc' }
+        : sort === 'workload'
+          ? { tasksAssigned: { _count: 'desc' } }
+          : { name: 'asc' },
   })
 
+  const allForStats = await prisma.profile.findMany({
+    where: { role: { in: ['ADMIN', 'TEAM_MEMBER'] } },
+    select: { role: true, isActive: true, passwordHash: true },
+  })
+
+  const totalPeople = allForStats.length
+  const adminCount = allForStats.filter((m) => m.role === 'ADMIN').length
+  const invitedCount = allForStats.filter((m) => !m.passwordHash).length
+  const activeCount = allForStats.filter((m) => m.isActive && m.passwordHash).length
+
   return (
-    <div>
-      {/* Page Header */}
+    <div className="people">
       <div className="page-header">
         <div>
-          <h1 className="page-header__title">Members</h1>
+          <h1 className="page-header__title">People</h1>
           <p className="page-header__subtitle">
-            Manage agency members, assign roles, and review active project workloads.
+            Manage who has access, what they can do, and how work is distributed
           </p>
         </div>
         <div className="page-header__actions">
           <Link href="/admin/team/new" className="btn btn--primary">
             <Plus size={16} />
-            Add Member
+            Add Person
           </Link>
         </div>
       </div>
 
-      {/* Filter Bar */}
-      <div className="filter-bar">
-        <form className="filter-bar__search" method="GET">
-          <Users size={15} className="filter-bar__search-icon" />
-          <input
-            name="search"
-            className="filter-bar__search-input"
-            placeholder="Search team members by name or email..."
-            defaultValue={params.search ?? ''}
-          />
-          {params.role && <input type="hidden" name="role" value={params.role} />}
-        </form>
+      <div className="people-toolbar">
+        <div className="people-toolbar__stats" aria-label="Team composition">
+          <div className="people-toolbar__stat">
+            <strong>{totalPeople}</strong>
+            <span>Total</span>
+          </div>
+          <div className="people-toolbar__stat">
+            <strong>{activeCount}</strong>
+            <span>Active</span>
+          </div>
+          <div className="people-toolbar__stat">
+            <strong>{adminCount}</strong>
+            <span>Admins</span>
+          </div>
+          <div className="people-toolbar__stat">
+            <strong style={{ color: invitedCount > 0 ? 'var(--color-warning)' : undefined }}>
+              {invitedCount}
+            </strong>
+            <span>Invites</span>
+          </div>
+        </div>
 
-        {(['ALL', 'ADMIN', 'TEAM_MEMBER'] as const).map((r) => (
-          <Link
-            key={r}
-            href={`/admin/team?${params.search ? `search=${params.search}&` : ''}role=${r}`}
-            className={`filter-chip${(!params.role && r === 'ALL') || params.role === r ? ' filter-chip--active' : ''}`}
-          >
-            {r === 'ALL' ? 'All Roles' : r === 'ADMIN' ? 'Admins' : 'Team Members'}
-          </Link>
-        ))}
+        <div className="people-toolbar__controls">
+          <form className="people-toolbar__search" method="GET">
+            <Search size={15} className="people-toolbar__search-icon" />
+            <input
+              name="search"
+              className="people-toolbar__search-input"
+              placeholder="Search name or email…"
+              defaultValue={params.search ?? ''}
+            />
+            {params.role && <input type="hidden" name="role" value={params.role} />}
+            {params.status && <input type="hidden" name="status" value={params.status} />}
+            {params.sort && <input type="hidden" name="sort" value={params.sort} />}
+          </form>
+
+          <PeopleToolbarFilters
+            search={params.search}
+            status={params.status}
+            role={params.role}
+            sort={params.sort}
+          />
+        </div>
       </div>
 
       {teamMembers.length === 0 ? (
         <div className="card">
           <div className="empty-state">
-            <Users size={28} />
-            <div className="empty-state__title">No members found</div>
-            <div className="empty-state__desc">Add members to assign projects and tasks.</div>
+            <div className="empty-state__icon">
+              <Users size={28} />
+            </div>
+            <div className="empty-state__title">No people found</div>
+            <div className="empty-state__desc">
+              Add someone to assign projects, milestones, and permissions.
+            </div>
             <Link href="/admin/team/new" className="btn btn--primary btn--sm">
               <Plus size={14} />
-              Add Member
+              Add Person
             </Link>
           </div>
         </div>
       ) : (
-        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div className="people__table-card">
           <div className="table-wrapper">
-            <table className="table">
+            <table className="table people__table">
               <thead>
                 <tr>
-                  <th>Member Name</th>
+                  <th>Person</th>
                   <th>Role</th>
-                  <th>Project Sub-Role</th>
-                  <th>Monthly Salary</th>
-                  <th>Contact Email</th>
-                  <th>Led Projects</th>
-                  <th>Assigned Tasks</th>
+                  <th>Sub-role</th>
                   <th>Status</th>
-                  <th>Action</th>
+                  <th>Led</th>
+                  <th>Tasks</th>
+                  <th>Salary</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {teamMembers.map((m) => (
-                  <tr key={m.id}>
-                    <td>
-                      <div className="flex items-center gap-3">
-                        <div
-                          style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: '50%',
-                            background: 'var(--accent-primary-muted)',
-                            color: 'var(--accent-primary)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: 'var(--text-xs)',
-                            fontWeight: 'var(--font-bold)',
-                          }}
-                        >
-                          {m.name.charAt(0).toUpperCase()}
+                {teamMembers.map((m) => {
+                  const status = peopleStatus(m)
+                  return (
+                    <tr key={m.id}>
+                      <td>
+                        <div className="people__identity">
+                          <div className="people__avatar" aria-hidden>
+                            {m.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="people__identity-text">
+                            <Link href={`/admin/team/${m.id}`} className="people__name">
+                              {m.name}
+                            </Link>
+                            <div className="people__email">
+                              <Mail size={11} />
+                              {m.email}
+                            </div>
+                          </div>
                         </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
+                      </td>
+                      <td>
+                        <span className={`badge badge--${m.role === 'ADMIN' ? 'active' : 'inactive'}`}>
+                          {m.role === 'ADMIN' ? 'Admin' : 'Team Member'}
+                        </span>
+                      </td>
+                      <td>
+                        {m.teamRole ? (
+                          <span className="people__subrole">
+                            {m.teamRole === 'TEAM_LEAD' ? 'Team Lead' : 'Member'}
+                          </span>
+                        ) : (
+                          <span className="people__muted">—</span>
+                        )}
+                      </td>
+                      <td>
+                        <span className={status.className}>{status.label}</span>
+                      </td>
+                      <td className="people__num">{m._count.projectsLed}</td>
+                      <td className="people__num">{m._count.tasksAssigned}</td>
+                      <td className="people__salary">
+                        {m.salary ? (
+                          `₹${Number(m.salary).toLocaleString('en-IN')}`
+                        ) : (
+                          <span className="people__muted">—</span>
+                        )}
+                      </td>
+                      <td>
+                        <div className="people__actions">
+                          <TeamRowActions
+                            memberId={m.id}
+                            isActive={m.isActive}
+                            hasPassword={Boolean(m.passwordHash)}
+                            email={m.email}
+                          />
                           <Link
                             href={`/admin/team/${m.id}`}
-                            style={{ fontWeight: 'var(--font-medium)', color: 'var(--text-primary)', textDecoration: 'none' }}
+                            className="btn btn--ghost btn--xs"
+                            title="Open profile"
                           >
-                            {m.name}
+                            Open <ArrowUpRight size={12} />
                           </Link>
-                          {m.phone && (
-                            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                              {m.phone}
-                            </div>
-                          )}
                         </div>
-                      </div>
-                    </td>
-                    <td>
-                      <span className={`badge badge--${m.role === 'ADMIN' ? 'active' : 'inactive'}`}>
-                        {m.role}
-                      </span>
-                    </td>
-                    <td>
-                      {m.teamRole ? (
-                        <span className="badge" style={{
-                          fontSize: 10,
-                          background: m.teamRole === 'TEAM_LEAD' ? 'rgba(139,92,246,0.15)' : 'rgba(59,130,246,0.15)',
-                          color: m.teamRole === 'TEAM_LEAD' ? '#8b5cf6' : '#3b82f6',
-                        }}>
-                          {m.teamRole === 'TEAM_LEAD' ? 'TEAM LEAD' : 'TEAM MEMBER'}
-                        </span>
-                      ) : <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>—</span>}
-                    </td>
-                    <td style={{ fontWeight: 'var(--font-medium)', color: m.salary ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                      {m.salary ? `₹${Number(m.salary).toLocaleString('en-IN')}` : '—'}
-                    </td>
-                    <td style={{ color: 'var(--text-muted)' }}>{m.email}</td>
-                    <td style={{ color: 'var(--text-muted)' }}>{m._count.projectsLed}</td>
-                    <td style={{ color: 'var(--text-muted)' }}>{m._count.tasksAssigned}</td>
-                    <td>
-                      {!m.passwordHash ? (
-                        <span className="badge badge--pending" title="Invitation sent, awaiting password setup">
-                          Invited (Pending)
-                        </span>
-                      ) : (
-                        <span className={`badge badge--${m.isActive ? 'active' : 'inactive'}`}>
-                          {m.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      <TeamRowActions memberId={m.id} isActive={m.isActive} hasPassword={Boolean(m.passwordHash)} email={m.email} />
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
+          </div>
+          <div className="people__footer">
+            Showing {teamMembers.length} of {totalPeople} people
           </div>
         </div>
       )}

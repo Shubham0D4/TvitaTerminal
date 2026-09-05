@@ -22,6 +22,8 @@ interface ProjectCarouselProps {
   projects: CarouselProject[]
   /** Used when a project has no banner of its own. */
   fallbackImage: string
+  /** Link prefix for project detail pages. Default: client portal. */
+  basePath?: string
 }
 
 /** Tint per status, keyed to the pill and the progress bar. Matches ProjectStack. */
@@ -34,7 +36,11 @@ const STATUS_STYLES: Record<string, { label: string; tone: string }> = {
   CANCELLED: { label: 'Cancelled', tone: 'slate' },
 }
 
-export default function ProjectCarousel({ projects, fallbackImage }: ProjectCarouselProps) {
+export default function ProjectCarousel({
+  projects,
+  fallbackImage,
+  basePath = '/client/projects',
+}: ProjectCarouselProps) {
   const [index, setIndex] = useState(0)
 
   if (projects.length === 0) return null
@@ -108,7 +114,7 @@ export default function ProjectCarousel({ projects, fallbackImage }: ProjectCaro
 
                         <span className="ticket__body">
                           <Link
-                            href={`/client/projects/${project.id}`}
+                            href={`${basePath}/${project.id}`}
                             className="ticket__name"
                             // Off-screen slides stay out of the tab order.
                             tabIndex={live ? 0 : -1}
@@ -134,7 +140,7 @@ export default function ProjectCarousel({ projects, fallbackImage }: ProjectCaro
                       </div>
 
                       <Link
-                        href={`/client/projects/${project.id}`}
+                        href={`${basePath}/${project.id}`}
                         className="ticket__open"
                         tabIndex={live ? 0 : -1}
                       >

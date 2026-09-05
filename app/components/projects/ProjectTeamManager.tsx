@@ -4,11 +4,26 @@ import { useState } from 'react'
 import { UserPlus, UserMinus } from 'lucide-react'
 import { apiClient } from '@/lib/utils/api-client'
 import toast from 'react-hot-toast'
+import BentoClamp from '@/app/components/ui/BentoClamp'
+
+interface TeamMemberRow {
+  id: string
+  profileId: string
+  role: string
+  profile: { id: string; name: string; email: string | null }
+}
+
+interface AgencyStaffRow {
+  id: string
+  name: string
+  role: string
+  teamRole: string | null
+}
 
 interface ProjectTeamManagerProps {
   projectId: string
-  currentMembers: any[]
-  availableAgencyStaff: any[]
+  currentMembers: TeamMemberRow[]
+  availableAgencyStaff: AgencyStaffRow[]
   isLeadOrAdmin: boolean
 }
 
@@ -19,8 +34,10 @@ const SUBROLES = [
 
 const roleStyle = (role: string) => {
   switch (role) {
-    case 'TEAM_LEAD': return { bg: 'rgba(139,92,246,0.15)', color: '#8b5cf6' }
-    default: return { bg: 'rgba(59,130,246,0.15)', color: '#3b82f6' }
+    case 'TEAM_LEAD':
+      return { bg: 'rgba(139,92,246,0.15)', color: '#8b5cf6' }
+    default:
+      return { bg: 'rgba(59,130,246,0.15)', color: '#3b82f6' }
   }
 }
 
@@ -63,9 +80,10 @@ export default function ProjectTeamManager({
     }
     setSubmitting(true)
     try {
-      const res = await apiClient(`/api/admin/projects/${projectId}/members?profileId=${profileId}`, {
-        method: 'DELETE',
-      })
+      const res = await apiClient(
+        `/api/admin/projects/${projectId}/members?profileId=${profileId}`,
+        { method: 'DELETE' }
+      )
       if (res.success) {
         toast.success('Project member removed.')
         window.location.reload()
@@ -99,24 +117,26 @@ export default function ProjectTeamManager({
     }
   }
 
-  // Filter members who are not yet on this project team
   const memberProfileIds = new Set(currentMembers.map((m) => m.profileId))
   const unassignedStaff = availableAgencyStaff.filter((s) => !memberProfileIds.has(s.id))
 
   return (
-    <div className="card">
+    <div className="card pteam">
       <div className="flex items-center justify-between mb-4">
-        <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
+        <h2
+          style={{
+            fontSize: 'var(--text-md)',
+            fontWeight: 'var(--font-semibold)',
+            color: 'var(--text-primary)',
+          }}
+        >
           Project Team ({currentMembers.length})
         </h2>
       </div>
 
-      {/* Add Member Panel (Lead / Admin only) */}
       {isLeadOrAdmin && unassignedStaff.length > 0 && (
-        <div style={{ marginBottom: 'var(--space-4)', padding: 'var(--space-3)', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-          <div style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-semibold)', color: 'var(--text-muted)', marginBottom: 'var(--space-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Add Member
-          </div>
+        <div className="pteam__add">
+          <div className="pteam__add-label">Add Member</div>
           <div className="flex gap-2 flex-col">
             <select
               className="form-select"
@@ -142,7 +162,9 @@ export default function ProjectTeamManager({
                 disabled={submitting}
               >
                 {SUBROLES.map((r) => (
-                  <option key={r.value} value={r.value}>{r.label}</option>
+                  <option key={r.value} value={r.value}>
+                    {r.label}
+                  </option>
                 ))}
               </select>
               <button
@@ -164,80 +186,69 @@ export default function ProjectTeamManager({
           No members assigned to this project yet.
         </p>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-          {currentMembers.map((m) => {
-            const rs = roleStyle(m.role)
-            return (
-              <div key={m.id} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: '50%',
-                      background: 'var(--accent-primary-muted)',
-                      color: 'var(--accent-primary)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 'var(--text-xs)',
-                      fontWeight: 'var(--font-bold)',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {m.profile.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-medium)', color: 'var(--text-primary)' }}>
-                      {m.profile.name}
+        <BentoClamp maxHeight={220} moreLabel="Show more">
+          <div className="pteam__list">
+            {currentMembers.map((m) => {
+              const rs = roleStyle(m.role)
+              return (
+                <div key={m.id} className="pteam__row">
+                  <div className="flex items-center gap-3" style={{ minWidth: 0 }}>
+                    <div className="pteam__avatar" aria-hidden>
+                      {m.profile.name.charAt(0).toUpperCase()}
                     </div>
-                    {isLeadOrAdmin ? (
-                      <select
-                        className="form-select"
-                        value={m.role}
-                        disabled={submitting}
-                        onChange={(e) => handleUpdateMemberRole(m.profileId, e.target.value)}
-                        style={{
-                          fontSize: '10px',
-                          padding: '2px 18px 2px 6px',
-                          height: 'auto',
-                          width: 'auto',
-                          background: '#ffffff',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          border: '1px solid var(--border-default)',
-                          borderRadius: '8px',
-                          fontFamily: 'inherit',
-                          marginTop: 2
-                        }}
-                      >
-                        <option value="TEAM_LEAD">Team Lead</option>
-                        <option value="MEMBER">Team Member</option>
-                      </select>
-                    ) : (
-                      <span className="badge" style={{ fontSize: 9, background: rs.bg, color: rs.color, marginTop: 2 }}>
-                        {m.role.replace(/_/g, ' ')}
-                      </span>
-                    )}
+                    <div style={{ minWidth: 0 }}>
+                      <div className="pteam__name">{m.profile.name}</div>
+                      {isLeadOrAdmin ? (
+                        <select
+                          className="form-select"
+                          value={m.role}
+                          disabled={submitting}
+                          onChange={(e) => handleUpdateMemberRole(m.profileId, e.target.value)}
+                          style={{
+                            fontSize: '10px',
+                            padding: '2px 18px 2px 6px',
+                            height: 'auto',
+                            width: 'auto',
+                            background: '#ffffff',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            border: '1px solid var(--border-default)',
+                            borderRadius: '8px',
+                            fontFamily: 'inherit',
+                            marginTop: 2,
+                          }}
+                        >
+                          <option value="TEAM_LEAD">Team Lead</option>
+                          <option value="MEMBER">Team Member</option>
+                        </select>
+                      ) : (
+                        <span
+                          className="badge"
+                          style={{ fontSize: 9, background: rs.bg, color: rs.color, marginTop: 2 }}
+                        >
+                          {m.role.replace(/_/g, ' ')}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                {isLeadOrAdmin && (
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveMember(m.profileId)}
-                    disabled={submitting}
-                    className="btn btn--ghost btn--xs"
-                    style={{ color: 'var(--color-danger)' }}
-                    title="Remove from project"
-                  >
-                    <UserMinus size={14} />
-                  </button>
-                )}
-              </div>
-            )
-          })}
-        </div>
+                  {isLeadOrAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveMember(m.profileId)}
+                      disabled={submitting}
+                      className="btn btn--ghost btn--xs"
+                      style={{ color: 'var(--color-danger)', flexShrink: 0 }}
+                      title="Remove from project"
+                    >
+                      <UserMinus size={14} />
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </BentoClamp>
       )}
     </div>
   )

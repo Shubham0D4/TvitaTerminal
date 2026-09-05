@@ -11,12 +11,12 @@ export default async function AdminSettingsPage() {
   const settings = rawSettings ? JSON.parse(JSON.stringify(rawSettings)) : null
 
   return (
-    <div>
+    <div className="asettings-page">
       <div className="page-header">
         <div>
           <h1 className="page-header__title">Settings</h1>
           <p className="page-header__subtitle">
-            Manage your agency profile, tax configuration, and invoice defaults.
+            Agency profile, tax configuration, security, and invoice defaults
           </p>
         </div>
       </div>

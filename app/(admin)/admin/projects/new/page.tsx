@@ -28,12 +28,12 @@ export default async function NewProjectPage({
   ])
 
   return (
-    <div>
+    <div className="form-shell">
       <div className="page-header">
         <div>
           <h1 className="page-header__title">Create Project</h1>
           <p className="page-header__subtitle">
-            Define project scope, timeline, and assign team lead.
+            Scope, timeline, client, and project lead — then open the workspace
           </p>
         </div>
       </div>

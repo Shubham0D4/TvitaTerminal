@@ -185,22 +185,9 @@ export default function Topbar({ user }: TopbarProps) {
           </button>
 
           {notifOpen && (
-            <div
-              style={{
-                position: 'absolute',
-                right: 0,
-                top: 'calc(100% + 8px)',
-                width: 320,
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border-default)',
-                borderRadius: 'var(--radius-md)',
-                boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
-                padding: 'var(--space-3)',
-                zIndex: 100,
-              }}
-            >
-              <div className="flex items-center justify-between mb-3 pb-2" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)' }}>
+            <div className="topbar__notif-panel">
+              <div className="topbar__notif-panel-head">
+                <span className="topbar__notif-panel-title">
                   Notifications ({unreadCount})
                 </span>
                 {unreadCount > 0 && (
@@ -215,22 +202,14 @@ export default function Topbar({ user }: TopbarProps) {
                 )}
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', maxHeight: 280, overflowY: 'auto' }}>
+              <div className="topbar__notif-list">
                 {notifications.length === 0 ? (
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textAlign: 'center', padding: 'var(--space-4)' }}>
-                    No notifications yet
-                  </div>
+                  <div className="topbar__notif-empty">No notifications yet</div>
                 ) : (
                   notifications.map((n) => (
                     <div
                       key={n.id}
-                      style={{
-                        padding: 'var(--space-2) var(--space-3)',
-                        borderRadius: 'var(--radius-sm)',
-                        background: n.isRead ? 'transparent' : 'rgba(99, 102, 241, 0.08)',
-                        borderLeft: n.isRead ? 'none' : '3px solid var(--accent-primary)',
-                        fontSize: 'var(--text-xs)',
-                      }}
+                      className={`topbar__notif-item${!n.isRead ? ' topbar__notif-item--unread' : ''}`}
                     >
                       <div className="flex items-center justify-between">
                         <span style={{ fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>{n.title}</span>

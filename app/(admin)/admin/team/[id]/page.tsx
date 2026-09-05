@@ -9,8 +9,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const { id } = await params
   const member = await prisma.profile.findUnique({ where: { id }, select: { name: true } })
   return {
-    title: member ? `${member.name} — Tvita Admin` : 'Edit Member — Tvita Admin',
-    description: 'Edit member profile, role, and status.',
+    title: member ? `${member.name} — People — Tvita Admin` : 'Person — Tvita Admin',
+    description: 'Edit person profile, role, and status.',
   }
 }
 
@@ -54,7 +54,7 @@ export default async function AdminMemberDetailPage({ params }: PageProps) {
       {/* Header */}
       <div className="page-header">
         <div className="flex items-center gap-3">
-          <Link href="/admin/team" className="btn btn--ghost btn--icon" title="Back to Members">
+          <Link href="/admin/team" className="btn btn--ghost btn--icon" title="Back to People">
             <ArrowLeft size={18} />
           </Link>
           <div>

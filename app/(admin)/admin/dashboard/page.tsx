@@ -2,23 +2,20 @@ import { getServerUser, isAdmin, redirectToLogin, redirectToPortal } from '@/lib
 import { prisma } from '@/lib/prisma'
 import { cleanupExpiredInvitations } from '@/lib/invitation-cleanup'
 import QuotesModule from '@/app/components/projects/QuotesModule'
+import BentoClamp from '@/app/components/ui/BentoClamp'
 import {
   Building2,
   FolderKanban,
   Users,
   CreditCard,
   Clock,
-  CheckCircle2,
   AlertTriangle,
   ShieldAlert,
   ChevronRight,
   Plus,
   ArrowUpRight,
-  Zap,
-  Activity,
-  Check,
-  ExternalLink,
   Receipt,
+  CheckCircle2,
 } from 'lucide-react'
 
 export const metadata = {
@@ -128,11 +125,10 @@ function getOrgProjectHealth(
 }
 
 // ─────────────────────────────────────────────
-// MAIN ADMIN DASHBOARD COMPONENT
+// ADMIN DASHBOARD — Control Center Mosaic
 // ─────────────────────────────────────────────
 
 export default async function AdminDashboardPage() {
-  // Trigger cleanup of expired invitations asynchronously
   cleanupExpiredInvitations().catch((err) => console.error('[Cleanup Error]', err))
 
   const user = await getServerUser()
@@ -141,20 +137,17 @@ export default async function AdminDashboardPage() {
 
   const now = new Date()
 
-  // 1. Fetch organization-wide data concurrently
   const [
     totalClientsCount,
     activeClientsCount,
     inactiveClientsCount,
     totalProjectsCount,
     activeProjectsCount,
-    completedProjectsCount,
     totalTeamMembersCount,
     pendingInvitesCount,
     projects,
     allInvoices,
     allTasks,
-    recentAuditLogs,
     recentClients,
     teamRolesGroup,
   ] = await Promise.all([
@@ -163,7 +156,6 @@ export default async function AdminDashboardPage() {
     prisma.client.count({ where: { status: { in: ['INACTIVE', 'SUSPENDED'] } } }),
     prisma.project.count(),
     prisma.project.count({ where: { status: { in: ['IN_PROGRESS', 'PLANNED'] } } }),
-    prisma.project.count({ where: { status: 'COMPLETED' } }),
     prisma.profile.count({ where: { role: 'TEAM_MEMBER', isActive: true } }),
     prisma.profile.count({ where: { role: 'TEAM_MEMBER', isActive: false, magicLinkToken: { not: null } } }),
     prisma.project.findMany({
@@ -204,11 +196,6 @@ export default async function AdminDashboardPage() {
         project: { select: { name: true } },
       },
     }),
-    prisma.auditLog.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 8,
-      include: { actor: { select: { name: true, email: true } } },
-    }),
     prisma.client.findMany({
       orderBy: { createdAt: 'desc' },
       take: 5,
@@ -220,7 +207,6 @@ export default async function AdminDashboardPage() {
     }),
   ])
 
-  // Calculate Financial Aggregates
   const paidInvoices = allInvoices.filter((inv) => inv.status === 'PAID')
   const pendingInvoices = allInvoices.filter((inv) => inv.status === 'PENDING')
   const overdueInvoices = allInvoices.filter(
@@ -233,9 +219,7 @@ export default async function AdminDashboardPage() {
   const totalOverdue = overdueInvoices.reduce((sum, inv) => sum + Number(inv.amount), 0)
   const currencySymbol = allInvoices[0]?.currency || 'INR'
 
-  // Calculate Organization Exceptions
   const overdueTasks = allTasks.filter((t) => t.dueDate && new Date(t.dueDate) < now)
-  const blockedTasks = allTasks.filter((t) => t.status === 'BLOCKED')
   const unassignedLeadProjects = projects.filter((p) => !p.leadId)
   const delayedProjects = projects.filter(
     (p) => p.endDate && new Date(p.endDate) < now && p.progress < 100 && p.status !== 'COMPLETED'
@@ -246,7 +230,6 @@ export default async function AdminDashboardPage() {
     return diffDays > 0 && diffDays <= 7 && p.progress < 75
   })
 
-  // Organization Health Breakdown Counts
   const onTrackCount = projects.filter((p) => {
     const health = getOrgProjectHealth(p, allTasks.filter((t) => t.projectId === p.id))
     return health.label === 'On Track'
@@ -258,9 +241,17 @@ export default async function AdminDashboardPage() {
     const health = getOrgProjectHealth(p, allTasks.filter((t) => t.projectId === p.id))
     return health.label === 'Blocked'
   }).length
-  const plannedCount = projects.filter((p) => p.status === 'PLANNED').length
 
-  // Build Organization "NEEDS ATTENTION" Exceptions Queue
+  const overallHealthColor =
+    delayedCount > 0 || blockedCount > 0 ? '#ef4444' : atRiskCount > 0 ? '#f59e0b' : '#10b981'
+
+  const overallHealthText =
+    delayedCount > 0 || blockedCount > 0
+      ? 'Attention Required'
+      : atRiskCount > 0
+        ? 'At Risk'
+        : 'All Systems Operational'
+
   const adminExceptionsQueue: Array<{
     id: string
     category: 'OVERDUE' | 'DELAYED' | 'UNASSIGNED' | 'INVITE' | 'FINANCE'
@@ -271,7 +262,6 @@ export default async function AdminDashboardPage() {
     href: string
   }> = []
 
-  // 1. Overdue Tasks
   if (overdueTasks.length > 0) {
     adminExceptionsQueue.push({
       id: 'exc-overdue-tasks',
@@ -284,12 +274,11 @@ export default async function AdminDashboardPage() {
     })
   }
 
-  // 2. Delayed Projects
   if (delayedProjects.length > 0) {
     adminExceptionsQueue.push({
       id: 'exc-delayed-projects',
       category: 'DELAYED',
-      title: `${delayedProjects.length} delayed project(s) past target completion date`,
+      title: `${delayedProjects.length} delayed project(s) past target date`,
       subtitle: `e.g., "${delayedProjects[0].name}" (Target: ${formatDate(delayedProjects[0].endDate)})`,
       badge: { text: 'Delayed Projects', bg: 'rgba(239,68,68,0.12)', color: '#dc2626' },
       ctaText: 'View Projects',
@@ -297,7 +286,6 @@ export default async function AdminDashboardPage() {
     })
   }
 
-  // 3. Projects Without Lead
   if (unassignedLeadProjects.length > 0) {
     adminExceptionsQueue.push({
       id: 'exc-no-lead',
@@ -310,7 +298,6 @@ export default async function AdminDashboardPage() {
     })
   }
 
-  // 4. Pending Invitations
   if (pendingInvitesCount > 0) {
     adminExceptionsQueue.push({
       id: 'exc-invites',
@@ -323,9 +310,6 @@ export default async function AdminDashboardPage() {
     })
   }
 
-
-
-  // 6. Overdue Invoices
   if (overdueInvoices.length > 0) {
     adminExceptionsQueue.push({
       id: 'exc-overdue-invoices',
@@ -345,37 +329,38 @@ export default async function AdminDashboardPage() {
     return 'Good evening'
   })()
 
+  const todayLabel = new Intl.DateTimeFormat('en-IN', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  }).format(now)
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', maxWidth: 1400, margin: '0 auto' }}>
-      
-      {/* Header */}
-      <div className="page-header flex-col md:flex-row items-start md:items-center justify-between gap-4">
+    <div className="admin-dash">
+      {/* ── 1. Admin Header ── */}
+      <header className="admin-dash__header">
         <div>
-          <h1 className="page-header__title">
-            {greeting}, {user.name?.split(' ')[0]}
-          </h1>
-          <p className="page-header__subtitle">
-            Organization overview and system health.
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="admin-dash__greeting">
+              {greeting}, {user.name?.split(' ')[0]}
+            </h1>
+            <span className="admin-dash__health" title={`Organization Health: ${overallHealthText}`}>
+              <span
+                className="admin-dash__health-dot"
+                style={{
+                  backgroundColor: overallHealthColor,
+                  boxShadow: `0 0 8px ${overallHealthColor}`,
+                }}
+              />
+              {overallHealthText}
+            </span>
+          </div>
+          <p className="admin-dash__lede">
+            Operational overview · {todayLabel}
           </p>
         </div>
 
-        <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
-          <span
-            style={{
-              fontSize: 'var(--text-xs)',
-              fontWeight: 600,
-              background: 'var(--bg-elevated)',
-              color: 'var(--text-secondary)',
-              padding: '6px 14px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-subtle)',
-            }}
-          >
-            Admin
-          </span>
-          <a href="/admin/settings#tax-financial" className="btn btn--secondary btn--sm">
-            <Receipt size={14} /> Tax &amp; Financial Settings
-          </a>
+        <div className="admin-dash__actions">
           <a href="/admin/clients/new" className="btn btn--secondary btn--sm">
             <Plus size={14} /> Add Client
           </a>
@@ -383,780 +368,649 @@ export default async function AdminDashboardPage() {
             <Plus size={14} /> New Project
           </a>
         </div>
-      </div>
+      </header>
 
-      {/* Top Metric Cards (4 COLUMNS x N ROWS) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="stat-card">
-          <div className="flex items-center justify-between">
-            <div className="stat-card__icon stat-card__icon--blue">
-              <Building2 size={20} />
+      {/* ── 2. Primary Metrics Mosaic ── */}
+      <section className="admin-dash__grid" aria-label="Key performance metrics">
+        {/* Total Clients — compact */}
+        <div className="admin-dash__cell admin-dash__cell--3">
+          <div className="admin-dash__panel admin-dash__panel--metric admin-dash__panel--compact">
+            <div className="flex items-center justify-between">
+              <div className="stat-card__icon stat-card__icon--blue" style={{ width: 36, height: 36 }}>
+                <Building2 size={18} />
+              </div>
+              <span className="admin-dash__chip admin-dash__chip--blue">{activeClientsCount} active</span>
             </div>
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#2563eb', background: 'rgba(59,130,246,0.12)', padding: '2px 8px', borderRadius: 4 }}>
-              {activeClientsCount} active
-            </span>
-          </div>
-          <div>
-            <div className="stat-card__value">{totalClientsCount}</div>
-            <div className="stat-card__label">Total Clients</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="flex items-center justify-between">
-            <div className="stat-card__icon stat-card__icon--purple">
-              <FolderKanban size={20} />
-            </div>
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#7c3aed', background: 'rgba(124,58,237,0.12)', padding: '2px 8px', borderRadius: 4 }}>
-              {activeProjectsCount} active
-            </span>
-          </div>
-          <div>
-            <div className="stat-card__value">{totalProjectsCount}</div>
-            <div className="stat-card__label">Total Projects</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="flex items-center justify-between">
-            <div className="stat-card__icon stat-card__icon--green">
-              <Users size={20} />
-            </div>
-            {pendingInvitesCount > 0 && (
-              <span style={{ fontSize: 11, fontWeight: 600, color: '#d97706', background: 'rgba(245,158,11,0.12)', padding: '2px 8px', borderRadius: 4 }}>
-                {pendingInvitesCount} pending
-              </span>
-            )}
-          </div>
-          <div>
-            <div className="stat-card__value">{totalTeamMembersCount}</div>
-            <div className="stat-card__label">Team Members</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-card__icon stat-card__icon--purple">
-            <Zap size={20} />
-          </div>
-          <div>
-            <div className="stat-card__value">{activeProjectsCount}</div>
-            <div className="stat-card__label">Active Projects</div>
-          </div>
-        </div>
-
-        <div
-          className="stat-card"
-          style={{
-            borderLeft: overdueTasks.length > 0 ? '4px solid var(--color-danger)' : '1px solid var(--border-subtle)',
-          }}
-        >
-          <div className="stat-card__icon stat-card__icon--red">
-            <Clock size={20} />
-          </div>
-          <div>
-            <div className="stat-card__value" style={{ color: overdueTasks.length > 0 ? '#ef4444' : undefined }}>
-              {overdueTasks.length}
-            </div>
-            <div className="stat-card__label">Overdue Tasks</div>
-          </div>
-        </div>
-
-        <div
-          className="stat-card"
-          style={{
-            borderLeft: atRiskCount + delayedCount > 0 ? '4px solid var(--color-warning)' : '1px solid var(--border-subtle)',
-          }}
-        >
-          <div className="stat-card__icon stat-card__icon--yellow">
-            <AlertTriangle size={20} />
-          </div>
-          <div>
-            <div className="stat-card__value" style={{ color: atRiskCount + delayedCount > 0 ? '#d97706' : undefined }}>
-              {atRiskCount + delayedCount}
-            </div>
-            <div className="stat-card__label">At Risk / Delayed</div>
-          </div>
-        </div>
-
-        <div
-          className="stat-card"
-          style={{
-            borderLeft: totalOutstanding > 0 ? '4px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
-          }}
-        >
-          <div className="stat-card__icon stat-card__icon--green">
-            <CreditCard size={20} />
-          </div>
-          <div>
-            <div className="stat-card__value" style={{ fontSize: 'var(--text-xl)' }}>
-              {formatCurrency(totalOutstanding, currencySymbol)}
-            </div>
-            <div className="stat-card__label">Outstanding Billing</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Global Quotes & Iterative Negotiation Section */}
-      <QuotesModule userRole={user.role} userId={user.id} />
-
-      {/* Organization Health */}
-      <div
-        className="card"
-        style={{
-          backgroundColor: '#ffffff',
-          padding: 'var(--space-4) var(--space-5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 12,
-        }}
-      >
-        <div>
-          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
-            Organization Health
-          </div>
-          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-            Project status summary across active accounts.
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <a
-            href="/admin/projects"
-            style={{
-              padding: '4px 12px',
-              borderRadius: 4,
-              background: 'rgba(16, 185, 129, 0.12)',
-              color: '#059669',
-              fontSize: 'var(--text-xs)',
-              fontWeight: 600,
-              textDecoration: 'none',
-            }}
-          >
-            {onTrackCount} On Track
-          </a>
-          <a
-            href="/admin/projects"
-            style={{
-              padding: '4px 12px',
-              borderRadius: 4,
-              background: 'rgba(245, 158, 11, 0.12)',
-              color: '#d97706',
-              fontSize: 'var(--text-xs)',
-              fontWeight: 600,
-              textDecoration: 'none',
-            }}
-          >
-            {atRiskCount} At Risk
-          </a>
-          <a
-            href="/admin/projects"
-            style={{
-              padding: '4px 12px',
-              borderRadius: 4,
-              background: 'rgba(239, 68, 68, 0.12)',
-              color: '#dc2626',
-              fontSize: 'var(--text-xs)',
-              fontWeight: 600,
-              textDecoration: 'none',
-            }}
-          >
-            {delayedCount} Delayed
-          </a>
-          {blockedCount > 0 && (
-            <a
-              href="/admin/projects"
-              style={{
-                padding: '4px 12px',
-                borderRadius: 4,
-                background: 'rgba(220, 38, 38, 0.12)',
-                color: '#dc2626',
-                fontSize: 'var(--text-xs)',
-                fontWeight: 600,
-                textDecoration: 'none',
-              }}
-            >
-              {blockedCount} Blocked
-            </a>
-          )}
-          <a
-            href="/admin/projects"
-            style={{
-              padding: '4px 12px',
-              borderRadius: 4,
-              background: 'rgba(100, 116, 139, 0.12)',
-              color: '#64748b',
-              fontSize: 'var(--text-xs)',
-              fontWeight: 600,
-              textDecoration: 'none',
-            }}
-          >
-            {plannedCount} Planned
-          </a>
-          <a
-            href="/admin/projects"
-            style={{
-              padding: '4px 12px',
-              borderRadius: 4,
-              background: 'rgba(79, 70, 229, 0.12)',
-              color: '#4f46e5',
-              fontSize: 'var(--text-xs)',
-              fontWeight: 600,
-              textDecoration: 'none',
-            }}
-          >
-            {completedProjectsCount} Completed
-          </a>
-        </div>
-      </div>
-
-      {/* Needs Attention Queue */}
-      <div
-        className="card"
-        style={{
-          backgroundColor: '#ffffff',
-          border: '1px solid var(--border-subtle)',
-        }}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <ShieldAlert size={18} style={{ color: adminExceptionsQueue.length > 0 ? '#dc2626' : '#10b981' }} />
             <div>
-              <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
-                Needs Attention
-              </h2>
-              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                Items requiring administrative action
-              </p>
+              <div className="admin-dash__metric-value">{totalClientsCount}</div>
+              <div className="admin-dash__metric-label">Total Clients</div>
             </div>
           </div>
-
-          {adminExceptionsQueue.length > 0 && (
-            <span
-              style={{
-                fontSize: 'var(--text-xs)',
-                fontWeight: 600,
-                background: 'rgba(239, 68, 68, 0.12)',
-                color: '#ef4444',
-                padding: '2px 8px',
-                borderRadius: 4,
-              }}
-            >
-              {adminExceptionsQueue.length} Pending
-            </span>
-          )}
         </div>
 
-        {adminExceptionsQueue.length === 0 ? (
-          <div
-            style={{
-              padding: 'var(--space-6)',
-              textAlign: 'center',
-              background: 'var(--bg-elevated)',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-subtle)',
-            }}
-          >
-            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-medium)', color: 'var(--text-secondary)' }}>
-              No pending actions
+        {/* Total Projects — wide feature metric */}
+        <div className="admin-dash__cell admin-dash__cell--5">
+          <div className="admin-dash__panel admin-dash__panel--metric admin-dash__panel--tall">
+            <div className="flex items-center justify-between">
+              <div className="stat-card__icon stat-card__icon--purple">
+                <FolderKanban size={20} />
+              </div>
+              <span className="admin-dash__chip admin-dash__chip--purple">{activeProjectsCount} active</span>
             </div>
-            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 2 }}>
-              All projects and organization processes are operating normally.
-            </p>
+            <div>
+              <div className="flex items-baseline gap-2">
+                <span className="admin-dash__metric-value admin-dash__metric-value--lg">{totalProjectsCount}</span>
+                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>projects</span>
+              </div>
+              <div className="flex items-center gap-3 mt-3">
+                <div className="progress-bar-container" style={{ flex: 1, height: 6, borderRadius: 3 }}>
+                  <div
+                    className="progress-bar-fill"
+                    style={{
+                      width:
+                        totalProjectsCount > 0
+                          ? `${Math.round((activeProjectsCount / totalProjectsCount) * 100)}%`
+                          : '0%',
+                      backgroundColor: '#7c3aed',
+                    }}
+                  />
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  {onTrackCount} on track
+                </span>
+              </div>
+            </div>
           </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-            {adminExceptionsQueue.map((item) => (
+        </div>
+
+        {/* Team Members — compact */}
+        <div className="admin-dash__cell admin-dash__cell--4">
+          <div
+            className="admin-dash__panel admin-dash__panel--metric admin-dash__panel--compact"
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}
+          >
+            <div className="stat-card__icon stat-card__icon--green" style={{ width: 44, height: 44, flexShrink: 0 }}>
+              <Users size={22} />
+            </div>
+            <div>
+              <div className="admin-dash__metric-value">{totalTeamMembersCount}</div>
+              <div className="admin-dash__metric-label">Team Members</div>
+              {pendingInvitesCount > 0 && (
+                <span style={{ fontSize: 11, fontWeight: 600, color: '#d97706', marginTop: 2, display: 'inline-block' }}>
+                  {pendingInvitesCount} pending invite(s)
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Overdue Tasks — attention */}
+        <div className="admin-dash__cell admin-dash__cell--3">
+          <div
+            className={`admin-dash__panel admin-dash__panel--metric admin-dash__panel--compact${
+              overdueTasks.length > 0 ? ' admin-dash__panel--danger' : ''
+            }`}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}
+          >
+            <div className="stat-card__icon stat-card__icon--red" style={{ width: 40, height: 40, flexShrink: 0 }}>
+              <Clock size={20} />
+            </div>
+            <div>
               <div
-                key={item.id}
+                className="admin-dash__metric-value admin-dash__metric-value--sm"
+                style={{ color: overdueTasks.length > 0 ? '#ef4444' : undefined }}
+              >
+                {overdueTasks.length}
+              </div>
+              <div className="admin-dash__metric-label">Overdue Tasks</div>
+              <span
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: 'var(--space-4)',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--bg-elevated)',
-                  border: '1px solid var(--border-subtle)',
-                  gap: 'var(--space-4)',
+                  fontSize: 10,
+                  fontWeight: 500,
+                  color: overdueTasks.length > 0 ? '#ef4444' : 'var(--text-secondary)',
                 }}
               >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                    <span
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 600,
-                        background: item.badge.bg,
-                        color: item.badge.color,
-                        padding: '2px 6px',
-                        borderRadius: 4,
-                      }}
-                    >
-                      {item.badge.text}
-                    </span>
-                    <span style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-medium)', color: 'var(--text-primary)' }}>
-                      {item.title}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>{item.subtitle}</div>
-                </div>
-
-                <a href={item.href} className="btn btn--secondary btn--sm" style={{ flexShrink: 0 }}>
-                  {item.ctaText}
-                  <ChevronRight size={14} />
-                </a>
-              </div>
-            ))}
+                {overdueTasks.length > 0 ? 'Action required' : 'All clear'}
+              </span>
+            </div>
           </div>
-        )}
-      </div>
-
-      {/* Projects Overview */}
-      <div className="card" style={{ backgroundColor: '#ffffff' }}>
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
-              Projects Overview
-            </h2>
-            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-              Active projects and recent status changes.
-            </p>
-          </div>
-          <a href="/admin/projects" className="btn btn--ghost btn--sm">
-            View All Projects
-            <ChevronRight size={14} />
-          </a>
         </div>
 
-        {projects.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-state__icon">
-              <FolderKanban size={24} />
+        {/* At Risk / Delayed — compact warning */}
+        <div className="admin-dash__cell admin-dash__cell--3">
+          <div
+            className={`admin-dash__panel admin-dash__panel--metric admin-dash__panel--compact${
+              atRiskCount + delayedCount > 0 ? ' admin-dash__panel--warn' : ''
+            }`}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}
+          >
+            <div className="stat-card__icon stat-card__icon--yellow" style={{ width: 40, height: 40, flexShrink: 0 }}>
+              <AlertTriangle size={20} />
             </div>
-            <div className="empty-state__title">No active projects</div>
-            <div className="empty-state__desc">Create projects to begin tracking organization status.</div>
+            <div>
+              <div
+                className="admin-dash__metric-value admin-dash__metric-value--sm"
+                style={{ color: atRiskCount + delayedCount > 0 ? '#d97706' : undefined }}
+              >
+                {atRiskCount + delayedCount}
+              </div>
+              <div className="admin-dash__metric-label">At Risk / Delayed</div>
+              <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-secondary)' }}>
+                {atRiskCount} risk · {delayedCount} delayed
+              </span>
+            </div>
           </div>
-        ) : (
-          <div className="table-wrapper">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Project Name</th>
-                  <th>Client</th>
-                  <th>Project Lead</th>
-                  <th>Status</th>
-                  <th>Target Date</th>
-                  <th>Progress</th>
-                  <th style={{ textAlign: 'right' }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {projects.slice(0, 6).map((project) => {
-                  const projectTasksList = allTasks.filter((t) => t.projectId === project.id)
-                  const health = getOrgProjectHealth(project, projectTasksList)
+        </div>
 
-                  return (
-                    <tr key={project.id}>
-                      <td>
-                        <a
-                          href={`/admin/projects/${project.id}`}
-                          style={{ fontWeight: 'var(--font-medium)', color: 'var(--text-primary)', textDecoration: 'none' }}
-                        >
-                          {project.name}
-                        </a>
-                      </td>
-                      <td style={{ color: 'var(--text-muted)' }}>{project.client.name}</td>
-                      <td>
-                        {project.lead ? (
-                          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>{project.lead.name}</span>
-                        ) : (
-                          <span style={{ fontSize: 11, fontWeight: 600, color: '#d97706', background: 'rgba(245,158,11,0.12)', padding: '2px 6px', borderRadius: 4 }}>
-                            Unassigned
+        {/* Outstanding Billing — wide financial signal */}
+        <div className="admin-dash__cell admin-dash__cell--6">
+          <div className="admin-dash__panel admin-dash__panel--metric admin-dash__panel--accent admin-dash__panel--tall">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="stat-card__icon stat-card__icon--blue">
+                <CreditCard size={20} />
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {totalOverdue > 0 && (
+                  <span className="admin-dash__chip admin-dash__chip--red">
+                    {formatCurrency(totalOverdue, currencySymbol)} overdue
+                  </span>
+                )}
+                <span className="admin-dash__chip admin-dash__chip--blue">Outstanding Billing</span>
+              </div>
+            </div>
+            <div>
+              <div
+                style={{
+                  fontSize: 'var(--text-xs)',
+                  fontWeight: 600,
+                  color: 'var(--text-muted)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                Pending Collections
+              </div>
+              <div className="admin-dash__metric-value admin-dash__metric-value--lg" style={{ marginTop: 4 }}>
+                {formatCurrency(totalOutstanding, currencySymbol)}
+              </div>
+              <div
+                style={{
+                  fontSize: 'var(--text-xs)',
+                  color: 'var(--text-secondary)',
+                  marginTop: 6,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <span>
+                  Collected:{' '}
+                  <strong style={{ color: '#059669' }}>{formatCurrency(totalPaid, currencySymbol)}</strong>
+                </span>
+                <span aria-hidden>·</span>
+                <span>
+                  Invoiced:{' '}
+                  <strong style={{ color: 'var(--text-primary)' }}>
+                    {formatCurrency(totalInvoiced, currencySymbol)}
+                  </strong>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 3. Attention + Team (paired row) ── */}
+      <section className="admin-dash__grid" aria-label="Attention and team">
+        <div className="admin-dash__cell admin-dash__cell--7">
+          <div className="admin-dash__panel">
+            <div className="admin-dash__panel-head">
+              <div className="flex items-center gap-2">
+                <ShieldAlert
+                  size={18}
+                  style={{ color: adminExceptionsQueue.length > 0 ? '#dc2626' : '#10b981', flexShrink: 0 }}
+                />
+                <div>
+                  <h2 className="admin-dash__panel-title">Needs Attention</h2>
+                  <p className="admin-dash__panel-sub">Exceptions requiring admin action</p>
+                </div>
+              </div>
+              {adminExceptionsQueue.length > 0 && (
+                <span className="admin-dash__chip admin-dash__chip--red">
+                  {adminExceptionsQueue.length} action(s)
+                </span>
+              )}
+            </div>
+
+            {adminExceptionsQueue.length === 0 ? (
+              <div className="admin-dash__status-ok">
+                <CheckCircle2 size={20} style={{ color: '#10b981', flexShrink: 0 }} />
+                <div>
+                  <div className="admin-dash__status-ok-title">Everything looks good</div>
+                  <div className="admin-dash__status-ok-desc">
+                    No urgent actions require attention right now.
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <BentoClamp maxHeight={200} moreLabel="Show more">
+                <div className="admin-dash__alert-list">
+                  {adminExceptionsQueue.map((item) => (
+                    <div key={item.id} className="admin-dash__alert-row">
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2, flexWrap: 'wrap' }}>
+                          <span
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 600,
+                              background: item.badge.bg,
+                              color: item.badge.color,
+                              padding: '1px 6px',
+                              borderRadius: 3,
+                            }}
+                          >
+                            {item.badge.text}
                           </span>
-                        )}
-                      </td>
-                      <td>
-                        <span
-                          style={{
-                            fontSize: 11,
-                            fontWeight: 600,
-                            color: health.color,
-                            background: health.bg,
-                            padding: '2px 8px',
-                            borderRadius: 4,
-                          }}
-                        >
-                          {health.badge}
-                        </span>
-                      </td>
-                      <td style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>{formatDate(project.endDate)}</td>
-                      <td>
-                        <div className="flex items-center gap-2">
-                          <div className="progress-bar-container" style={{ width: 80, height: 6 }}>
-                            <div className="progress-bar-fill" style={{ width: `${project.progress}%`, backgroundColor: health.color }} />
-                          </div>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)' }}>
-                            {project.progress}%
+                          <span
+                            style={{
+                              fontSize: 'var(--text-xs)',
+                              fontWeight: 'var(--font-medium)',
+                              color: 'var(--text-primary)',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                          >
+                            {item.title}
                           </span>
                         </div>
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <a href={`/admin/projects/${project.id}`} className="btn btn--secondary btn--xs">
-                          Manage <ArrowUpRight size={12} />
-                        </a>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Team & Client Overview Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        {/* Team Overview */}
-        <div className="card" style={{ backgroundColor: '#ffffff' }}>
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
-                Team Overview
-              </h2>
-              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Roster and role distribution</p>
-            </div>
-            <a href="/admin/team" className="btn btn--ghost btn--xs">
-              Manage Team
-            </a>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            <div style={{ padding: 'var(--space-3)', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
-              <div style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: 'var(--text-primary)' }}>{totalTeamMembersCount}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Active Members</div>
-            </div>
-            <div style={{ padding: 'var(--space-3)', background: 'rgba(245,158,11,0.08)', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
-              <div style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: '#d97706' }}>{pendingInvitesCount}</div>
-              <div style={{ fontSize: 11, color: '#d97706' }}>Pending Invites</div>
-            </div>
-            <div style={{ padding: 'var(--space-3)', background: 'rgba(79,70,229,0.08)', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
-              <div style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: '#4f46e5' }}>{teamRolesGroup.length}</div>
-              <div style={{ fontSize: 11, color: '#4f46e5' }}>Defined Roles</div>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-            {teamRolesGroup.map((r) => (
-              <div
-                key={r.teamRole || 'UNASSIGNED'}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: 'var(--space-3)',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--bg-elevated)',
-                  border: '1px solid var(--border-subtle)',
-                }}
-              >
-                <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>
-                  {r.teamRole ? r.teamRole.replace('_', ' ') : 'General Team Member'}
-                </span>
-                <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--accent-primary)' }}>
-                  {r._count._all} Member(s)
-                </span>
-              </div>
-            ))}
+                        <div
+                          style={{
+                            fontSize: 11,
+                            color: 'var(--text-secondary)',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {item.subtitle}
+                        </div>
+                      </div>
+                      <a
+                        href={item.href}
+                        className="btn btn--secondary btn--xs"
+                        style={{ flexShrink: 0, padding: '3px 10px', fontSize: 11 }}
+                      >
+                        {item.ctaText} <ChevronRight size={12} />
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </BentoClamp>
+            )}
           </div>
         </div>
 
-        {/* Client Overview */}
-        <div className="card" style={{ backgroundColor: '#ffffff' }}>
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
-                Client Overview
-              </h2>
-              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Accounts and status</p>
-            </div>
-            <a href="/admin/clients" className="btn btn--ghost btn--xs">
-              View Clients
-            </a>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            <div style={{ padding: 'var(--space-3)', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
-              <div style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: 'var(--text-primary)' }}>{totalClientsCount}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Total Accounts</div>
-            </div>
-            <div style={{ padding: 'var(--space-3)', background: 'rgba(16,185,129,0.08)', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
-              <div style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: '#10b981' }}>{activeClientsCount}</div>
-              <div style={{ fontSize: 11, color: '#10b981' }}>Active Clients</div>
-            </div>
-            <div style={{ padding: 'var(--space-3)', background: 'rgba(239,68,68,0.08)', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
-              <div style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: '#ef4444' }}>{inactiveClientsCount}</div>
-              <div style={{ fontSize: 11, color: '#ef4444' }}>Inactive / Suspended</div>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-            {recentClients.map((client) => (
-              <a
-                key={client.id}
-                href={`/admin/clients/${client.id}`}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: 'var(--space-3)',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--bg-elevated)',
-                  border: '1px solid var(--border-subtle)',
-                  textDecoration: 'none',
-                }}
-              >
-                <div>
-                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
-                    {client.name}
-                  </div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Created {formatShortDate(client.createdAt)}</div>
-                </div>
-                <span className={`badge badge--${client.status.toLowerCase()}`}>{client.status}</span>
+        {/* Team Overview — compact widget */}
+        <div className="admin-dash__cell admin-dash__cell--5">
+          <div className="admin-dash__panel">
+            <div className="admin-dash__panel-head">
+              <div>
+                <h2 className="admin-dash__panel-title">People</h2>
+                <p className="admin-dash__panel-sub">Directory · roles &amp; invites</p>
+              </div>
+              <a href="/admin/team" className="btn btn--ghost btn--xs" style={{ fontSize: 11 }}>
+                Open <ArrowUpRight size={12} />
               </a>
-            ))}
-          </div>
-        </div>
-      </div>
+            </div>
 
-      {/* Financial Overview */}
-      <div className="card" style={{ backgroundColor: '#ffffff', border: '1px solid var(--border-subtle)' }}>
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
-              Financial Overview
-            </h2>
-            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-              Invoicing, collected revenue, and outstanding balance summary.
-            </p>
-          </div>
-          <a href="/admin/billing" className="btn btn--secondary btn--sm">
-            View Billing &amp; Invoices
-            <ChevronRight size={14} />
-          </a>
-        </div>
+            <div className="admin-dash__mini-stats admin-dash__mini-stats--3">
+              <div className="admin-dash__mini-stat">
+                <div className="admin-dash__mini-stat-value">{totalTeamMembersCount}</div>
+                <div className="admin-dash__mini-stat-label">Members</div>
+              </div>
+              <div
+                className="admin-dash__mini-stat"
+                style={{ background: 'rgba(245,158,11,0.08)', border: 'none' }}
+              >
+                <div className="admin-dash__mini-stat-value" style={{ color: '#d97706' }}>
+                  {pendingInvitesCount}
+                </div>
+                <div className="admin-dash__mini-stat-label" style={{ color: '#d97706' }}>
+                  Invites
+                </div>
+              </div>
+              <div
+                className="admin-dash__mini-stat"
+                style={{ background: 'rgba(79,70,229,0.08)', border: 'none' }}
+              >
+                <div className="admin-dash__mini-stat-value" style={{ color: '#4f46e5' }}>
+                  {teamRolesGroup.length}
+                </div>
+                <div className="admin-dash__mini-stat-label" style={{ color: '#4f46e5' }}>
+                  Roles
+                </div>
+              </div>
+            </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div style={{ padding: 'var(--space-4)', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)' }}>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Total Invoiced
-            </div>
-            <div style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: 'var(--text-primary)', marginTop: 4 }}>
-              {formatCurrency(totalInvoiced, currencySymbol)}
-            </div>
-          </div>
-          <div style={{ padding: 'var(--space-4)', background: 'rgba(16,185,129,0.06)', borderRadius: 'var(--radius-md)' }}>
-            <div style={{ fontSize: 11, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Revenue Collected
-            </div>
-            <div style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: '#059669', marginTop: 4 }}>
-              {formatCurrency(totalPaid, currencySymbol)}
-            </div>
-          </div>
-          <div style={{ padding: 'var(--space-4)', background: 'rgba(59,130,246,0.06)', borderRadius: 'var(--radius-md)' }}>
-            <div style={{ fontSize: 11, color: '#2563eb', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Outstanding Balance
-            </div>
-            <div style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: '#2563eb', marginTop: 4 }}>
-              {formatCurrency(totalOutstanding, currencySymbol)}
-            </div>
-          </div>
-          <div style={{ padding: 'var(--space-4)', background: 'rgba(239,68,68,0.06)', borderRadius: 'var(--radius-md)' }}>
-            <div style={{ fontSize: 11, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Overdue Balance
-            </div>
-            <div style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: '#ef4444', marginTop: 4 }}>
-              {formatCurrency(totalOverdue, currencySymbol)}
-            </div>
-          </div>
-        </div>
-
-        {allInvoices.length === 0 ? (
-          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', padding: 'var(--space-3) 0' }}>
-            No invoices generated yet.
-          </p>
-        ) : (
-          <div className="table-wrapper">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Invoice #</th>
-                  <th>Client</th>
-                  <th>Amount</th>
-                  <th>Status</th>
-                  <th>Due Date</th>
-                  <th style={{ textAlign: 'right' }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {allInvoices.slice(0, 5).map((inv) => (
-                  <tr key={inv.id}>
-                    <td>
-                      <a href={`/admin/billing/${inv.id}`} style={{ fontWeight: 'var(--font-medium)', color: 'var(--accent-primary)', textDecoration: 'none' }}>
-                        #{inv.invoiceNo}
-                      </a>
-                    </td>
-                    <td style={{ color: 'var(--text-muted)' }}>{inv.client.name}</td>
-                    <td style={{ fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
-                      {formatCurrency(inv.amount, inv.currency)}
-                    </td>
-                    <td>
-                      <span className={`badge badge--${inv.status.toLowerCase()}`}>{inv.status}</span>
-                    </td>
-                    <td style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>{formatDate(inv.dueDate)}</td>
-                    <td style={{ textAlign: 'right' }}>
-                      <a href={`/admin/billing/${inv.id}`} className="btn btn--secondary btn--xs">
-                        Manage <ExternalLink size={12} />
-                      </a>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Audit Trail & System Status */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        {/* Audit Log Trail */}
-        <div className="card" style={{ backgroundColor: '#ffffff' }}>
-          <div className="flex items-center justify-between mb-4">
-            <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
-              Recent Activity
-            </h2>
-            <a href="/admin/audit-logs" className="btn btn--ghost btn--xs">
-              View Audit Logs
-            </a>
-          </div>
-
-          {recentAuditLogs.length === 0 ? (
-            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', padding: 'var(--space-4) 0' }}>
-              No recent audit trail entries logged.
-            </p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-              {recentAuditLogs.map((log) => (
-                <div
-                  key={log.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: 'var(--space-3)',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'var(--bg-elevated)',
-                    border: '1px solid var(--border-subtle)',
-                  }}
-                >
-                  <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>
-                    <strong style={{ color: 'var(--text-primary)' }}>{log.actor?.name || log.actorEmail || 'System'}</strong>:{' '}
-                    <span style={{ color: 'var(--accent-primary)', fontWeight: 500 }}>{log.action}</span> on {log.entityType}{' '}
-                    {log.entityLabel ? `("${log.entityLabel}")` : ''}
+            {teamRolesGroup.length > 0 && (
+              <div className="admin-dash__list">
+                {teamRolesGroup.slice(0, 3).map((r) => (
+                  <div key={r.teamRole || 'UNASSIGNED'} className="admin-dash__list-row">
+                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-primary)' }}>
+                      {r.teamRole ? r.teamRole.replace('_', ' ') : 'General Team Member'}
+                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-primary)' }}>
+                      {r._count._all}
+                    </span>
                   </div>
-                  <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>
-                    {formatShortDate(log.createdAt)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* System Status */}
-        <div className="card" style={{ backgroundColor: '#ffffff' }}>
-          <div className="flex items-center justify-between mb-4">
-            <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
-              System Status
-            </h2>
-            <span style={{ fontSize: 11, color: '#059669', fontWeight: 600, background: 'rgba(16,185,129,0.12)', padding: '2px 8px', borderRadius: 4 }}>
-              Operational
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: 'var(--space-3)',
-                borderRadius: 'var(--radius-md)',
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border-subtle)',
-              }}
-            >
-              <Check size={16} style={{ color: '#059669' }} />
-              <div>
-                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
-                  Authentication Service
-                </div>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                  Magic links &amp; session security operating normally.
-                </div>
+                ))}
               </div>
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: 'var(--space-3)',
-                borderRadius: 'var(--radius-md)',
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border-subtle)',
-              }}
-            >
-              <Check size={16} style={{ color: '#2563eb' }} />
-              <div>
-                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
-                  Database Engine
-                </div>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                  PostgreSQL database connection pool healthy.
-                </div>
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: 'var(--space-3)',
-                borderRadius: 'var(--radius-md)',
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border-subtle)',
-              }}
-            >
-              <Check size={16} style={{ color: pendingInvitesCount > 0 ? '#d97706' : '#059669' }} />
-              <div>
-                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
-                  Invitation Token Cleanup
-                </div>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                  {pendingInvitesCount > 0 ? `${pendingInvitesCount} pending user magic links active.` : 'All magic link tokens cleaned.'}
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         </div>
+      </section>
 
-      </div>
+      {/* ── 4. Projects Overview — large operational card ── */}
+      <section className="admin-dash__grid" aria-label="Projects overview">
+        <div className="admin-dash__cell admin-dash__cell--12">
+          <div className="admin-dash__panel">
+            <div className="admin-dash__panel-head">
+              <div>
+                <h2 className="admin-dash__panel-title">Projects Overview</h2>
+                <p className="admin-dash__panel-sub">
+                  Active organization projects, leads &amp; completion health
+                </p>
+              </div>
+              <a href="/admin/projects" className="btn btn--ghost btn--xs">
+                View All <ChevronRight size={14} />
+              </a>
+            </div>
 
+            {projects.length === 0 ? (
+              <div className="admin-dash__status-ok" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border-subtle)' }}>
+                <FolderKanban size={20} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    No active projects
+                  </div>
+                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                    Create a project to begin tracking organization status.
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="table-wrapper">
+                <table className="table" style={{ fontSize: 'var(--text-xs)' }}>
+                  <thead>
+                    <tr>
+                      <th>Project Name</th>
+                      <th>Client</th>
+                      <th>Lead</th>
+                      <th>Status</th>
+                      <th>Progress</th>
+                      <th style={{ textAlign: 'right' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {projects.slice(0, 5).map((project) => {
+                      const projectTasksList = allTasks.filter((t) => t.projectId === project.id)
+                      const health = getOrgProjectHealth(project, projectTasksList)
+
+                      return (
+                        <tr key={project.id}>
+                          <td>
+                            <a
+                              href={`/admin/projects/${project.id}`}
+                              style={{
+                                fontWeight: 'var(--font-medium)',
+                                color: 'var(--text-primary)',
+                                textDecoration: 'none',
+                              }}
+                            >
+                              {project.name}
+                            </a>
+                          </td>
+                          <td style={{ color: 'var(--text-muted)' }}>{project.client.name}</td>
+                          <td>
+                            {project.lead ? (
+                              <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                                {project.lead.name.split(' ')[0]}
+                              </span>
+                            ) : (
+                              <span
+                                style={{
+                                  fontSize: 9,
+                                  fontWeight: 600,
+                                  color: '#d97706',
+                                  background: 'rgba(245,158,11,0.12)',
+                                  padding: '1px 5px',
+                                  borderRadius: 3,
+                                }}
+                              >
+                                Unassigned
+                              </span>
+                            )}
+                          </td>
+                          <td>
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 600,
+                                color: health.color,
+                                background: health.bg,
+                                padding: '1px 6px',
+                                borderRadius: 4,
+                              }}
+                            >
+                              {health.badge}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="flex items-center gap-2">
+                              <div className="progress-bar-container" style={{ width: 60, height: 5 }}>
+                                <div
+                                  className="progress-bar-fill"
+                                  style={{ width: `${project.progress}%`, backgroundColor: health.color }}
+                                />
+                              </div>
+                              <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                                {project.progress}%
+                              </span>
+                            </div>
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <a
+                              href={`/admin/projects/${project.id}`}
+                              className="btn btn--secondary btn--xs"
+                              style={{ padding: '2px 6px', fontSize: 10 }}
+                            >
+                              Manage <ArrowUpRight size={10} />
+                            </a>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 5. Quotes + Client Accounts ── */}
+      <section className="admin-dash__grid" aria-label="Quotes and clients">
+        <div className="admin-dash__cell admin-dash__cell--7">
+          <div className="admin-dash__quotes">
+            <BentoClamp maxHeight={320} moreLabel="Show more">
+              <QuotesModule userRole={user.role} userId={user.id} compact />
+            </BentoClamp>
+          </div>
+        </div>
+
+        <div className="admin-dash__cell admin-dash__cell--5">
+          <div className="admin-dash__panel">
+            <div className="admin-dash__panel-head">
+              <div>
+                <h2 className="admin-dash__panel-title">Client Accounts</h2>
+                <p className="admin-dash__panel-sub">Status &amp; recent accounts</p>
+              </div>
+              <a href="/admin/clients" className="btn btn--ghost btn--xs">
+                View <ChevronRight size={12} />
+              </a>
+            </div>
+
+            <div className="admin-dash__mini-stats admin-dash__mini-stats--2">
+              <div
+                className="admin-dash__mini-stat"
+                style={{ background: 'rgba(16,185,129,0.08)', border: 'none' }}
+              >
+                <div className="admin-dash__mini-stat-value" style={{ color: '#10b981' }}>
+                  {activeClientsCount}
+                </div>
+                <div className="admin-dash__mini-stat-label" style={{ color: '#10b981' }}>
+                  Active
+                </div>
+              </div>
+              <div
+                className="admin-dash__mini-stat"
+                style={{ background: 'rgba(239,68,68,0.08)', border: 'none' }}
+              >
+                <div className="admin-dash__mini-stat-value" style={{ color: '#ef4444' }}>
+                  {inactiveClientsCount}
+                </div>
+                <div className="admin-dash__mini-stat-label" style={{ color: '#ef4444' }}>
+                  Inactive
+                </div>
+              </div>
+            </div>
+
+            <BentoClamp maxHeight={180} moreHref="/admin/clients" moreLabel="Show more">
+              <div className="admin-dash__list">
+                {recentClients.length === 0 ? (
+                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', padding: '8px 0' }}>
+                    No clients yet.
+                  </div>
+                ) : (
+                  recentClients.map((client) => (
+                    <a key={client.id} href={`/admin/clients/${client.id}`} className="admin-dash__list-row">
+                      <div>
+                        <div
+                          style={{
+                            fontSize: 'var(--text-xs)',
+                            fontWeight: 'var(--font-semibold)',
+                            color: 'var(--text-primary)',
+                          }}
+                        >
+                          {client.name}
+                        </div>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                          Added {formatShortDate(client.createdAt)}
+                        </div>
+                      </div>
+                      <span
+                        className={`badge badge--${client.status.toLowerCase()}`}
+                        style={{ fontSize: 9, padding: '1px 5px' }}
+                      >
+                        {client.status}
+                      </span>
+                    </a>
+                  ))
+                )}
+              </div>
+            </BentoClamp>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 6. Financial Health — large feature card ── */}
+      <section className="admin-dash__grid" aria-label="Financial health">
+        <div className="admin-dash__cell admin-dash__cell--12">
+          <div className="admin-dash__panel">
+            <div className="admin-dash__panel-head">
+              <div>
+                <h2 className="admin-dash__panel-title">Financial Health</h2>
+                <p className="admin-dash__panel-sub">Collections, outstanding balance &amp; recent invoices</p>
+              </div>
+              <a href="/admin/billing" className="btn btn--secondary btn--xs">
+                View Invoices <ChevronRight size={12} />
+              </a>
+            </div>
+
+            <div className="admin-dash__finance-grid">
+              <div className="admin-dash__finance-totals">
+                <div className="admin-dash__finance-total admin-dash__finance-total--paid">
+                  <div className="admin-dash__finance-total-label" style={{ color: '#059669' }}>
+                    Collected
+                  </div>
+                  <div className="admin-dash__finance-total-value" style={{ color: '#059669' }}>
+                    {formatCurrency(totalPaid, currencySymbol)}
+                  </div>
+                </div>
+                <div className="admin-dash__finance-total admin-dash__finance-total--out">
+                  <div className="admin-dash__finance-total-label" style={{ color: '#2563eb' }}>
+                    Outstanding
+                  </div>
+                  <div className="admin-dash__finance-total-value" style={{ color: '#2563eb' }}>
+                    {formatCurrency(totalOutstanding, currencySymbol)}
+                  </div>
+                  {totalOverdue > 0 && (
+                    <div style={{ fontSize: 11, fontWeight: 600, color: '#ef4444', marginTop: 6 }}>
+                      {formatCurrency(totalOverdue, currencySymbol)} overdue
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                {allInvoices.length === 0 ? (
+                  <div className="admin-dash__status-ok" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border-subtle)' }}>
+                    <Receipt size={18} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                    <div>
+                      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        No invoices yet
+                      </div>
+                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                        Billing activity will appear here once invoices are issued.
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <BentoClamp maxHeight={180} moreHref="/admin/billing" moreLabel="Show more">
+                    <div className="admin-dash__list" style={{ marginTop: 0 }}>
+                      {allInvoices.slice(0, 8).map((inv) => (
+                        <a key={inv.id} href={`/admin/billing/${inv.id}`} className="admin-dash__list-row">
+                          <div>
+                            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-primary)' }}>
+                              #{inv.invoiceNo} — {inv.client.name}
+                            </div>
+                            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                              Due {formatDate(inv.dueDate)}
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-primary)' }}>
+                              {formatCurrency(inv.amount, inv.currency)}
+                            </div>
+                            <span
+                              className={`badge badge--${inv.status.toLowerCase()}`}
+                              style={{ fontSize: 8, padding: '1px 4px' }}
+                            >
+                              {inv.status}
+                            </span>
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                  </BentoClamp>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   )
 }

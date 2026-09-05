@@ -36,6 +36,20 @@ interface Props {
   clientId?: string
   userRole: string
   userId: string
+  /** Tighter empty state for mosaic / bento layouts */
+  compact?: boolean
+}
+
+function formatQuoteMessageTime(value?: string | null) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return new Intl.DateTimeFormat('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -45,7 +59,7 @@ const STATUS_COLOR: Record<string, string> = {
   COUNTER_OFFERED: '#8b5cf6',
 }
 
-export default function QuotesModule({ clientId, userRole, userId }: Props) {
+export default function QuotesModule({ clientId, userRole, userId, compact = false }: Props) {
   // STRICT EXCLUSION: Internal Team Members (role === 'TEAM_MEMBER') cannot see quotes
   if (userRole === 'TEAM_MEMBER') {
     return null
@@ -150,26 +164,39 @@ export default function QuotesModule({ clientId, userRole, userId }: Props) {
   }
 
   if (loading) {
-    return <div className="card text-center py-6"><p style={{ color: 'var(--text-muted)' }}>Loading quotes...</p></div>
+    return (
+      <div className="quotes-module quotes-module--loading">
+        <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: 'var(--text-sm)' }}>Loading quotes...</p>
+      </div>
+    )
   }
 
   return (
-    <div className="card" style={{ backgroundColor: '#ffffff' }}>
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+    <div className={`quotes-module${compact ? ' quotes-module--compact' : ''}`}>
+      <div className="quotes-module__head">
         <div>
-          <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', margin: 0 }}>
+          <h2 className="quotes-module__title">
             Project Quotes &amp; Negotiations
           </h2>
-          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 2 }}>
-            Centralized workspace for project requests, proposal quotes, and 2-way counter-offers.
-          </p>
+          {!compact && (
+            <p className="quotes-module__sub">
+              Client-submitted project requests and counter-offer negotiations.
+            </p>
+          )}
+          {compact && (
+            <p className="quotes-module__sub">
+              Client quotes &amp; counter-offers
+            </p>
+          )}
         </div>
-        <button type="button" onClick={() => setShowCreate(!showCreate)} className="btn btn--primary btn--sm">
-          {showCreate ? <><X size={14} /> Cancel</> : <><Plus size={14} /> {isClient ? 'Request New Quote' : 'Issue New Quote'}</>}
-        </button>
+        {isClient && (
+          <button type="button" onClick={() => setShowCreate(!showCreate)} className="btn btn--primary btn--sm">
+            {showCreate ? <><X size={14} /> Cancel</> : <><Plus size={14} /> Request New Quote</>}
+          </button>
+        )}
       </div>
 
-      {showCreate && (
+      {showCreate && isClient && (
         <form onSubmit={handleCreate} style={{ marginBottom: 'var(--space-4)', padding: 'var(--space-4)', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-default)' }}>
           <div className="form-group mb-3">
             <label className="form-label" htmlFor="qt-title">Project / Quote Title *</label>
@@ -207,14 +234,38 @@ export default function QuotesModule({ clientId, userRole, userId }: Props) {
       )}
 
       {quotes.length === 0 ? (
-        <div style={{ padding: 'var(--space-5)', textAlign: 'center', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)' }}>
-          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', margin: 0 }}>No active project quotes or counter-offer negotiations found.</p>
-          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 4 }}>
-            {isClient ? 'Click "Request New Quote" to submit a project estimation request to the agency.' : 'Issue quotes or manage incoming client project estimations here.'}
-          </p>
+        <div
+          className={`quotes-empty${compact ? ' quotes-empty--compact' : ''}`}
+        >
+          {compact ? (
+            <>
+              <FileText size={18} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+              <div>
+                <p style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+                  No active quotes
+                </p>
+                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: '2px 0 0' }}>
+                  {isClient
+                    ? 'Request a quote to get a project estimate.'
+                    : 'Quotes appear here when clients submit requests.'}
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', margin: 0 }}>
+                No active project quotes or counter-offer negotiations found.
+              </p>
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 4 }}>
+                {isClient
+                  ? 'Click "Request New Quote" to submit a project estimation request to the agency.'
+                  : 'When clients request quotes, negotiations will appear here for your response.'}
+              </p>
+            </>
+          )}
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+        <div className="quotes-module__list">
           {quotes.map((quote) => {
             const isPendingQuote = quote.status === 'PENDING' || quote.status === 'COUNTER_OFFERED'
             const formattedBudget = new Intl.NumberFormat('en-IN', { style: 'currency', currency: quote.currency }).format(quote.budget)
@@ -222,7 +273,7 @@ export default function QuotesModule({ clientId, userRole, userId }: Props) {
             const messagesList: QuoteMessage[] = Array.isArray(quote.messages) ? quote.messages : []
 
             return (
-              <div key={quote.id} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-4)' }}>
+              <div key={quote.id} className="quotes-module__card">
                 {/* Header */}
                 <div className="flex items-start justify-between gap-4 flex-wrap sm:flex-nowrap mb-3">
                   <div style={{ flex: 1, minWidth: 200 }}>
@@ -264,7 +315,7 @@ export default function QuotesModule({ clientId, userRole, userId }: Props) {
                 </div>
 
                 {/* Financial Overview */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, padding: '10px 14px', background: '#ffffff', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', marginBottom: 12 }}>
+                <div className="quotes-module__finance">
                   <div>
                     <span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block' }}>Initial Proposed Budget</span>
                     <span style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>{formattedBudget}</span>
@@ -291,7 +342,7 @@ export default function QuotesModule({ clientId, userRole, userId }: Props) {
                               {msg.senderName} ({msg.senderRole === 'ADMIN' ? 'Agency Admin' : 'Client'})
                             </span>
                             <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                              {new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(msg.timestamp))}
+                              {formatQuoteMessageTime(msg.timestamp)}
                             </span>
                           </div>
                           {msg.counterBudget && (

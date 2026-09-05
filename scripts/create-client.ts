@@ -23,7 +23,7 @@ const CREDENTIAL_PROVIDER_ID = 'credential'
 const CREDENTIAL_ISSUER = `local:${CREDENTIAL_PROVIDER_ID}`
 
 const CLIENT_EMAIL = 'client@tvita.in'
-const CLIENT_PASSWORD = 'Client@12345'
+const CLIENT_PASSWORD = 'Pass1234'
 const CLIENT_CONTACT_NAME = 'Ananya Iyer'
 const COMPANY_DISPLAY_NAME = 'Northwind Retail'
 
