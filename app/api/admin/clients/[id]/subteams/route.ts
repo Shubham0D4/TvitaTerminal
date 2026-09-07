@@ -1,10 +1,11 @@
 import crypto from 'crypto'
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
 import { DEFAULT_SUBTEAM_POLICY, getServerUser, isAdmin } from '@/lib/auth/server'
 import { sendClientTeamInvite } from '@/lib/email'
 import { prisma } from '@/lib/prisma'
 import { getAppBaseUrl } from '@/lib/utils/url'
 import { NextRequest } from 'next/server'
+import { assertSubTeamNameAvailable, sanitizeAllowedProjectIds } from '@/lib/db/integrity'
 
 export async function POST(
   request: NextRequest,
@@ -29,6 +30,9 @@ export async function POST(
     if (!name || !email) {
       return Errors.VALIDATION('Sub-team name and email are required')
     }
+
+    await assertSubTeamNameAvailable(clientId, name)
+    const allowedProjects = await sanitizeAllowedProjectIds(clientId, body.allowedProjects)
 
     const appUrl = getAppBaseUrl(request)
     const token = crypto.randomBytes(32).toString('hex')
@@ -68,9 +72,10 @@ export async function POST(
       data: {
         clientId,
         profileId: authUserId,
-        name,
+        name: name.trim(),
         email,
         accessPolicy: mergedPolicy,
+        allowedProjects,
       },
       include: { profile: { select: { email: true, name: true, isActive: true } } },
     })
@@ -85,6 +90,6 @@ export async function POST(
     return apiSuccess(subTeam, 201)
   } catch (error) {
     console.error('Admin create subteam API error:', error)
-    return Errors.INTERNAL('Failed to create sub-team')
+    return fromUnknownError(error, 'Failed to create sub-team')
   }
 }

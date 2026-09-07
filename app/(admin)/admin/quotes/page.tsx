@@ -16,7 +16,7 @@ export default async function AdminQuotesPage() {
         <div>
           <h1 className="page-header__title">Quotes</h1>
           <p className="page-header__subtitle">
-            Client-submitted quotation requests — respond, counter, or accept
+            Open a quote to review the brief, negotiation history, and respond
           </p>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
 import { getServerUser, isTeamMember, isAdmin } from '@/lib/auth/server'
 import { TaskService } from '@/lib/services/task.service'
 import { NextRequest } from 'next/server'
@@ -17,15 +17,15 @@ export async function GET(request: NextRequest) {
   try {
     const tasks = await TaskService.getTasksList({ status, projectId, assigneeId }, user)
     return apiSuccess(tasks)
-  } catch (error: any) {
+  } catch (error) {
     console.error('Team tasks GET API error:', error)
-    return Errors.INTERNAL('Failed to fetch tasks')
+    return fromUnknownError(error, 'Failed to fetch tasks')
   }
 }
 
 export async function POST(request: NextRequest) {
   const user = await getServerUser()
-  if (!user) {
+  if (!user || (!isTeamMember(user) && !isAdmin(user))) {
     return Errors.UNAUTHORIZED()
   }
 
@@ -33,14 +33,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const task = await TaskService.createTask(body, user)
     return apiSuccess(task, 201)
-  } catch (error: any) {
+  } catch (error) {
     console.error('Team task POST API error:', error)
-    if (error.name === 'ValidationError') {
-      return Errors.VALIDATION(error.message)
-    }
-    if (error.name === 'NotFoundError') {
-      return Errors.NOT_FOUND(error.message)
-    }
-    return Errors.INTERNAL(error.message || 'Failed to create task')
+    return fromUnknownError(error, 'Failed to create task')
   }
 }

@@ -3,12 +3,19 @@ import { getServerUser, redirectToLogin } from '@/lib/auth/server'
 import { redirect, notFound } from 'next/navigation'
 import ClientInvoiceActions from './ClientInvoiceActions'
 import PaymentRedirect from '@/app/components/billing/PaymentRedirect'
+import { getClientActor, hasClientPolicy } from '@/lib/auth/access'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const invoice = await prisma.invoice.findUnique({ where: { id }, select: { invoiceNo: true } })
+  const invoice = await prisma.invoice.findUnique({ where: { id }, select: { invoiceNo: true, status: true } })
+  if (!invoice || invoice.status === 'DRAFT') {
+    return {
+      title: 'Invoice — Tvita Client Portal',
+      description: 'Tax invoice details and PDF download.',
+    }
+  }
   return {
-    title: invoice ? `${invoice.invoiceNo} — Tvita Client Portal` : 'Invoice — Tvita Client Portal',
+    title: `${invoice.invoiceNo} — Tvita Client Portal`,
     description: 'Tax invoice details and PDF download.',
   }
 }
@@ -30,11 +37,12 @@ export default async function ClientInvoiceDetailPage({ params }: PageProps) {
   const user = await getServerUser()
   if (!user) redirectToLogin()
 
-  // Verify this invoice belongs to this client
-  const client = await prisma.client.findFirst({
-    where: { OR: [{ profileId: user.id }, { email: user.email }] },
-  })
-  if (!client) redirect('/client/invoices')
+  const actor = await getClientActor(user)
+  if (!actor || !hasClientPolicy(actor.subTeam, 'invoices', 'billing')) {
+    redirect('/client/invoices')
+  }
+
+  const { client } = actor
 
   // External platform redirect
   const externalSources = ['upwork', 'freelancer', 'fiverr', 'toptal', 'guru', 'peopleperhour']
@@ -58,7 +66,12 @@ export default async function ClientInvoiceDetailPage({ params }: PageProps) {
     prisma.appSettings.findFirst(),
   ])
 
-  if (!invoice) notFound()
+  if (!invoice || invoice.status === 'DRAFT') notFound()
+
+  const allowed = actor.subTeam?.allowedProjectIds ?? []
+  if (allowed.length > 0 && invoice.projectId && !allowed.includes(invoice.projectId)) {
+    notFound()
+  }
 
   const lineItems: Array<{ description: string; sacCode?: string; qty?: number; quantity?: number; rate: number; amount: number }> =
     (invoice.lineItems as any) ?? []

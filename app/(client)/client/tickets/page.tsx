@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation'
 
-import { getServerUser, getClientSubTeamContext, redirectToLogin } from '@/lib/auth/server'
+import { getServerUser, redirectToLogin } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
 import TicketsWorkspace from '@/app/components/client/TicketsWorkspace'
+import { clientProjectWhere, getClientActor, hasClientPolicy } from '@/lib/auth/access'
 
 export const metadata = {
   title: 'Tickets — Tvita Client Portal',
@@ -12,25 +13,11 @@ export default async function ClientTicketsPage() {
   const user = await getServerUser()
   if (!user) redirectToLogin()
 
-  const subTeamCtx = await getClientSubTeamContext(user.id)
-  if (subTeamCtx && subTeamCtx.policy.issues === false) redirect('/client/home')
-
-  const client = await prisma.client.findFirst({
-    where: subTeamCtx
-      ? { id: subTeamCtx.clientId }
-      : { OR: [{ profileId: user.id }, { email: user.email }] },
-    select: { id: true },
-  })
-  if (!client) redirect('/client/home')
-
-  const allowedProjectIds = subTeamCtx?.allowedProjectIds ?? []
-  const projectFilter =
-    allowedProjectIds.length > 0
-      ? { clientId: client.id, id: { in: allowedProjectIds } }
-      : { clientId: client.id }
+  const actor = await getClientActor(user)
+  if (!actor || !hasClientPolicy(actor.subTeam, 'issues')) redirect('/client/home')
 
   const projects = await prisma.project.findMany({
-    where: projectFilter,
+    where: clientProjectWhere(actor.client.id, actor.subTeam),
     orderBy: { updatedAt: 'desc' },
     select: {
       id: true,

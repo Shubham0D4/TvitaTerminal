@@ -10,6 +10,7 @@ import {
   Folder,
   Receipt,
   User,
+  Users,
   Bell,
   Menu,
   X,
@@ -60,6 +61,7 @@ export default function ClientNavbar({ isSubTeam: isSubTeamProp = false, subTeam
   const navItems = [
     { label: 'Home', href: '/client/home', icon: <House size={17} />, show: true },
     { label: 'Projects', href: '/client/projects', icon: <Folder size={17} />, show: !isSubTeam || policy?.projects !== false },
+    { label: 'Team', href: '/client/teams', icon: <Users size={17} />, show: !isSubTeam },
     { label: 'Billing', href: '/client/invoices', icon: <Receipt size={17} />, show: !isSubTeam || Boolean(policy?.invoices || policy?.billing) },
     { label: 'Profile', href: '/client/profile', icon: <User size={17} />, show: true },
   ].filter(item => item.show)
@@ -122,7 +124,7 @@ export default function ClientNavbar({ isSubTeam: isSubTeamProp = false, subTeam
               )}
             </span>
           </Link>
-          {subTeamCtx?.teamName && (
+          {subTeamCtx?.teamName && subTeamCtx.teamName !== '__default__' && (
             <span className="client-navbar__portal-badge" style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', fontSize: 10, padding: '2px 8px', borderRadius: 12, fontWeight: 600 }}>
               Team: {subTeamCtx.teamName}
             </span>

@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import Link from 'next/link'
 import {
   Users, Plus, Trash2, Send, Copy, Check, X, Mail,
-  UserCheck, Clock, AlertCircle,
+  UserCheck, Clock, AlertCircle, FolderKanban,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { apiClient } from '@/lib/utils/api-client'
@@ -19,12 +20,30 @@ type MemberItem = {
     name?: string
     isActive?: boolean
     passwordHash?: string | null
+    hasPassword?: boolean
   } | null
+}
+
+type ProjectItem = {
+  id: string
+  name: string
+  status: string
+}
+
+type ExtraTeam = {
+  id: string
+  name: string
+  status: string
+  _count: { members: number }
 }
 
 type Props = {
   clientName: string
+  teamId: string
   initialMembers: MemberItem[]
+  projects: ProjectItem[]
+  allowedProjectIds: string[]
+  extraTeams: ExtraTeam[]
 }
 
 function getInitials(name: string) {
@@ -35,13 +54,25 @@ function formatDate(d: string) {
   return new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(d))
 }
 
-export default function ClientTeamsManager({ clientName, initialMembers }: Props) {
+export default function ClientTeamsManager({
+  clientName,
+  teamId,
+  initialMembers,
+  projects,
+  allowedProjectIds,
+  extraTeams,
+}: Props) {
   const [members, setMembers] = useState<MemberItem[]>(initialMembers)
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteName, setInviteName] = useState('')
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+
+  const [restrictProjects, setRestrictProjects] = useState(allowedProjectIds.length > 0)
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>(allowedProjectIds)
+  const [savedProjectIds, setSavedProjectIds] = useState<string[]>(allowedProjectIds)
+  const [isSavingAccess, setIsSavingAccess] = useState(false)
 
   const handleInvite = (e: React.FormEvent) => {
     e.preventDefault()
@@ -66,7 +97,6 @@ export default function ClientTeamsManager({ clientName, initialMembers }: Props
 
   const handleResend = async (member: MemberItem) => {
     try {
-      // Resend via re-invite
       const res = await apiClient.post<MemberItem>('/api/client/members', {
         email: member.email,
         name: member.name,
@@ -98,24 +128,62 @@ export default function ClientTeamsManager({ clientName, initialMembers }: Props
     }
   }
 
+  const toggleProject = (id: string, checked: boolean) => {
+    setSelectedProjectIds((prev) => (
+      checked ? [...prev, id] : prev.filter((projectId) => projectId !== id)
+    ))
+  }
+
+  const handleSaveProjectAccess = async () => {
+    if (restrictProjects && selectedProjectIds.length === 0) {
+      toast.error('Select at least one project, or allow all projects.')
+      return
+    }
+
+    setIsSavingAccess(true)
+    try {
+      const nextIds = restrictProjects ? selectedProjectIds : []
+      const updated = await apiClient.patch<{ allowedProjects?: string[] }>(`/api/client/team/${teamId}`, {
+        allowedProjects: nextIds,
+      })
+      const saved = Array.isArray(updated.allowedProjects) ? updated.allowedProjects : nextIds
+      setSavedProjectIds(saved)
+      setSelectedProjectIds(saved)
+      setRestrictProjects(saved.length > 0)
+      toast.success(saved.length > 0
+        ? `Team can access ${saved.length} selected project${saved.length === 1 ? '' : 's'}`
+        : 'Team can access all projects')
+    } catch (err) {
+      toast.error((err as Error)?.message || 'Failed to update project access')
+    } finally {
+      setIsSavingAccess(false)
+    }
+  }
+
+  const accessDirty =
+    restrictProjects !== savedProjectIds.length > 0
+    || (restrictProjects && (
+      selectedProjectIds.length !== savedProjectIds.length
+      || selectedProjectIds.some((id) => !savedProjectIds.includes(id))
+    ))
+
   const activeCount = members.filter(m => m.status === 'ACTIVE').length
-  const pendingCount = members.filter(m => m.status === 'ACTIVE' && !m.profile?.passwordHash).length
+  const pendingCount = members.filter(m => m.status === 'ACTIVE' && !m.profile?.hasPassword && !m.profile?.passwordHash).length
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
 
-      {/* Header */}
       <div className="page-header flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="page-header__title">Team Members</h1>
+            <h1 className="page-header__title">Team</h1>
             <span className="badge" style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent-primary)', fontWeight: 600 }}>
               {activeCount} Active
               {pendingCount > 0 && <span style={{ marginLeft: 4, color: '#f59e0b' }}>· {pendingCount} Pending</span>}
             </span>
           </div>
           <p className="page-header__subtitle">
-            Invite colleagues from {clientName} to access your projects. They'll receive a magic link to sign in instantly.
+            Invite colleagues from {clientName} to your projects. Invoices and billing stay with you.
           </p>
         </div>
 
@@ -129,7 +197,6 @@ export default function ClientTeamsManager({ clientName, initialMembers }: Props
         </button>
       </div>
 
-      {/* Info card */}
       <div style={{
         display: 'flex', alignItems: 'flex-start', gap: 10,
         background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.2)',
@@ -137,11 +204,78 @@ export default function ClientTeamsManager({ clientName, initialMembers }: Props
       }}>
         <AlertCircle size={16} style={{ color: 'var(--accent-primary)', flexShrink: 0, marginTop: 1 }} />
         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.6 }}>
-          Invited members can view all projects and communicate via notes, but <strong>cannot access invoices, billing, or subscription details</strong>. A magic link will be emailed to them for instant sign-in.
+          Teammates can open projects, notes, tickets, and milestones. They <strong>cannot</strong> see invoices, billing, or subscriptions.
         </p>
       </div>
 
-      {/* Members list */}
+      <div className="card">
+        <div className="flex items-center justify-between mb-3" style={{ gap: 12 }}>
+          <div className="flex items-center gap-2" style={{ fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
+            <FolderKanban size={18} style={{ color: 'var(--accent-primary)' }} />
+            Project access
+          </div>
+          <span className="badge" style={{ background: 'var(--bg-overlay)', color: 'var(--text-secondary)', fontSize: 11 }}>
+            {savedProjectIds.length > 0
+              ? `${savedProjectIds.length} project${savedProjectIds.length === 1 ? '' : 's'}`
+              : 'All projects'}
+          </span>
+        </div>
+        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', margin: '0 0 var(--space-4)' }}>
+          Choose which projects teammates can see. Leave this off to share every current and future project.
+        </p>
+
+        <label className="flex items-center gap-2" style={{ fontSize: 'var(--text-sm)', cursor: 'pointer', marginBottom: restrictProjects ? 12 : 0 }}>
+          <input
+            type="checkbox"
+            checked={restrictProjects}
+            onChange={(e) => setRestrictProjects(e.target.checked)}
+            style={{ accentColor: 'var(--accent-primary)', width: 16, height: 16 }}
+          />
+          Restrict to selected projects
+        </label>
+
+        {restrictProjects && (
+          <div style={{
+            maxHeight: 220,
+            overflowY: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+            padding: 'var(--space-3)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-md)',
+            background: 'var(--bg-elevated)',
+          }}>
+            {projects.length === 0 ? (
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>No projects yet. New projects stay hidden until you add them here.</p>
+            ) : projects.map((project) => (
+              <label key={project.id} className="flex items-center gap-2" style={{ fontSize: 13, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={selectedProjectIds.includes(project.id)}
+                  onChange={(e) => toggleProject(project.id, e.target.checked)}
+                  style={{ accentColor: 'var(--accent-primary)' }}
+                />
+                <span>{project.name}</span>
+              </label>
+            ))}
+          </div>
+        )}
+
+        {accessDirty && (
+          <div className="flex justify-end" style={{ marginTop: 'var(--space-4)' }}>
+            <button
+              type="button"
+              className="btn btn--primary btn--sm"
+              onClick={handleSaveProjectAccess}
+              disabled={isSavingAccess}
+            >
+              {isSavingAccess ? 'Saving…' : 'Save project access'}
+            </button>
+          </div>
+        )}
+      </div>
+
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         {members.length === 0 ? (
           <div className="empty-state" style={{ padding: 'var(--space-10)' }}>
@@ -153,132 +287,150 @@ export default function ClientTeamsManager({ clientName, initialMembers }: Props
             </button>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {/* Table header */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr auto',
-              gap: 12,
-              padding: '10px 20px',
-              borderBottom: '1px solid var(--border-subtle)',
-              background: 'var(--bg-elevated)',
-            }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Member</span>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</span>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Actions</span>
-            </div>
+          <div className="table-wrapper" style={{ border: 'none', borderRadius: 0 }}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Member</th>
+                  <th>Email</th>
+                  <th>Invited</th>
+                  <th>Status</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {members.map(member => {
+                  const hasLoggedIn = Boolean(member.profile?.hasPassword ?? member.profile?.passwordHash)
+                  const isPendingAccept = !hasLoggedIn && member.status === 'ACTIVE'
 
-            {members.map(member => {
-              const hasLoggedIn = Boolean(member.profile?.passwordHash)
-              const isPendingAccept = !hasLoggedIn && member.status === 'ACTIVE'
+                  return (
+                    <tr key={member.id}>
+                      <td>
+                        <div className="flex items-center gap-3">
+                          <div style={{
+                            width: 36, height: 36, borderRadius: '50%',
+                            background: hasLoggedIn ? 'var(--accent-primary)' : 'rgba(99,102,241,0.15)',
+                            color: hasLoggedIn ? '#fff' : 'var(--accent-primary)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 13, fontWeight: 700, flexShrink: 0,
+                          }}>
+                            {getInitials(member.name)}
+                          </div>
+                          <div style={{ fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', fontSize: 'var(--text-sm)' }}>
+                            {member.name}
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="flex items-center gap-1.5" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
+                          <Mail size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                          {member.email}
+                        </div>
+                      </td>
+                      <td>
+                        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                          {formatDate(member.createdAt)}
+                        </span>
+                      </td>
+                      <td>
+                        {hasLoggedIn ? (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 4,
+                            fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
+                            background: 'rgba(16,185,129,0.1)', color: '#10b981',
+                          }}>
+                            <UserCheck size={11} /> Active
+                          </span>
+                        ) : isPendingAccept ? (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 4,
+                            fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
+                            background: 'rgba(245,158,11,0.1)', color: '#f59e0b',
+                          }}>
+                            <Clock size={11} /> Invite Pending
+                          </span>
+                        ) : (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 4,
+                            fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
+                            background: 'rgba(100,116,139,0.1)', color: '#64748b',
+                          }}>
+                            Inactive
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        <div className="flex items-center justify-end gap-2">
+                          {isPendingAccept && (
+                            <button
+                              type="button"
+                              onClick={() => handleResend(member)}
+                              className="btn btn--ghost btn--xs"
+                              style={{ gap: 3, color: 'var(--accent-primary)' }}
+                              title="Resend magic link"
+                            >
+                              <Send size={12} /> Resend
+                            </button>
+                          )}
 
-              return (
-                <div
-                  key={member.id}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr auto',
-                    gap: 12,
-                    padding: '14px 20px',
-                    borderBottom: '1px solid var(--border-subtle)',
-                    alignItems: 'center',
-                    transition: 'background 0.1s',
-                  }}
-                >
-                  {/* Member info */}
-                  <div className="flex items-center gap-3">
-                    <div style={{
-                      width: 36, height: 36, borderRadius: '50%',
-                      background: hasLoggedIn ? 'var(--accent-primary)' : 'rgba(99,102,241,0.15)',
-                      color: hasLoggedIn ? '#fff' : 'var(--accent-primary)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 13, fontWeight: 700, flexShrink: 0,
-                    }}>
-                      {getInitials(member.name)}
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', fontSize: 'var(--text-sm)' }}>
-                        {member.name}
-                      </div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
-                        <Mail size={10} />{member.email}
-                      </div>
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 1 }}>
-                        Invited {formatDate(member.createdAt)}
-                      </div>
-                    </div>
-                  </div>
+                          <button
+                            type="button"
+                            onClick={() => copyLink(member.email, member.id)}
+                            className="btn btn--ghost btn--xs"
+                            title="Copy login link"
+                          >
+                            {copiedId === member.id ? <Check size={13} style={{ color: '#10b981' }} /> : <Copy size={13} />}
+                          </button>
 
-                  {/* Status */}
-                  <div>
-                    {hasLoggedIn ? (
-                      <span style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 4,
-                        fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
-                        background: 'rgba(16,185,129,0.1)', color: '#10b981',
-                      }}>
-                        <UserCheck size={11} /> Active
-                      </span>
-                    ) : isPendingAccept ? (
-                      <span style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 4,
-                        fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
-                        background: 'rgba(245,158,11,0.1)', color: '#f59e0b',
-                      }}>
-                        <Clock size={11} /> Invite Pending
-                      </span>
-                    ) : (
-                      <span style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 4,
-                        fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
-                        background: 'rgba(100,116,139,0.1)', color: '#64748b',
-                      }}>
-                        Inactive
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-2">
-                    {isPendingAccept && (
-                      <button
-                        type="button"
-                        onClick={() => handleResend(member)}
-                        className="btn btn--ghost btn--xs"
-                        style={{ gap: 3, color: 'var(--accent-primary)' }}
-                        title="Resend magic link"
-                      >
-                        <Send size={12} /> Resend
-                      </button>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => copyLink(member.email, member.id)}
-                      className="btn btn--ghost btn--xs"
-                      title="Copy login link"
-                    >
-                      {copiedId === member.id ? <Check size={13} style={{ color: '#10b981' }} /> : <Copy size={13} />}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleRemove(member)}
-                      className="btn btn--ghost btn--xs"
-                      style={{ color: 'var(--color-danger)' }}
-                      title="Remove member"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                </div>
-              )
-            })}
+                          <button
+                            type="button"
+                            onClick={() => handleRemove(member)}
+                            className="btn btn--ghost btn--xs"
+                            style={{ color: 'var(--color-danger)' }}
+                            title="Remove member"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
 
-      {/* Invite Modal */}
+      {extraTeams.length > 0 && (
+        <div className="card">
+          <h2 style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)', marginBottom: 8 }}>Other teams</h2>
+          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', marginBottom: 12 }}>
+            Additional teams set up for this organisation.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {extraTeams.map((team) => (
+              <Link
+                key={team.id}
+                href={`/client/teams/${team.id}`}
+                className="flex items-center justify-between"
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border-subtle)',
+                  textDecoration: 'none',
+                }}
+              >
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 13 }}>{team.name}</span>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  {team._count.members} member{team._count.members === 1 ? '' : 's'}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {showInviteModal && (
         <div className="modal-backdrop">
           <div className="modal-content" style={{ maxWidth: 420, width: '95%' }}>
@@ -328,9 +480,8 @@ export default function ClientTeamsManager({ clientName, initialMembers }: Props
                 borderRadius: 'var(--radius-md)', padding: 'var(--space-3)',
                 fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.6,
               }}>
-                ✓ Access to all projects & notes<br />
-                ✓ Can view milestones & updates<br />
-                ✗ Cannot see invoices or billing details
+                ✓ Access to assigned projects, notes, tickets, and milestones<br />
+                ✗ Cannot see invoices, billing, or subscriptions
               </div>
 
               <div className="flex items-center justify-end gap-3" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 'var(--space-4)' }}>

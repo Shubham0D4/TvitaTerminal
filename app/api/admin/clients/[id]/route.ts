@@ -1,9 +1,10 @@
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
 import { writeAuditLog } from '@/lib/audit'
 import { getServerUser, isAdmin } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'
 import { createSupabaseAdminClient } from '@/lib/supabase/server'
+import { assertClientEmailAvailable, normalizeEmail } from '@/lib/db/integrity'
 
 export async function GET(
   request: NextRequest,
@@ -66,6 +67,11 @@ export async function PUT(
 
     const body = await request.json()
     const displayName = body.legalName || body.displayName || existing.name
+    const nextEmail =
+      body.email !== undefined ? normalizeEmail(body.email) : existing.email
+    if (nextEmail !== existing.email) {
+      await assertClientEmailAvailable(nextEmail, id)
+    }
 
     const updated = await prisma.client.update({
       where: { id },
@@ -86,7 +92,7 @@ export async function PUT(
         website: body.website ?? existing.website,
         contactPerson: body.contactPerson ?? existing.contactPerson,
         designation: body.designation ?? existing.designation,
-        email: body.email ?? existing.email,
+        email: nextEmail,
         phone: body.phone ?? existing.phone,
         whatsapp: body.whatsapp ?? existing.whatsapp,
         preferredComm: body.preferredComm ?? existing.preferredComm,
@@ -157,7 +163,7 @@ export async function PUT(
     return apiSuccess(updated)
   } catch (error) {
     console.error('Admin client PUT API error:', error)
-    return Errors.INTERNAL('Failed to update client')
+    return fromUnknownError(error, 'Failed to update client')
   }
 }
 

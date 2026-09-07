@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
 import { getServerUser } from '@/lib/auth/server'
 import { QuoteService } from '@/lib/services/quote.service'
 
@@ -13,9 +13,9 @@ export async function GET(request: NextRequest) {
   try {
     const quotes = await QuoteService.getQuotesList(clientId, user)
     return apiSuccess(quotes)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('GET quotes error:', error)
-    return Errors.INTERNAL(error.message || 'Failed to fetch quotes')
+    return fromUnknownError(error, 'Failed to fetch quotes')
   }
 }
 
@@ -27,11 +27,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const quote = await QuoteService.createQuote(body, user)
     return apiSuccess(quote, 201)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('POST quote error:', error)
-    if (error.name === 'ValidationError') {
-      return Errors.VALIDATION(error.message)
-    }
-    return Errors.INTERNAL(error.message || 'Failed to create quote')
+    return fromUnknownError(error, 'Failed to create quote')
   }
 }

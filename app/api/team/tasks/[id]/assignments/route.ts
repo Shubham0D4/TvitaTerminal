@@ -1,5 +1,6 @@
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
-import { getServerUser, isAdmin, isTeamLead } from '@/lib/auth/server'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
+import { getServerUser } from '@/lib/auth/server'
+import { assertProjectManage } from '@/lib/auth/access'
 import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'
 
@@ -13,20 +14,18 @@ export async function PUT(
   }
 
   const { id: taskId } = await params
-  const task = await prisma.task.findUnique({
-    where: { id: taskId },
-    include: { project: true },
-  })
-  if (!task) {
-    return Errors.NOT_FOUND('Task')
-  }
-
-  const isLeadOrAdmin = isAdmin(user) || task.project?.leadId === user.id || isTeamLead(user)
-  if (!isLeadOrAdmin) {
-    return Errors.FORBIDDEN()
-  }
 
   try {
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { projectId: true },
+    })
+    if (!task) {
+      return Errors.NOT_FOUND('Task')
+    }
+
+    await assertProjectManage(user, task.projectId)
+
     const body = await request.json()
     const { developerId, testerId } = body
 
@@ -50,6 +49,6 @@ export async function PUT(
     return apiSuccess(updatedTask)
   } catch (error) {
     console.error('Task assignment API error:', error)
-    return Errors.INTERNAL('Failed to update assignments')
+    return fromUnknownError(error, 'Failed to update assignments')
   }
 }

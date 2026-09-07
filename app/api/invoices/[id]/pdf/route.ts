@@ -2,6 +2,7 @@ import { getServerUser, isAdmin, isClient } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
 import { generateInvoicePdfBuffer } from '@/lib/pdf/invoice-generator'
 import { NextRequest, NextResponse } from 'next/server'
+import { hasClientPolicy, resolveClientActor } from '@/lib/auth/access'
 
 const STATE_CODE_MAP: Record<string, string> = {
   'JAMMU AND KASHMIR': '01',
@@ -79,12 +80,27 @@ export async function GET(
       return new NextResponse('Invoice not found', { status: 404 })
     }
 
-    // Permission check: Admin, assigned team, or owner client
-    if (!isAdmin(user) && isClient(user)) {
-      const client = await prisma.client.findFirst({
-        where: { OR: [{ profileId: user.id }, { email: user.email }] },
-      })
-      if (!client || client.id !== invoice.clientId) {
+    // Admin or the owning client (sub-teams need invoice/billing policy).
+    if (!isAdmin(user)) {
+      if (!isClient(user)) {
+        return new NextResponse('Forbidden', { status: 403 })
+      }
+      try {
+        const { client, subTeam } = await resolveClientActor(user)
+        if (!hasClientPolicy(subTeam, 'invoices', 'billing')) {
+          return new NextResponse('Forbidden', { status: 403 })
+        }
+        if (client.id !== invoice.clientId) {
+          return new NextResponse('Forbidden', { status: 403 })
+        }
+        const allowed = subTeam?.allowedProjectIds ?? []
+        if (allowed.length > 0 && invoice.projectId && !allowed.includes(invoice.projectId)) {
+          return new NextResponse('Forbidden', { status: 403 })
+        }
+        if (invoice.status === 'DRAFT') {
+          return new NextResponse('Invoice not found', { status: 404 })
+        }
+      } catch {
         return new NextResponse('Forbidden', { status: 403 })
       }
     }

@@ -1,7 +1,8 @@
 import { apiSuccess, Errors } from '@/lib/utils/api-response'
-import { getClientSubTeamContext, getServerUser, isClient } from '@/lib/auth/server'
+import { getServerUser, isClient } from '@/lib/auth/server'
 import { ClientService } from '@/lib/services/client.service'
 import { NextRequest } from 'next/server'
+import { isSubTeamActor } from '@/lib/auth/access'
 
 export async function PUT(
   request: NextRequest,
@@ -10,8 +11,7 @@ export async function PUT(
   const user = await getServerUser()
   if (!user || !isClient(user)) return Errors.UNAUTHORIZED()
 
-  const subTeamCtx = await getClientSubTeamContext(user.id)
-  if (subTeamCtx) return Errors.FORBIDDEN('Only primary client can modify team members')
+  if (await isSubTeamActor(user)) return Errors.FORBIDDEN('Only primary client can modify team members')
 
   const { subTeamId, memberId } = await params
 
@@ -20,14 +20,12 @@ export async function PUT(
     if (!client) return Errors.NOT_FOUND('Client account')
 
     const body = await request.json()
-    const updated = await ClientService.updateSubTeamMember(subTeamId, memberId, body)
+    const updated = await ClientService.updateSubTeamMember(subTeamId, memberId, client.id, body)
     return apiSuccess(updated)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Update subteam member error:', error)
-    if (error.message === 'Sub-team member not found') {
-      return Errors.NOT_FOUND('Sub-team member')
-    }
-    return Errors.INTERNAL('Failed to update team member')
+    const { fromUnknownError } = await import('@/lib/utils/api-response')
+    return fromUnknownError(error, 'Failed to update team member')
   }
 }
 
@@ -38,8 +36,7 @@ export async function DELETE(
   const user = await getServerUser()
   if (!user || !isClient(user)) return Errors.UNAUTHORIZED()
 
-  const subTeamCtx = await getClientSubTeamContext(user.id)
-  if (subTeamCtx) return Errors.FORBIDDEN('Only primary client can delete team members')
+  if (await isSubTeamActor(user)) return Errors.FORBIDDEN('Only primary client can delete team members')
 
   const { subTeamId, memberId } = await params
 
@@ -48,7 +45,7 @@ export async function DELETE(
     if (!client) return Errors.NOT_FOUND('Client account')
 
     // Soft remove: set member status INACTIVE and deactivate associated profile (preserving history & logs)
-    const result = await ClientService.softRemoveMember(memberId)
+    const result = await ClientService.softRemoveMember(memberId, client.id)
     if (!result) return Errors.NOT_FOUND('Sub-team member')
 
     return apiSuccess(result)

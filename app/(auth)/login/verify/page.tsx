@@ -4,13 +4,14 @@ import { useEffect, useState, Suspense } from 'react'
 import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
+import { isSafeInternalPath } from '@/lib/auth/routes'
 
 function VerifyForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
   const email = searchParams.get('email')
-  const next = searchParams.get('next') || '/'
+  const next = isSafeInternalPath(searchParams.get('next'), '/')
 
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>(() => {
     return (!token || !email) ? 'error' : 'loading'

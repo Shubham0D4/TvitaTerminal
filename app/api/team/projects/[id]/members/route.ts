@@ -1,5 +1,6 @@
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
-import { getServerUser, isAdmin, isTeamLead } from '@/lib/auth/server'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
+import { getServerUser, isAdmin } from '@/lib/auth/server'
+import { assertProjectManage } from '@/lib/auth/access'
 import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'
 
@@ -13,15 +14,10 @@ export async function POST(
   }
 
   const { id: projectId } = await params
-  const project = await prisma.project.findUnique({ where: { id: projectId } })
-  if (!project) return Errors.NOT_FOUND('Project')
-
-  const isLeadOrAdmin = isAdmin(user) || project.leadId === user.id || isTeamLead(user)
-  if (!isLeadOrAdmin) {
-    return Errors.FORBIDDEN()
-  }
 
   try {
+    await assertProjectManage(user, projectId)
+
     const body = await request.json()
     const { profileId, role } = body
 
@@ -32,6 +28,9 @@ export async function POST(
     const targetProfile = await prisma.profile.findUnique({ where: { id: profileId } })
     if (!targetProfile) {
       return Errors.NOT_FOUND('Profile')
+    }
+    if (targetProfile.role !== 'TEAM_MEMBER' && targetProfile.role !== 'ADMIN') {
+      return Errors.VALIDATION('Only agency staff can be added to a project')
     }
 
     const memberRole = role || targetProfile.teamRole || 'MEMBER'
@@ -52,7 +51,7 @@ export async function POST(
     return apiSuccess(member, 200)
   } catch (error) {
     console.error('Team add project member API error:', error)
-    return Errors.INTERNAL('Failed to add project member')
+    return fromUnknownError(error, 'Failed to add project member')
   }
 }
 
@@ -66,22 +65,17 @@ export async function DELETE(
   }
 
   const { id: projectId } = await params
-  const project = await prisma.project.findUnique({ where: { id: projectId } })
-  if (!project) return Errors.NOT_FOUND('Project')
-
-  const isLeadOrAdmin = isAdmin(user) || project.leadId === user.id || isTeamLead(user)
-  if (!isLeadOrAdmin) {
-    return Errors.FORBIDDEN()
-  }
-
-  const { searchParams } = new URL(request.url)
-  const profileId = searchParams.get('profileId')
-
-  if (!profileId) {
-    return Errors.VALIDATION('profileId parameter is required')
-  }
 
   try {
+    await assertProjectManage(user, projectId)
+
+    const { searchParams } = new URL(request.url)
+    const profileId = searchParams.get('profileId')
+
+    if (!profileId) {
+      return Errors.VALIDATION('profileId parameter is required')
+    }
+
     await prisma.projectMember.deleteMany({
       where: { projectId, profileId },
     })
@@ -89,6 +83,6 @@ export async function DELETE(
     return apiSuccess({ removed: true })
   } catch (error) {
     console.error('Team remove project member API error:', error)
-    return Errors.INTERNAL('Failed to remove member')
+    return fromUnknownError(error, 'Failed to remove member')
   }
 }

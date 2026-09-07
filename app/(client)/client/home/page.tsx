@@ -6,9 +6,11 @@ import BlogCarousel from '@/app/components/client/BlogCarousel'
 import SpotlightSearch from '@/app/components/client/SpotlightSearch'
 import QuickActions from '@/app/components/client/QuickActions'
 
-import { getServerUser, getClientSubTeamContext } from '@/lib/auth/server'
+import { getServerUser } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
 import { cleanupExpiredInvitations } from '@/lib/invitation-cleanup'
+import { clientProjectWhere, getClientActor, hasClientPolicy } from '@/lib/auth/access'
+import { currentPhaseName, progressFromMilestones } from '@/lib/process/stages'
 
 export const metadata = {
   title: 'Home — Tvita Client Portal',
@@ -132,18 +134,10 @@ export default async function ClientHomePage() {
   const user = await getServerUser()
   if (!user) return null
 
-  const subTeamCtx = await getClientSubTeamContext(user.id)
-
   cleanupExpiredInvitations().catch((err) => console.error('[Cleanup Error]', err))
 
-  const client = await prisma.client.findFirst({
-    where: subTeamCtx
-      ? { id: subTeamCtx.clientId }
-      : { OR: [{ profileId: user.id }, { email: user.email }] },
-    select: { id: true, name: true },
-  })
-
-  if (!client) {
+  const actor = await getClientActor(user)
+  if (!actor) {
     return (
       <div className="card text-center py-12">
         <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-semibold)' }}>
@@ -156,12 +150,8 @@ export default async function ClientHomePage() {
     )
   }
 
-  // Sub-teams may be scoped to a subset of the client's projects.
-  const allowedProjectIds = subTeamCtx?.allowedProjectIds ?? []
-  const projectFilter =
-    allowedProjectIds.length > 0
-      ? { clientId: client.id, id: { in: allowedProjectIds } }
-      : { clientId: client.id }
+  const { client, subTeam } = actor
+  const projectFilter = clientProjectWhere(client.id, subTeam)
 
   const searchableProjects = await prisma.project.findMany({
     where: projectFilter,
@@ -190,12 +180,9 @@ export default async function ClientHomePage() {
       banner: true,
       status: true,
       progress: true,
-      // The phase currently underway, shown beneath the project name.
       milestones: {
-        where: { clientVisible: true, status: { in: ['IN_PROGRESS', 'PLANNED'] } },
-        orderBy: { dueDate: 'asc' },
-        take: 1,
-        select: { name: true },
+        select: { status: true, stage: true, name: true },
+        orderBy: { sortOrder: 'asc' },
       },
     },
   })
@@ -259,7 +246,12 @@ export default async function ClientHomePage() {
           />
 
           <QuickActions
-            actions={QUICK_ACTIONS}
+            actions={QUICK_ACTIONS.filter((action) => {
+              if (action.label === 'Quote') return !subTeam
+              if (action.label === 'Notes') return hasClientPolicy(subTeam, 'notes')
+              if (action.label === 'Ticket') return hasClientPolicy(subTeam, 'issues')
+              return true
+            })}
             projects={searchableProjects.map((project) => ({
               id: project.id,
               name: project.name,
@@ -272,8 +264,8 @@ export default async function ClientHomePage() {
               name: project.name,
               banner: project.banner,
               status: project.status,
-              progress: project.progress,
-              phase: project.milestones[0]?.name,
+              progress: progressFromMilestones(project.milestones),
+              phase: currentPhaseName(project.milestones, project.status),
             }))}
             fallbackImage={SHOWCASE.image}
           />

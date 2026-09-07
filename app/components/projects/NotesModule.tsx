@@ -5,6 +5,7 @@ import { Send, Lock, Eye, Trash2, Paperclip, FileText, X, Download, Image as Ima
 import toast from 'react-hot-toast'
 import { apiClient } from '@/lib/utils/api-client'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
+import { AGENCY_TEAM_LABEL, agencyNameForClient } from '@/lib/auth/visibility'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
 interface Attachment {
@@ -34,6 +35,7 @@ interface Props {
   userTeamRole: string | null
   userId: string
   hasAccess: boolean
+  projectLeadId?: string | null
 }
 
 // Allowed file types (no executables, no zip)
@@ -105,13 +107,15 @@ function AttachmentLink({ att }: { att: Attachment }) {
   )
 }
 
-export default function NotesModule({ projectId, userRole, userTeamRole, userId, hasAccess }: Props) {
+export default function NotesModule({ projectId, userRole, userTeamRole, userId, hasAccess, projectLeadId = null }: Props) {
   const [notes, setNotes] = useState<Note[]>([])
   const [loading, setLoading] = useState(true)
   const [isConnected, setIsConnected] = useState(false)
   const [activeChannel, setActiveChannel] = useState<'ALL' | 'INTERNAL_TEAM' | 'EXTERNAL_CLIENT'>('ALL')
   const [content, setContent] = useState('')
-  const [messageType, setMessageType] = useState<'INTERNAL_TEAM' | 'EXTERNAL_CLIENT'>('EXTERNAL_CLIENT')
+  const [messageType, setMessageType] = useState<'INTERNAL_TEAM' | 'EXTERNAL_CLIENT'>(
+    userRole === 'CLIENT' ? 'EXTERNAL_CLIENT' : 'INTERNAL_TEAM'
+  )
   const [pendingFiles, setPendingFiles] = useState<File[]>([])
   const [uploading, setUploading] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -124,12 +128,25 @@ export default function NotesModule({ projectId, userRole, userTeamRole, userId,
   const isClient = userRole === 'CLIENT'
   const isLeadOrAdmin = userRole === 'ADMIN' || userTeamRole === 'TEAM_LEAD'
 
+  const presentNote = (note: Note): Note => {
+    if (!isClient) return note
+    return {
+      ...note,
+      creator: {
+        ...note.creator,
+        name: agencyNameForClient(note.creator, projectLeadId),
+      },
+    }
+  }
+
   // Initial fetch
   useEffect(() => {
     if (!hasAccess) return
     apiClient.get<Note[]>(`/api/projects/${projectId}/notes`)
       .then((res) => {
-        const sorted = [...(res || [])].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+        const sorted = [...(res || [])]
+          .map(presentNote)
+          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
         setNotes(sorted)
         setLoading(false)
       })
@@ -154,9 +171,10 @@ export default function NotesModule({ projectId, userRole, userTeamRole, userId,
       .on('broadcast', { event: 'new_note' }, ({ payload }) => {
         const note = payload as Note
         if (isClient && note.type === 'INTERNAL_TEAM') return
+        if (!isLeadOrAdmin && !isClient && note.type === 'EXTERNAL_CLIENT') return
         setNotes((prev) => {
           if (prev.some((n) => n.id === note.id)) return prev
-          return [...prev, note].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+          return [...prev, presentNote(note)].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
         })
       })
       .on('broadcast', { event: 'delete_note' }, ({ payload }) => {
@@ -177,7 +195,7 @@ export default function NotesModule({ projectId, userRole, userTeamRole, userId,
       channel.unsubscribe()
       setIsConnected(false)
     }
-  }, [projectId, hasAccess, isClient])
+  }, [projectId, hasAccess, isClient, isLeadOrAdmin, projectLeadId])
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -237,11 +255,11 @@ export default function NotesModule({ projectId, userRole, userTeamRole, userId,
 
         const newNote = await apiClient.post<Note>(`/api/projects/${projectId}/notes`, {
           content: content.trim() || '📎 Shared a file',
-          type: isClient ? 'EXTERNAL_CLIENT' : messageType,
+          type: isClient ? 'EXTERNAL_CLIENT' : isLeadOrAdmin ? messageType : 'INTERNAL_TEAM',
           attachments,
         })
 
-        setNotes(prev => [...prev, newNote])
+        setNotes(prev => [...prev, presentNote(newNote)])
         setContent('')
         setPendingFiles([])
 
@@ -423,11 +441,11 @@ export default function NotesModule({ projectId, userRole, userTeamRole, userId,
                     color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 10, fontWeight: 700, flexShrink: 0,
                   }}>
-                    {note.creator.name.charAt(0).toUpperCase()}
+                    {(note.creator.name || AGENCY_TEAM_LABEL).charAt(0).toUpperCase()}
                   </div>
                 )}
                 <span style={{ fontWeight: 600, color: isMe ? 'var(--accent-primary)' : 'var(--text-primary)' }}>
-                  {isMe ? 'You' : note.creator.name}
+                  {isMe ? 'You' : (note.creator.name || AGENCY_TEAM_LABEL)}
                 </span>
                 {isLeadOrAdmin && (
                   <span style={{

@@ -1,5 +1,6 @@
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
-import { getServerUser, isAdmin, isTeamLead } from '@/lib/auth/server'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
+import { getServerUser } from '@/lib/auth/server'
+import { assertProjectManage } from '@/lib/auth/access'
 import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'
 
@@ -14,17 +15,9 @@ export async function PUT(
 
   const { id: projectId } = await params
 
-  const project = await prisma.project.findUnique({ where: { id: projectId }, select: { leadId: true } })
-  if (!project) {
-    return Errors.NOT_FOUND('Project')
-  }
-
-  const isLeadOrAdmin = isAdmin(user) || isTeamLead(user) || project.leadId === user.id
-  if (!isLeadOrAdmin) {
-    return Errors.UNAUTHORIZED()
-  }
-
   try {
+    await assertProjectManage(user, projectId)
+
     const body = await request.json()
     const { leadId } = body
 
@@ -35,6 +28,9 @@ export async function PUT(
     const leadProfile = await prisma.profile.findUnique({ where: { id: leadId } })
     if (!leadProfile) {
       return Errors.NOT_FOUND('Lead Profile')
+    }
+    if (leadProfile.role !== 'TEAM_MEMBER' && leadProfile.role !== 'ADMIN') {
+      return Errors.VALIDATION('Lead must be an agency staff member')
     }
 
     const updated = await prisma.project.update({
@@ -59,6 +55,6 @@ export async function PUT(
     return apiSuccess(updated)
   } catch (error) {
     console.error('Update project lead API error:', error)
-    return Errors.INTERNAL('Failed to update project lead')
+    return fromUnknownError(error, 'Failed to update project lead')
   }
 }

@@ -1,19 +1,17 @@
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
-import { getServerUser, getClientSubTeamContext } from '@/lib/auth/server'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
+import { getServerUser, isClient } from '@/lib/auth/server'
 import { SubscriptionService } from '@/lib/services/subscription.service'
 import { NextRequest } from 'next/server'
+import { assertClientPolicy, resolveClientActor } from '@/lib/auth/access'
 
 export async function POST(request: NextRequest) {
   const user = await getServerUser()
-  if (!user) return Errors.UNAUTHORIZED()
-
-  // Verify access for sub-teams
-  const subTeamCtx = await getClientSubTeamContext(user.id)
-  if (subTeamCtx && !subTeamCtx.policy.subscriptions) {
-    return Errors.FORBIDDEN('Sub-team is not authorized to manage subscriptions')
-  }
+  if (!user || !isClient(user)) return Errors.UNAUTHORIZED()
 
   try {
+    const { client, subTeam } = await resolveClientActor(user)
+    assertClientPolicy(subTeam, 'subscriptions')
+
     const body = await request.json()
     const { planId } = body
 
@@ -25,19 +23,13 @@ export async function POST(request: NextRequest) {
     const result = await SubscriptionService.checkoutSubscription(
       planId,
       user,
-      subTeamCtx?.clientId,
+      client.id,
       originUrl
     )
 
     return apiSuccess(result)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Subscription checkout error:', error)
-    if (error.name === 'ValidationError') {
-      return Errors.VALIDATION(error.message)
-    }
-    if (error.name === 'NotFoundError') {
-      return Errors.NOT_FOUND(error.message)
-    }
-    return Errors.INTERNAL('Failed to process subscription purchase')
+    return fromUnknownError(error, 'Failed to process subscription purchase')
   }
 }

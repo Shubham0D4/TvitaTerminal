@@ -14,12 +14,14 @@ export async function DELETE(
   const user = await AuthService.getCurrentUser()
   if (!user || !AuthService.checkIsClient(user)) return Errors.UNAUTHORIZED()
 
-  const subTeamCtx = await AuthService.getSubTeamContext(user.id)
-  if (subTeamCtx) return Errors.FORBIDDEN('Sub-team members cannot remove others')
+  if (await AuthService.isSubTeamActor(user)) return Errors.FORBIDDEN('Team members cannot remove others')
 
   const { memberId } = await params
 
-  const result = await ClientService.softRemoveMember(memberId)
+  const client = await ClientService.getClientByUserId(user.id, user.email)
+  if (!client) return Errors.NOT_FOUND('Client account')
+
+  const result = await ClientService.softRemoveMember(memberId, client.id)
   if (!result) return Errors.NOT_FOUND('Member')
 
   return apiSuccess({ deleted: true })

@@ -9,6 +9,7 @@ import {
   Users,
   FolderKanban,
   CheckSquare,
+  ListTodo,
   CreditCard,
   Settings,
   ChevronLeft,
@@ -58,10 +59,12 @@ const ADMIN_NAV: NavGroup[] = [
 
 const TEAM_NAV: NavGroup[] = [
   {
-    label: 'Operations',
+    label: 'Work',
     items: [
       { label: 'Dashboard', href: '/team/dashboard', icon: <LayoutDashboard size={18} /> },
       { label: 'Projects', href: '/team/projects', icon: <FolderKanban size={18} /> },
+      { label: 'Tasks', href: '/team/tasks', icon: <ListTodo size={18} /> },
+      { label: 'Calendar', href: '/team/calendar', icon: <CalendarDays size={18} /> },
       { label: 'My Milestones', href: '/team/milestones', icon: <CheckSquare size={18} /> },
     ],
   },
@@ -105,6 +108,8 @@ interface SidebarProps {
   role: string
 }
 
+const SIDEBAR_COLLAPSE_KEY = 'tvita-sidebar-collapsed'
+
 export default function Sidebar({ role }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
   const pathname = usePathname()
@@ -113,14 +118,26 @@ export default function Sidebar({ role }: SidebarProps) {
     role === 'ADMIN' ? '/admin/dashboard' : role === 'TEAM_MEMBER' ? '/team/dashboard' : '/client/home'
 
   useEffect(() => {
+    const stored = window.localStorage.getItem(SIDEBAR_COLLAPSE_KEY) === '1'
+    setCollapsed(stored)
+    document.documentElement.style.setProperty(
+      '--sidebar-current-width',
+      stored ? 'var(--sidebar-collapsed-width)' : 'var(--sidebar-width)'
+    )
+  }, [])
+
+  useEffect(() => {
     const width = collapsed ? 'var(--sidebar-collapsed-width)' : 'var(--sidebar-width)'
     document.documentElement.style.setProperty('--sidebar-current-width', width)
   }, [collapsed])
 
-  // Ensure width is applied before first paint of interactions
-  useEffect(() => {
-    document.documentElement.style.setProperty('--sidebar-current-width', 'var(--sidebar-width)')
-  }, [])
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev
+      window.localStorage.setItem(SIDEBAR_COLLAPSE_KEY, next ? '1' : '0')
+      return next
+    })
+  }
 
   return (
     <aside
@@ -166,7 +183,7 @@ export default function Sidebar({ role }: SidebarProps) {
       <button
         type="button"
         className="sidebar__collapse-btn"
-        onClick={() => setCollapsed(!collapsed)}
+        onClick={toggleCollapsed}
         aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
       >

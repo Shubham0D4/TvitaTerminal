@@ -10,7 +10,8 @@ import ProjectWorkspaceTabs from '@/app/components/projects/ProjectWorkspaceTabs
 import ProjectBannerUpload from '@/app/components/projects/ProjectBannerUpload'
 import AdminProjectStatusSelector from '@/app/components/projects/AdminProjectStatusSelector'
 import PublishUpdateTrigger from '@/app/components/projects/PublishUpdateTrigger'
-import ProcessTree, { STAGES, stageIndex } from '@/app/components/client/ProcessTree'
+import ProcessTree, { STAGES } from '@/app/components/client/ProcessTree'
+import { currentPhaseName, progressFromMilestones, stageIndexFromMilestones, withLeadAssignee } from '@/lib/process/stages'
 
 export const metadata = {
   title: 'Project Workspace — Tvita Admin',
@@ -60,7 +61,7 @@ export default async function AdminProjectDetailPage({ params }: PageProps) {
     where: { id },
     include: {
       client: true,
-      lead: true,
+      lead: { select: { id: true, name: true, email: true, avatarUrl: true } },
       milestones: {
         orderBy: { sortOrder: 'asc' },
         include: {
@@ -74,7 +75,9 @@ export default async function AdminProjectDetailPage({ params }: PageProps) {
           },
         },
       },
-      members: { include: { profile: true } },
+      members: {
+        include: { profile: { select: { id: true, name: true, email: true } } },
+      },
       invoices: { orderBy: { createdAt: 'desc' } },
       updates: { orderBy: { createdAt: 'desc' } },
     },
@@ -98,8 +101,9 @@ export default async function AdminProjectDetailPage({ params }: PageProps) {
   ])
 
   const status = STATUS_STYLES[project.status] ?? { label: project.status.replace(/_/g, ' '), tone: 'slate' }
-  const stage = stageIndex(project.status, project.progress)
-  const phase = project.milestones.find((m) => m.status !== 'COMPLETED')?.name
+  const progress = progressFromMilestones(project.milestones)
+  const stage = stageIndexFromMilestones(project.milestones, project.status)
+  const phase = currentPhaseName(project.milestones, project.status)
   const banner = project.banner || FALLBACK_BANNER
   const invoiceTotal = project.invoices.reduce((sum, inv) => sum + Number(inv.amount), 0)
 
@@ -145,9 +149,9 @@ export default async function AdminProjectDetailPage({ params }: PageProps) {
 
             <div className="phero__meter">
               <span className="phero__bar" aria-hidden="true">
-                <span className="phero__fill" style={{ width: `${project.progress}%` }} />
+                <span className="phero__fill" style={{ width: `${progress}%` }} />
               </span>
-              <span className="phero__pct">{project.progress}%</span>
+              <span className="phero__pct">{progress}%</span>
             </div>
 
             <p className="phero__phases">
@@ -239,7 +243,8 @@ export default async function AdminProjectDetailPage({ params }: PageProps) {
         <div className="pdetail__panel">
           <ProcessTree
             status={project.status}
-            progress={project.progress}
+            progress={progress}
+            milestones={project.milestones}
             updates={project.updates
               .filter((u) => u.clientVisible)
               .slice(0, 3)
@@ -334,9 +339,17 @@ export default async function AdminProjectDetailPage({ params }: PageProps) {
         userRole={user.role}
         userTeamRole={user.teamRole}
         userId={user.id}
-        milestones={project.milestones}
-        projectMembers={project.members}
+        milestones={JSON.parse(JSON.stringify(project.milestones))}
+        projectMembers={withLeadAssignee(
+          project.members.map((m) => ({
+            profileId: m.profileId,
+            role: m.role,
+            profile: { id: m.profile.id, name: m.profile.name },
+          })),
+          project.lead
+        )}
         isLead={isLead}
+        projectLeadId={project.leadId}
       />
     </div>
   )

@@ -35,3 +35,19 @@ export const Errors = {
   INTERNAL: (message = 'An unexpected error occurred') => apiError('INTERNAL_ERROR', message, 500),
   CONFLICT: (message: string) => apiError('CONFLICT', message, 409),
 }
+
+export function fromUnknownError(error: unknown, fallback = 'An unexpected error occurred') {
+  const err = error as { name?: string; message?: string }
+  if (err?.name === 'AuthorizationError') return Errors.FORBIDDEN(err.message)
+  if (err?.name === 'AuthenticationError') return Errors.UNAUTHORIZED()
+  if (err?.name === 'NotFoundError') {
+    const label = err.message?.replace(/\s+not found$/i, '') || 'Resource'
+    return Errors.NOT_FOUND(label)
+  }
+  if (err?.name === 'ValidationError') return Errors.VALIDATION(err.message || 'Invalid request')
+  if (err?.name === 'ConflictError') return Errors.CONFLICT(err.message || 'Conflict')
+  if ((error as { code?: string }).code === 'P2002') {
+    return Errors.CONFLICT('A record with these values already exists')
+  }
+  return Errors.INTERNAL(err?.message || fallback)
+}

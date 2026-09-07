@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { getServerUser, redirectToLogin } from '@/lib/auth/server'
 import { writeAuditLog } from '@/lib/audit'
 import { revalidatePath } from 'next/cache'
+import { assertProjectManage } from '@/lib/auth/access'
+import { AuthorizationError, NotFoundError } from '@/lib/errors'
 
 export async function publishProjectUpdate(data: {
   projectId: string
@@ -14,9 +16,13 @@ export async function publishProjectUpdate(data: {
   const user = await getServerUser()
   if (!user) redirectToLogin()
 
-  const profile = await prisma.profile.findUnique({ where: { id: user.id } })
-  if (!profile || (profile.role !== 'ADMIN' && profile.teamRole !== 'TEAM_LEAD')) {
-    return { success: false, message: 'Only Team Leads and Admins can publish project updates.' }
+  try {
+    await assertProjectManage(user, data.projectId)
+  } catch (error) {
+    if (error instanceof AuthorizationError || error instanceof NotFoundError) {
+      return { success: false, message: error.message }
+    }
+    throw error
   }
 
   if (!data.title.trim() || !data.content.trim()) {

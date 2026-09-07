@@ -464,8 +464,8 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
                       name="smtpPass"
                       type="password"
                       className="form-input"
-                      defaultValue={(settings as any)?.smtpPass ?? ''}
-                      placeholder="••••••••••••••••"
+                      placeholder={(settings as any)?.smtpConfigured ? 'Leave blank to keep the current password' : 'SMTP password'}
+                      defaultValue=""
                       style={{ width: '100%' }}
                     />
                   </div>

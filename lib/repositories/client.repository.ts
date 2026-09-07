@@ -8,13 +8,12 @@ export class ClientRepository {
         where: { id: params.subTeamClientId },
       })
     }
+    const byProfile = await prisma.client.findUnique({
+      where: { profileId: params.userId },
+    })
+    if (byProfile) return byProfile
     return prisma.client.findFirst({
-      where: {
-        OR: [
-          { profileId: params.userId },
-          { email: params.email },
-        ],
-      },
+      where: { email: params.email },
     })
   }
 

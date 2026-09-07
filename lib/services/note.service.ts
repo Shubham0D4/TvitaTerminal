@@ -1,55 +1,17 @@
 import { prisma } from '@/lib/prisma'
 import { getClientSubTeamContext, AuthUser } from '@/lib/auth/server'
-import { ValidationError, NotFoundError } from '@/lib/errors'
+import { ValidationError, NotFoundError, AuthorizationError } from '@/lib/errors'
 import { writeAuditLog } from '@/lib/audit'
 import { NoteType } from '@prisma/client'
+import { assertProjectAccess, isProjectManager, redactAgencyPersonForClient } from '@/lib/auth/access'
 
 export class NoteService {
   static async validateProjectAccess(projectId: string, user: AuthUser) {
-    if (user.role === 'ADMIN') return true
-
-    if (user.role === 'TEAM_MEMBER') {
-      const pm = await prisma.projectMember.findFirst({
-        where: { projectId, profileId: user.id }
-      })
-      if (!pm && user.teamRole !== 'TEAM_LEAD') {
-        throw new Error('Unauthorized project access')
-      }
-      return true
-    }
-
-    if (user.role === 'CLIENT') {
-      const project = await prisma.project.findUnique({
-        where: { id: projectId }
-      })
-      if (!project) throw new NotFoundError('Project not found')
-
-      const subteam = await getClientSubTeamContext(user.id)
-      const clientId = subteam ? subteam.clientId : (await prisma.client.findFirst({
-        where: { profileId: user.id },
-        select: { id: true }
-      }))?.id
-
-      if (!clientId || clientId !== project.clientId) {
-        throw new Error('Unauthorized project access')
-      }
-
-      if (subteam) {
-        if (!subteam.policy.notes) {
-          throw new Error('Unauthorized notes access')
-        }
-        if (subteam.allowedProjectIds.length > 0 && !subteam.allowedProjectIds.includes(projectId)) {
-          throw new Error('Unauthorized project access')
-        }
-      }
-      return true
-    }
-
-    throw new Error('Unauthorized')
+    return assertProjectAccess(user, projectId, { clientPolicy: 'notes' })
   }
 
   static async getNotesList(projectId: string, user: AuthUser) {
-    await this.validateProjectAccess(projectId, user)
+    const project = await this.validateProjectAccess(projectId, user)
 
     const allNotes = await prisma.note.findMany({
       where: { projectId },
@@ -59,12 +21,13 @@ export class NoteService {
       orderBy: { createdAt: 'desc' }
     })
 
-    if (user.role === 'ADMIN' || user.teamRole === 'TEAM_LEAD') {
+    if (isProjectManager(user, project)) {
       return allNotes
     }
 
     if (user.role === 'TEAM_MEMBER') {
       return allNotes.filter((n) => {
+        if (n.type === NoteType.EXTERNAL_CLIENT) return false
         const hasProfiles = n.allowedProfileIds && n.allowedProfileIds.length > 0
         if (hasProfiles) {
           return n.creatorId === user.id || n.allowedProfileIds.includes(user.id)
@@ -75,20 +38,25 @@ export class NoteService {
 
     if (user.role === 'CLIENT') {
       const subteam = await getClientSubTeamContext(user.id)
-      return allNotes.filter((n) => {
-        if (n.type !== NoteType.EXTERNAL_CLIENT) return false
+      return allNotes
+        .filter((n) => {
+          if (n.type !== NoteType.EXTERNAL_CLIENT) return false
 
-        const hasProfiles = n.allowedProfileIds && n.allowedProfileIds.length > 0
-        const hasSubteams = n.allowedSubTeamIds && n.allowedSubTeamIds.length > 0
+          const hasProfiles = n.allowedProfileIds && n.allowedProfileIds.length > 0
+          const hasSubteams = n.allowedSubTeamIds && n.allowedSubTeamIds.length > 0
 
-        if (!hasProfiles && !hasSubteams) return true
+          if (!hasProfiles && !hasSubteams) return true
 
-        if (n.creatorId === user.id) return true
-        if (hasProfiles && n.allowedProfileIds.includes(user.id)) return true
-        if (hasSubteams && subteam && n.allowedSubTeamIds.includes(subteam.subTeamId)) return true
+          if (n.creatorId === user.id) return true
+          if (hasProfiles && n.allowedProfileIds.includes(user.id)) return true
+          if (hasSubteams && subteam && n.allowedSubTeamIds.includes(subteam.subTeamId)) return true
 
-        return false
-      })
+          return false
+        })
+        .map((n) => ({
+          ...n,
+          creator: redactAgencyPersonForClient(n.creator, project.leadId),
+        }))
     }
 
     return []
@@ -110,11 +78,13 @@ export class NoteService {
     if (!content) {
       throw new ValidationError('Message content is required')
     }
-    await this.validateProjectAccess(projectId, user)
+    const project = await this.validateProjectAccess(projectId, user)
 
     let noteType = type
     if (user.role === 'CLIENT') {
       noteType = NoteType.EXTERNAL_CLIENT
+    } else if (!isProjectManager(user, project)) {
+      noteType = NoteType.INTERNAL_TEAM
     }
 
     const autoTitle = title?.trim() || (content.length > 40 ? content.slice(0, 40) + '...' : content)
@@ -162,20 +132,18 @@ export class NoteService {
     const note = await prisma.note.findUnique({ where: { id } })
     if (!note) throw new NotFoundError('Note not found')
 
-    await this.validateProjectAccess(note.projectId, user)
+    const project = await this.validateProjectAccess(note.projectId, user)
 
-    const isLeadOrAdmin = user.role === 'ADMIN' || user.teamRole === 'TEAM_LEAD'
+    const canManage = isProjectManager(user, project)
     const isCreator = note.creatorId === user.id
-    
-    const isClientEditor = user.role === 'CLIENT' && note.type === NoteType.EXTERNAL_CLIENT
 
-    if (!isCreator && !isLeadOrAdmin && !isClientEditor) {
-      throw new Error('Unauthorized to modify this note')
+    if (!isCreator && !canManage) {
+      throw new AuthorizationError('Unauthorized to modify this note')
     }
 
     const updateData: any = {}
-    if (body.title && (isCreator || isLeadOrAdmin)) updateData.title = body.title
-    if (body.content && (isCreator || isLeadOrAdmin)) updateData.content = body.content
+    if (body.title && (isCreator || canManage)) updateData.title = body.title
+    if (body.content && (isCreator || canManage)) updateData.content = body.content
     
     if (body.allowedProfileIds) updateData.allowedProfileIds = body.allowedProfileIds
     if (body.allowedSubTeamIds) updateData.allowedSubTeamIds = body.allowedSubTeamIds
@@ -205,13 +173,13 @@ export class NoteService {
     const note = await prisma.note.findUnique({ where: { id } })
     if (!note) throw new NotFoundError('Note not found')
 
-    await this.validateProjectAccess(note.projectId, user)
+    const project = await this.validateProjectAccess(note.projectId, user)
 
-    const isLeadOrAdmin = user.role === 'ADMIN' || user.teamRole === 'TEAM_LEAD'
+    const canManage = isProjectManager(user, project)
     const isCreator = note.creatorId === user.id
 
-    if (!isCreator && !isLeadOrAdmin) {
-      throw new Error('Only the creator or admin can delete this note')
+    if (!isCreator && !canManage) {
+      throw new AuthorizationError('Only the creator or project lead can delete this note')
     }
 
     await prisma.note.delete({ where: { id } })

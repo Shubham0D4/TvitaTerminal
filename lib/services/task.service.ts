@@ -1,25 +1,18 @@
 import { TaskRepository } from '@/lib/repositories/task.repository'
 import { taskToDTO, serializeDate } from '@/lib/dto/mappers'
 import { writeAuditLog } from '@/lib/audit'
-import { ValidationError, NotFoundError } from '@/lib/errors'
+import { ValidationError, NotFoundError, AuthorizationError } from '@/lib/errors'
 import { prisma } from '@/lib/prisma'
 import { TaskPriority, TaskStatus } from '@prisma/client'
+import type { AuthUser } from '@/lib/auth/server'
+import { isAdmin, isTeamMember } from '@/lib/auth/server'
+import { assertProjectAccess, assertProjectManage, canActOnAssignedWork, staffAccessibleProjectIds } from '@/lib/auth/access'
+import { assertMilestoneBelongsToProject } from '@/lib/db/integrity'
+import { recalcProgress } from '@/lib/utils/project-progress'
 
 export class TaskService {
   static async recalculateProjectProgress(projectId: string) {
-    const allTasks = await TaskRepository.findMany({
-      where: { projectId },
-    })
-
-    if (allTasks.length === 0) {
-      await prisma.project.update({ where: { id: projectId }, data: { progress: 0 } })
-      return 0
-    }
-
-    const completedTasks = allTasks.filter((t) => t.status === 'COMPLETED').length
-    const progress = Math.round((completedTasks / allTasks.length) * 100)
-    await prisma.project.update({ where: { id: projectId }, data: { progress } })
-    return progress
+    return recalcProgress(projectId)
   }
 
   static async autoAssignLeastBusyMember(projectId: string, targetTeamRole: 'MEMBER' | 'TEAM_LEAD' = 'MEMBER'): Promise<string | null> {
@@ -40,13 +33,7 @@ export class TaskService {
       }
     }
 
-    if (eligibleProfiles.length === 0) {
-      const globalProfiles = await prisma.profile.findMany({
-        where: { isActive: true, role: 'TEAM_MEMBER' },
-      })
-      if (globalProfiles.length === 0) return null
-      eligibleProfiles.push(...globalProfiles)
-    }
+    if (eligibleProfiles.length === 0) return null
 
     let leastBusyProfileId: string | null = null
     let minActiveTasks = Infinity
@@ -71,20 +58,22 @@ export class TaskService {
 
   static async getTasksList(
     params: { projectId?: string; status?: string; assigneeId?: string },
-    actor: { id: string; role: string; teamRole: string | null }
+    actor: AuthUser
   ) {
-    const where: any = {}
+    if (!isAdmin(actor) && !isTeamMember(actor)) {
+      throw new AuthorizationError('Unauthorized')
+    }
+
+    const where: Record<string, unknown> = {}
     if (params.status) where.status = params.status
-    if (params.projectId) where.projectId = params.projectId
     if (params.assigneeId) where.assigneeId = params.assigneeId
 
-    // Scoping for non-admins / non-team-leads
-    if (actor.role !== 'ADMIN' && actor.teamRole !== 'TEAM_LEAD') {
-      where.OR = [
-        { developerId: actor.id },
-        { testerId: actor.id },
-        { assigneeId: actor.id },
-      ]
+    const accessibleIds = await staffAccessibleProjectIds(actor)
+    if (params.projectId) {
+      await assertProjectAccess(actor, params.projectId)
+      where.projectId = params.projectId
+    } else if (accessibleIds) {
+      where.projectId = { in: accessibleIds.length > 0 ? accessibleIds : ['__none__'] }
     }
 
     const tasks = await TaskRepository.findMany({
@@ -113,12 +102,21 @@ export class TaskService {
       dueDate?: string
       clientVisible?: boolean
     },
-    actor: { id: string; email: string; role: string; name: string }
+    actor: AuthUser
   ) {
     const { projectId, milestoneId, title, description, priority = 'MEDIUM', developerId, testerId, dueDate, clientVisible = false } = body
 
     if (!projectId || !title) {
       throw new ValidationError('projectId and title are required')
+    }
+
+    if (!isAdmin(actor) && !isTeamMember(actor)) {
+      throw new AuthorizationError('Unauthorized')
+    }
+    await assertProjectAccess(actor, projectId)
+
+    if (milestoneId) {
+      await assertMilestoneBelongsToProject(milestoneId, projectId)
     }
 
     let assignedDevId = developerId || null
@@ -167,7 +165,7 @@ export class TaskService {
     return taskToDTO(task)
   }
 
-  static async getTaskDetails(id: string) {
+  static async getTaskDetails(id: string, actor: AuthUser) {
     const task = await TaskRepository.findById(id, {
       project: { select: { id: true, name: true, clientId: true } },
       milestone: { select: { id: true, name: true, status: true } },
@@ -179,6 +177,8 @@ export class TaskService {
     if (!task) {
       throw new NotFoundError('Task not found')
     }
+
+    await assertProjectAccess(actor, task.projectId)
 
     const [comments, activities] = await Promise.all([
       TaskRepository.findComments({ taskId: id }, { author: { select: { id: true, name: true, avatarUrl: true } } }),
@@ -205,12 +205,13 @@ export class TaskService {
       clientVisible?: boolean
       assigneeId?: string
     },
-    actor: { id: string; email: string; role: string; name: string }
+    actor: AuthUser
   ) {
     const task = await TaskRepository.findById(id)
     if (!task) {
       throw new NotFoundError('Task not found')
     }
+    await assertProjectAccess(actor, task.projectId)
 
     const { title, description, status, priority, developerId, testerId, dueDate, clientVisible, assigneeId } = body
 
@@ -265,11 +266,12 @@ export class TaskService {
     return taskToDTO(updated)
   }
 
-  static async deleteTask(id: string, actor: { id: string; email: string; role: string }) {
+  static async deleteTask(id: string, actor: AuthUser) {
     const task = await TaskRepository.findById(id)
     if (!task) {
       throw new NotFoundError('Task not found')
     }
+    await assertProjectManage(actor, task.projectId)
 
     await TaskRepository.delete(id)
 
@@ -290,7 +292,7 @@ export class TaskService {
     return { deleted: true }
   }
 
-  static async addTaskComment(id: string, content: string, actor: { id: string; email: string; role: string; name: string }) {
+  static async addTaskComment(id: string, content: string, actor: AuthUser) {
     if (!content || content.trim() === '') {
       throw new ValidationError('Comment content is required')
     }
@@ -299,6 +301,7 @@ export class TaskService {
     if (!task) {
       throw new NotFoundError('Task not found')
     }
+    await assertProjectAccess(actor, task.projectId)
 
     const comment = await TaskRepository.createComment({
       taskId: id,
@@ -330,11 +333,16 @@ export class TaskService {
   static async updateTaskStatus(
     id: string,
     targetStatus: TaskStatus,
-    actor: { id: string; email: string; role: string; name: string; teamRole?: string | null }
+    actor: AuthUser
   ) {
     const task = await TaskRepository.findById(id)
     if (!task) {
       throw new NotFoundError('Task not found')
+    }
+    const project = await assertProjectAccess(actor, task.projectId)
+
+    if (!canActOnAssignedWork(actor, project, [task.assigneeId, task.developerId, task.testerId])) {
+      throw new AuthorizationError('You can only update tasks assigned to you')
     }
 
     const currentStatus = task.status

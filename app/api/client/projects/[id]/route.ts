@@ -1,9 +1,8 @@
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
 import { AuthService } from '@/lib/services/auth.service'
-import { ClientService } from '@/lib/services/client.service'
 import { ProjectService } from '@/lib/services/project.service'
-import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'
+import { assertClientPolicy, assertProjectAccess, hasClientPolicy } from '@/lib/auth/access'
 
 export async function GET(
   request: NextRequest,
@@ -17,20 +16,11 @@ export async function GET(
   const { id } = await params
 
   try {
-    const subTeamCtx = await AuthService.getSubTeamContext(user.id)
-    if (subTeamCtx && !subTeamCtx.policy.projects) {
-      return Errors.FORBIDDEN('Project access is restricted by policy')
-    }
+    const { client, subTeam } = await AuthService.resolveClientActor(user)
+    assertClientPolicy(subTeam, 'projects')
+    await assertProjectAccess(user, id, { clientPolicy: 'projects' })
 
-    const client = await (subTeamCtx
-      ? prisma.client.findUnique({ where: { id: subTeamCtx.clientId } })
-      : ClientService.getClientByUserId(user.id, user.email))
-
-    if (!client) {
-      return Errors.NOT_FOUND('Client')
-    }
-
-    const showMilestones = subTeamCtx ? Boolean(subTeamCtx.policy.milestones) : true
+    const showMilestones = hasClientPolicy(subTeam, 'milestones')
     const project = await ProjectService.getClientProjectDetail(id, client.id, showMilestones)
 
     if (!project) {
@@ -40,6 +30,6 @@ export async function GET(
     return apiSuccess(project)
   } catch (error) {
     console.error('Client project GET API error:', error)
-    return Errors.INTERNAL('Failed to fetch project detail')
+    return fromUnknownError(error, 'Failed to fetch project detail')
   }
 }

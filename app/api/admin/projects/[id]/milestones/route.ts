@@ -3,6 +3,7 @@ import { getServerUser, isAdmin } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'
 import { recalcProgress } from '@/lib/utils/project-progress'
+import { asProcessStage } from '@/lib/process/stages'
 
 
 export async function POST(
@@ -18,7 +19,7 @@ export async function POST(
 
   try {
     const body = await request.json()
-    const { name, description, dueDate, assigneeId, assigneeRole, autoAssign, imageUrls } = body
+    const { name, description, dueDate, assigneeId, assigneeRole, autoAssign, imageUrls, stage } = body
 
     if (!name) {
       return Errors.VALIDATION('Milestone name is required')
@@ -33,6 +34,7 @@ export async function POST(
         description: description || null,
         dueDate: dueDate ? new Date(dueDate) : null,
         status: 'PLANNED',
+        stage: asProcessStage(stage || name),
         assigneeId: assigneeId || null,
         assigneeRole: assigneeRole || null,
         autoAssign: Boolean(autoAssign),

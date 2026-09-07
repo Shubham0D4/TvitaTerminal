@@ -4,6 +4,7 @@ import { useState, useEffect, useTransition } from 'react'
 import { Plus, X, MessageSquare, AlertTriangle, Check, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { apiClient } from '@/lib/utils/api-client'
+import { agencyNameForClient } from '@/lib/auth/visibility'
 
 interface Ticket {
   id: string
@@ -22,6 +23,7 @@ interface Props {
   userTeamRole: string | null
   userId: string
   hasAccess: boolean
+  projectLeadId?: string | null
 }
 
 const PRIORITY_COLOR: Record<string, string> = {
@@ -37,7 +39,7 @@ const STATUS_COLOR: Record<string, string> = {
   CLOSED: '#64748b',
 }
 
-export default function TicketsModule({ projectId, userRole, userTeamRole, userId, hasAccess }: Props) {
+export default function TicketsModule({ projectId, userRole, userTeamRole, userId, hasAccess, projectLeadId = null }: Props) {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
@@ -192,7 +194,7 @@ export default function TicketsModule({ projectId, userRole, userTeamRole, userI
                         {ticket.status.replace(/_/g, ' ')}
                       </span>
                       <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                        Raised by {ticket.creator.name} · {new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short' }).format(new Date(ticket.createdAt))}
+                        Raised by {userRole === 'CLIENT' ? agencyNameForClient(ticket.creator, projectLeadId) : ticket.creator.name} · {new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short' }).format(new Date(ticket.createdAt))}
                       </span>
                     </div>
                     <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>{ticket.title}</div>

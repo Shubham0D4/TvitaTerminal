@@ -1,8 +1,8 @@
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
-import { getClientSubTeamContext, getServerUser, isClient } from '@/lib/auth/server'
-import { ClientRepository } from '@/lib/repositories/client.repository'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
+import { getServerUser, isClient } from '@/lib/auth/server'
 import { SubscriptionService } from '@/lib/services/subscription.service'
 import { NextRequest } from 'next/server'
+import { assertClientPolicy, resolveClientActor } from '@/lib/auth/access'
 
 export async function GET(request: NextRequest) {
   const user = await getServerUser()
@@ -11,25 +11,13 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const subTeamCtx = await getClientSubTeamContext(user.id)
-    if (subTeamCtx && !subTeamCtx.policy.subscriptions) {
-      return Errors.FORBIDDEN('Subscription data is restricted for sub-teams')
-    }
-
-    const client = await ClientRepository.findClientForActor({
-      userId: user.id,
-      email: user.email,
-      subTeamClientId: subTeamCtx?.clientId,
-    })
-
-    if (!client) {
-      return Errors.NOT_FOUND('Client')
-    }
+    const { client, subTeam } = await resolveClientActor(user)
+    assertClientPolicy(subTeam, 'subscriptions')
 
     const result = await SubscriptionService.getClientSubscriptionData(client.id)
     return apiSuccess(result)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Client subscriptions GET API error:', error)
-    return Errors.INTERNAL('Failed to fetch client subscriptions')
+    return fromUnknownError(error, 'Failed to fetch client subscriptions')
   }
 }

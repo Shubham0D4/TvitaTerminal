@@ -1,7 +1,25 @@
 import { NextRequest } from 'next/server'
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
 import { getServerUser } from '@/lib/auth/server'
 import { QuoteService } from '@/lib/services/quote.service'
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ quoteId: string }> }
+) {
+  const user = await getServerUser()
+  if (!user) return Errors.UNAUTHORIZED()
+
+  const { quoteId } = await params
+
+  try {
+    const quote = await QuoteService.getQuoteById(quoteId, user)
+    return apiSuccess(quote)
+  } catch (error: unknown) {
+    console.error('GET quote error:', error)
+    return fromUnknownError(error, 'Failed to fetch quote')
+  }
+}
 
 export async function PATCH(
   request: NextRequest,
@@ -16,15 +34,9 @@ export async function PATCH(
     const body = await request.json()
     const quote = await QuoteService.updateQuote(quoteId, body, user)
     return apiSuccess(quote)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('PATCH quote error:', error)
-    if (error.name === 'ValidationError') {
-      return Errors.VALIDATION(error.message)
-    }
-    if (error.name === 'NotFoundError') {
-      return Errors.NOT_FOUND(error.message)
-    }
-    return Errors.INTERNAL(error.message || 'Failed to update quote')
+    return fromUnknownError(error, 'Failed to update quote')
   }
 }
 
@@ -40,11 +52,8 @@ export async function DELETE(
   try {
     const result = await QuoteService.deleteQuote(quoteId, user)
     return apiSuccess(result)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('DELETE quote error:', error)
-    if (error.name === 'NotFoundError') {
-      return Errors.NOT_FOUND(error.message)
-    }
-    return Errors.INTERNAL(error.message || 'Failed to delete quote')
+    return fromUnknownError(error, 'Failed to delete quote')
   }
 }

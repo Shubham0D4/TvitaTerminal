@@ -1,5 +1,6 @@
 import { apiSuccess, Errors } from '@/lib/utils/api-response'
 import { getClientSubTeamContext, getServerUser, isClient } from '@/lib/auth/server'
+import { isSubTeamActor } from '@/lib/auth/access'
 import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'
 
@@ -49,8 +50,7 @@ export async function PUT(request: NextRequest) {
   }
 
   try {
-    const subTeamCtx = await getClientSubTeamContext(user.id)
-    if (subTeamCtx) {
+    if (await isSubTeamActor(user)) {
       return Errors.FORBIDDEN('Sub-team users cannot update primary client profile details')
     }
 

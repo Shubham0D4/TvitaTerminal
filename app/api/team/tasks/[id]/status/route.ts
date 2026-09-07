@@ -1,5 +1,5 @@
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
-import { getServerUser } from '@/lib/auth/server'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
+import { getServerUser, isTeamMember, isAdmin } from '@/lib/auth/server'
 import { TaskService } from '@/lib/services/task.service'
 import { TaskStatus } from '@prisma/client'
 import { NextRequest } from 'next/server'
@@ -9,7 +9,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const user = await getServerUser()
-  if (!user) {
+  if (!user || (!isTeamMember(user) && !isAdmin(user))) {
     return Errors.UNAUTHORIZED()
   }
 
@@ -27,12 +27,6 @@ export async function PATCH(
     return apiSuccess(updated)
   } catch (error: any) {
     console.error('Update task status API error:', error)
-    if (error.name === 'NotFoundError') {
-      return Errors.NOT_FOUND(error.message)
-    }
-    if (error.name === 'ValidationError') {
-      return Errors.VALIDATION(error.message)
-    }
-    return Errors.INTERNAL('Failed to update task status')
+    return fromUnknownError(error, 'Failed to update task status')
   }
 }

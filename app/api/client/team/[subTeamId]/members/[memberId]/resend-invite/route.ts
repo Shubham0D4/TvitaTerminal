@@ -1,6 +1,7 @@
 import crypto from 'crypto'
 import { apiSuccess, Errors } from '@/lib/utils/api-response'
-import { getClientSubTeamContext, getServerUser, isClient } from '@/lib/auth/server'
+import { getServerUser, isClient } from '@/lib/auth/server'
+import { isSubTeamActor } from '@/lib/auth/access'
 import { ClientService } from '@/lib/services/client.service'
 import { sendRoleAccountCreatedEmail } from '@/lib/email'
 import { prisma } from '@/lib/prisma'
@@ -14,8 +15,7 @@ export async function POST(
   const user = await getServerUser()
   if (!user || !isClient(user)) return Errors.UNAUTHORIZED()
 
-  const subTeamCtx = await getClientSubTeamContext(user.id)
-  if (subTeamCtx) return Errors.FORBIDDEN('Only primary client can resend team member invitations')
+  if (await isSubTeamActor(user)) return Errors.FORBIDDEN('Only primary client can resend team member invitations')
 
   const { subTeamId, memberId } = await params
 
@@ -58,25 +58,34 @@ export async function POST(
         },
       })
     } else {
-      // Find or create profile by email
-      const profile = await prisma.profile.upsert({
+      const existing = await prisma.profile.findUnique({
         where: { email: member.email.toLowerCase() },
-        create: {
-          id: crypto.randomUUID(),
-          name: member.name,
-          email: member.email.toLowerCase(),
-          role: 'CLIENT',
-          isActive: true,
-          invitedAt: new Date(),
-          magicLinkToken: token,
-          magicLinkExpires: expires,
-        },
-        update: {
-          invitedAt: new Date(),
-          magicLinkToken: token,
-          magicLinkExpires: expires,
-        },
       })
+      if (existing && existing.role !== 'CLIENT') {
+        return Errors.VALIDATION('This email belongs to an agency account and cannot be invited as a client teammate')
+      }
+      const profile = existing
+        ? await prisma.profile.update({
+            where: { id: existing.id },
+            data: {
+              invitedAt: new Date(),
+              magicLinkToken: token,
+              magicLinkExpires: expires,
+              isActive: true,
+            },
+          })
+        : await prisma.profile.create({
+            data: {
+              id: crypto.randomUUID(),
+              name: member.name,
+              email: member.email.toLowerCase(),
+              role: 'CLIENT',
+              isActive: true,
+              invitedAt: new Date(),
+              magicLinkToken: token,
+              magicLinkExpires: expires,
+            },
+          })
 
       await prisma.clientSubTeamMember.update({
         where: { id: member.id },
@@ -94,7 +103,6 @@ export async function POST(
 
     return apiSuccess({
       message: `Magic link invitation resent to ${member.email}`,
-      inviteLink,
     })
   } catch (error) {
     console.error('Client subteam resend invite error:', error)

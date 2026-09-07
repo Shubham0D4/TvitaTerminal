@@ -11,7 +11,9 @@ export async function GET(request: NextRequest) {
 
   try {
     const settings = await prisma.appSettings.findFirst()
-    return apiSuccess(settings)
+    if (!settings) return apiSuccess(null)
+    const { smtpPass, ...safe } = settings
+    return apiSuccess({ ...safe, smtpConfigured: Boolean(smtpPass) })
   } catch (error) {
     console.error('Admin settings GET API error:', error)
     return Errors.INTERNAL('Failed to fetch app settings')
@@ -84,7 +86,7 @@ export async function PUT(request: NextRequest) {
           smtpHost: smtpHost !== undefined ? smtpHost : existing.smtpHost,
           smtpPort: smtpPort !== undefined && smtpPort !== '' ? Number(smtpPort) : null,
           smtpUser: smtpUser !== undefined ? smtpUser : existing.smtpUser,
-          smtpPass: smtpPass !== undefined ? smtpPass : existing.smtpPass,
+          smtpPass: smtpPass ? String(smtpPass) : existing.smtpPass,
           smtpSender: smtpSender !== undefined ? smtpSender : existing.smtpSender,
         },
       })
@@ -112,7 +114,7 @@ export async function PUT(request: NextRequest) {
           smtpHost: smtpHost || 'smtp.gmail.com',
           smtpPort: smtpPort ? Number(smtpPort) : 587,
           smtpUser: smtpUser || null,
-          smtpPass: smtpPass || null,
+          smtpPass: smtpPass ? String(smtpPass) : null,
           smtpSender: smtpSender || null,
         },
       })

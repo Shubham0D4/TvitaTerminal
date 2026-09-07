@@ -50,8 +50,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const subTeamCtx = await AuthService.getSubTeamContext(user.id)
-    if (subTeamCtx) {
+    if (await AuthService.isSubTeamActor(user)) {
       return Errors.FORBIDDEN('Only primary client can create sub-teams')
     }
 

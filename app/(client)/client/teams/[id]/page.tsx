@@ -1,11 +1,12 @@
-import { getServerUser, getClientSubTeamContext, redirectToLogin, redirectToPortal } from '@/lib/auth/server'
+import { DEFAULT_CLIENT_TEAM_NAME, getServerUser, getClientSubTeamContext, redirectToLogin, redirectToPortal } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import TeamDetailsManager from './TeamDetailsManager'
+import { publicMemberProfile } from '@/lib/auth/access'
 
 export const metadata = {
-  title: 'Sub-Team Details — Tvita Client Portal',
-  description: 'Manage sub-team members, roles, and project access boundaries.',
+  title: 'Team Details — Tvita Client Portal',
+  description: 'Manage team members, roles, and project access.',
 }
 
 export default async function SubTeamDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -19,7 +20,7 @@ export default async function SubTeamDetailPage({ params }: { params: Promise<{ 
   const { id } = await params
 
   const client = await prisma.client.findFirst({
-    where: { profileId: user.id },
+    where: { OR: [{ profileId: user.id }, { email: user.email }] },
     select: {
       id: true,
       projects: {
@@ -46,8 +47,15 @@ export default async function SubTeamDetailPage({ params }: { params: Promise<{ 
   })
 
   if (!subTeam) redirect('/client/teams')
+  if (subTeam.name === DEFAULT_CLIENT_TEAM_NAME) redirect('/client/teams')
 
-  const serializedSubTeam = JSON.parse(JSON.stringify(subTeam))
+  const serializedSubTeam = JSON.parse(JSON.stringify({
+    ...subTeam,
+    members: subTeam.members.map((m) => ({
+      ...m,
+      profile: publicMemberProfile(m.profile),
+    })),
+  }))
   const serializedProjects = JSON.parse(JSON.stringify(client.projects))
 
   return (

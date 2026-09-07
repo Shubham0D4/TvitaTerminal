@@ -1,9 +1,10 @@
 import { prisma } from '@/lib/prisma'
-import { getServerUser, getClientSubTeamContext, redirectToLogin } from '@/lib/auth/server'
+import { getServerUser, redirectToLogin } from '@/lib/auth/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { CreditCard, FileText, CheckCircle2, Clock, ExternalLink } from 'lucide-react'
 import PaymentRedirect from '@/app/components/billing/PaymentRedirect'
+import { clientInvoiceWhere, getClientActor, hasClientPolicy } from '@/lib/auth/access'
 
 export const metadata = {
   title: 'Invoices — Tvita Client Portal',
@@ -23,17 +24,8 @@ export default async function ClientInvoicesPage() {
   const user = await getServerUser()
   if (!user) redirectToLogin()
 
-  // Sub-teams do not have access to financial data
-  const subTeamCtx = await getClientSubTeamContext(user.id)
-  if (subTeamCtx && !subTeamCtx.policy.invoices) redirect('/client/home')
-
-  const client = await prisma.client.findFirst({
-    where: subTeamCtx
-      ? { id: subTeamCtx.clientId }
-      : { OR: [{ profileId: user.id }, { email: user.email }] },
-  })
-
-  if (!client) {
+  const actor = await getClientActor(user)
+  if (!actor) {
     return (
       <div className="card">
         <div className="empty-state">
@@ -43,6 +35,10 @@ export default async function ClientInvoicesPage() {
       </div>
     )
   }
+
+  if (!hasClientPolicy(actor.subTeam, 'invoices', 'billing')) redirect('/client/home')
+
+  const { client } = actor
 
   // External platform redirect
   const externalSources = ['upwork', 'freelancer', 'fiverr', 'toptal', 'guru', 'peopleperhour']
@@ -59,7 +55,7 @@ export default async function ClientInvoicesPage() {
   }
 
   const invoices = await prisma.invoice.findMany({
-    where: { clientId: client.id },
+    where: clientInvoiceWhere(client.id, actor.subTeam),
     include: { project: { select: { name: true } } },
     orderBy: { createdAt: 'desc' },
   })

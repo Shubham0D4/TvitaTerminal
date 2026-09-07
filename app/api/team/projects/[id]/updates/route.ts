@@ -1,5 +1,6 @@
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
 import { getServerUser, isTeamMember, isAdmin } from '@/lib/auth/server'
+import { assertProjectAccess } from '@/lib/auth/access'
 import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'
 
@@ -15,6 +16,8 @@ export async function POST(
   const { id: projectId } = await params
 
   try {
+    await assertProjectAccess(user, projectId)
+
     const body = await request.json()
     const { title, content } = body
 
@@ -35,6 +38,6 @@ export async function POST(
     return apiSuccess(update, 201)
   } catch (error) {
     console.error('Create project update API error:', error)
-    return Errors.INTERNAL('Failed to create project update')
+    return fromUnknownError(error, 'Failed to create project update')
   }
 }

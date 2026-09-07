@@ -1,5 +1,5 @@
 import crypto from 'crypto'
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
 import { writeAuditLog } from '@/lib/audit'
 import { getServerUser, isAdmin } from '@/lib/auth/server'
 import { sendClientInvite } from '@/lib/email'
@@ -7,6 +7,7 @@ import { createNotification } from '@/lib/notifications'
 import { prisma } from '@/lib/prisma'
 import { getAppBaseUrl } from '@/lib/utils/url'
 import { NextRequest } from 'next/server'
+import { assertClientEmailAvailable, normalizeEmail } from '@/lib/db/integrity'
 
 export async function GET(request: NextRequest) {
   const user = await getServerUser()
@@ -67,11 +68,15 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const loginEmail = body.email
-
     if (!body.legalName || !body.country || !body.email || !body.contactPerson || !body.address || !body.billingName || !body.billingEmail) {
       return Errors.VALIDATION('Required fields are missing: legalName, country, email, contactPerson, address, billingName, billingEmail')
     }
+
+    const loginEmail = normalizeEmail(body.email)
+    if (!loginEmail) {
+      return Errors.VALIDATION('A valid email address is required')
+    }
+    await assertClientEmailAvailable(loginEmail)
 
     let profileId: string | undefined
 
@@ -147,7 +152,7 @@ export async function POST(request: NextRequest) {
         website: body.website || null,
         contactPerson: body.contactPerson || null,
         designation: body.designation || null,
-        email: body.email || null,
+        email: loginEmail,
         phone: body.phone || null,
         whatsapp: body.whatsapp || null,
         preferredComm: body.preferredComm || null,
@@ -202,6 +207,6 @@ export async function POST(request: NextRequest) {
     return apiSuccess(newClient, 201)
   } catch (error) {
     console.error('Admin clients POST API error:', error)
-    return Errors.INTERNAL('Failed to create client')
+    return fromUnknownError(error, 'Failed to create client')
   }
 }

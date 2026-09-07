@@ -4,6 +4,7 @@ import { useState, useEffect, useTransition } from 'react'
 import { Plus, X, Calendar, Video, Clock, Trash2, ExternalLink, Link2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { apiClient } from '@/lib/utils/api-client'
+import { agencyNameForClient } from '@/lib/auth/visibility'
 
 interface Meeting {
   id: string
@@ -22,6 +23,7 @@ interface Props {
   userTeamRole: string | null
   userId: string
   hasAccess: boolean
+  projectLeadId?: string | null
 }
 
 function getMeetPlatformLabel(url: string): string {
@@ -42,7 +44,7 @@ function getMeetPlatformColor(url: string): string {
   return '#10b981'
 }
 
-export default function MeetingsModule({ projectId, userRole, userTeamRole, userId, hasAccess }: Props) {
+export default function MeetingsModule({ projectId, userRole, userTeamRole, userId, hasAccess, projectLeadId = null }: Props) {
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
@@ -245,7 +247,7 @@ export default function MeetingsModule({ projectId, userRole, userTeamRole, user
                         <Calendar size={10} /> {active ? 'Upcoming' : 'Past'}
                       </span>
                       <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                        Host: {meeting.host.name} ({meeting.host.role})
+                        Host: {userRole === 'CLIENT' ? agencyNameForClient(meeting.host, projectLeadId) : `${meeting.host.name} (${meeting.host.role})`}
                       </span>
                     </div>
 

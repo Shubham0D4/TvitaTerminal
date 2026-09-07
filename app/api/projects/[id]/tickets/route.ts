@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
 import { getServerUser } from '@/lib/auth/server'
 import { TicketService } from '@/lib/services/ticket.service'
 
@@ -17,7 +17,7 @@ export async function GET(
     return apiSuccess(tickets)
   } catch (error: any) {
     console.error('GET tickets error:', error)
-    return Errors.INTERNAL(error.message || 'Failed to fetch tickets')
+    return fromUnknownError(error, 'Failed to fetch tickets')
   }
 }
 
@@ -36,9 +36,6 @@ export async function POST(
     return apiSuccess(ticket, 201)
   } catch (error: any) {
     console.error('POST ticket error:', error)
-    if (error.name === 'ValidationError') {
-      return Errors.VALIDATION(error.message)
-    }
-    return Errors.INTERNAL(error.message || 'Failed to create ticket')
+    return fromUnknownError(error, 'Failed to create ticket')
   }
 }

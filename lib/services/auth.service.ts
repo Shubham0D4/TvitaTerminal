@@ -10,13 +10,19 @@ import {
   isClient,
   isTeamMember,
   isTeamLead,
-  isDeveloper,
-  isTester,
   canManageDocuments,
   AuthUser,
   SubTeamContext,
   AccessPolicy,
 } from '@/lib/auth/server'
+import {
+  assertPrimaryClient,
+  hasClientPolicy,
+  isProjectManager,
+  isSubTeamActor,
+  resolveClientActor,
+  type ClientActor,
+} from '@/lib/auth/access'
 
 export class AuthService {
   static async getCurrentUser(): Promise<AuthUser | null> {
@@ -39,12 +45,33 @@ export class AuthService {
     return isTeamMember(user)
   }
 
+  /** Agency title only — not project authorization. */
   static checkIsTeamLead(user: AuthUser | null): boolean {
     return isTeamLead(user)
   }
 
   static checkCanManageDocs(user: AuthUser | null): boolean {
     return canManageDocuments(user)
+  }
+
+  static checkIsProjectManager(user: AuthUser, project: { leadId: string | null }): boolean {
+    return isProjectManager(user, project)
+  }
+
+  static hasClientPolicy(subTeam: SubTeamContext | null | undefined, ...keys: (keyof AccessPolicy)[]): boolean {
+    return hasClientPolicy(subTeam, ...keys)
+  }
+
+  static async isSubTeamActor(user: AuthUser): Promise<boolean> {
+    return isSubTeamActor(user)
+  }
+
+  static async assertPrimaryClient(user: AuthUser, message?: string): Promise<void> {
+    return assertPrimaryClient(user, message)
+  }
+
+  static async resolveClientActor(user: AuthUser): Promise<ClientActor> {
+    return resolveClientActor(user)
   }
 }
 

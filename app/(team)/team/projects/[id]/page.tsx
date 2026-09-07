@@ -2,22 +2,45 @@ import { prisma } from '@/lib/prisma'
 import { getServerUser, redirectToLogin } from '@/lib/auth/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Building2 } from 'lucide-react'
+import Image from 'next/image'
+import { ArrowLeft, Building2, FileText } from 'lucide-react'
 import ProjectWorkspaceTabs from '@/app/components/projects/ProjectWorkspaceTabs'
 import ProjectBannerUpload from '@/app/components/projects/ProjectBannerUpload'
+import PublishUpdateTrigger from '@/app/components/projects/PublishUpdateTrigger'
+import ProcessTree, { STAGES } from '@/app/components/client/ProcessTree'
+import { currentPhaseName, progressFromMilestones, stageIndexFromMilestones, withLeadAssignee } from '@/lib/process/stages'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const project = await prisma.project.findUnique({ where: { id }, select: { name: true } })
   return {
     title: project ? `${project.name} — Tvita Team` : 'Project — Tvita Team',
-    description: 'Project milestones and approvals.',
+    description: 'Project workspace: process, notes, tickets, and meetings.',
   }
+}
+
+const FALLBACK_BANNER = '/banner.webp'
+
+const STATUS_STYLES: Record<string, { label: string; tone: string }> = {
+  PLANNED: { label: 'Planned', tone: 'slate' },
+  IN_PROGRESS: { label: 'In progress', tone: 'amber' },
+  ON_HOLD: { label: 'On hold', tone: 'orange' },
+  CLIENT_REVIEW: { label: 'In review', tone: 'blue' },
+  COMPLETED: { label: 'Completed', tone: 'green' },
+  CANCELLED: { label: 'Cancelled', tone: 'slate' },
 }
 
 function formatDate(date: Date | null): string {
   if (!date) return '—'
-  return new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(date))
+  return new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).format(date)
+}
+
+function shortDate(date: Date) {
+  return new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short' }).format(date)
+}
+
+function initials(name: string) {
+  return name.split(' ').slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join('')
 }
 
 type PageProps = { params: Promise<{ id: string }> }
@@ -37,7 +60,7 @@ export default async function TeamProjectDetailPage({ params }: PageProps) {
     },
     include: {
       client: { select: { name: true } },
-      lead: { select: { id: true, name: true } },
+      lead: { select: { id: true, name: true, email: true, avatarUrl: true } },
       members: { include: { profile: { select: { id: true, name: true } } } },
       milestones: {
         orderBy: { sortOrder: 'asc' },
@@ -53,9 +76,8 @@ export default async function TeamProjectDetailPage({ params }: PageProps) {
         },
       },
       updates: {
-        where: { clientVisible: true },
         orderBy: { createdAt: 'desc' },
-        take: 5,
+        take: 8,
       },
     },
   })
@@ -63,153 +85,191 @@ export default async function TeamProjectDetailPage({ params }: PageProps) {
   if (!project) notFound()
 
   const isLead = project.leadId === user.id || user.role === 'ADMIN'
-
-  const roleColor = (role: string) => {
-    switch (role) {
-      case 'TEAM_LEAD': return { bg: 'rgba(139,92,246,0.15)', color: '#8b5cf6' }
-      default:          return { bg: 'rgba(59,130,246,0.15)', color: '#3b82f6' }
-    }
-  }
-
   const myMembership = project.members.find((m) => m.profileId === user.id)
-  const myRole = isLead ? 'TEAM_LEAD' : myMembership?.role ?? 'MEMBER'
-
-  const completed = project.milestones.filter((m) => m.status === 'COMPLETED').length
-  const total = project.milestones.length
+  const myRole = isLead ? 'Project lead' : (myMembership?.role ?? 'MEMBER').replace(/_/g, ' ')
+  const status = STATUS_STYLES[project.status] ?? { label: project.status.replace(/_/g, ' '), tone: 'slate' }
+  const progress = progressFromMilestones(project.milestones)
+  const stage = stageIndexFromMilestones(project.milestones, project.status)
+  const phase = currentPhaseName(project.milestones, project.status)
+  const banner = project.banner || FALLBACK_BANNER
+  const clientUpdates = project.updates.filter((u) => u.clientVisible)
 
   return (
-    <div>
-      {/* Header */}
-      <div className="page-header">
-        <div className="flex items-center gap-3">
-          <Link href="/team/projects" className="btn btn--ghost btn--icon">
-            <ArrowLeft size={18} />
-          </Link>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="page-header__title">{project.name}</h1>
-              <span className={`badge badge--${project.status.toLowerCase().replace(/_/g, '-')}`}>
-                {project.status.replace(/_/g, ' ')}
+    <div className="pdetail">
+      <div className="apdetail__nav">
+        <Link href="/team/projects" className="btn btn--ghost btn--sm">
+          <ArrowLeft size={16} /> Projects
+        </Link>
+        <span className="apdetail__client-link">
+          <Building2 size={14} />
+          {project.client.name}
+        </span>
+      </div>
+
+      <div className="pdetail__top">
+        <section className={`phero phero--${status.tone}`}>
+          <div className="phero__banner" style={{ backgroundImage: `url(${banner})` }}>
+            {isLead && (
+              <div className="phero__upload">
+                <ProjectBannerUpload projectId={project.id} canUpload={true} />
+              </div>
+            )}
+          </div>
+
+          <div className="phero__info">
+            <div className="phero__head">
+              <span className="phero__thumb" style={{ backgroundImage: `url(${banner})` }} aria-hidden="true" />
+              <span className="phero__body">
+                <h1 className="phero__name">{project.name}</h1>
+                {phase && <span className="phero__phase">{phase}</span>}
               </span>
-              <span className="badge" style={roleColor(myRole)}>
-                {myRole.replace(/_/g, ' ')}
+              <span className="phero__status">{status.label}</span>
+            </div>
+
+            {project.description && <p className="phero__desc">{project.description}</p>}
+
+            <div className="phero__meter">
+              <span className="phero__bar" aria-hidden="true">
+                <span className="phero__fill" style={{ width: `${progress}%` }} />
+              </span>
+              <span className="phero__pct">{progress}%</span>
+            </div>
+
+            <p className="phero__phases">
+              {Math.min(stage, STAGES.length)} of {STAGES.length} phases ·{' '}
+              {project.milestones.filter((m) => m.status === 'COMPLETED').length}/
+              {project.milestones.length} milestones
+              {' · '}
+              Your role: {myRole}
+            </p>
+          </div>
+        </section>
+
+        <aside className="pside">
+          <div className="pside__card">
+            <div className="plead">
+              {project.lead?.avatarUrl ? (
+                <Image
+                  src={project.lead.avatarUrl}
+                  alt=""
+                  width={48}
+                  height={48}
+                  className="plead__avatar"
+                />
+              ) : (
+                <span className="plead__avatar plead__avatar--text" aria-hidden="true">
+                  {initials(project.lead?.name ?? 'Un')}
+                </span>
+              )}
+              <span className="plead__body">
+                <span className="plead__name">{project.lead?.name ?? 'Unassigned lead'}</span>
+                {project.lead?.email && <span className="plead__email">{project.lead.email}</span>}
               </span>
             </div>
-            <div className="flex items-center gap-2" style={{ marginTop: 'var(--space-1)', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-              <Building2 size={12} />
-              <span>{project.client.name}</span>
-              {project.lead && <><span>·</span><span>Lead: {project.lead.name}</span></>}
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Project Banner cover image */}
-      <div 
-        style={{ 
-          position: 'relative', 
-          width: '100%', 
-          height: '240px', 
-          borderRadius: 'var(--radius-xl)', 
-          overflow: 'hidden', 
-          marginBottom: 'var(--space-6)',
-          backgroundImage: `url(${project.banner || '/banner.webp'})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          border: '1px solid var(--border-subtle)'
-        }}
-      >
-        <div style={{ position: 'absolute', right: 'var(--space-4)', bottom: 'var(--space-4)' }}>
-          <ProjectBannerUpload projectId={project.id} canUpload={isLead} />
-        </div>
-      </div>
-
-      {/* Progress bar */}
-      <div className="card mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Milestone Progress</div>
-          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)' }}>
-            {project.progress}% ({completed}/{total} milestones)
+            <dl className="pdates">
+              <div className="pdates__row">
+                <dt>Started</dt>
+                <dd>{formatDate(project.startDate)}</dd>
+              </div>
+              <div className="pdates__row">
+                <dt>Due</dt>
+                <dd>{formatDate(project.endDate)}</dd>
+              </div>
+            </dl>
           </div>
-        </div>
-        <div className="progress-bar-container">
-          <div className="progress-bar-fill" style={{ width: `${project.progress}%` }} />
-        </div>
-        <div className="grid grid-cols-2 gap-4 mt-4 pt-4" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-          <div>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Start</div>
-            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>{formatDate(project.startDate)}</div>
-          </div>
-          <div>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Deadline</div>
-            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>{formatDate(project.endDate)}</div>
-          </div>
-        </div>
-      </div>
 
-      <div className="grid grid-cols-3 gap-6">
-        {/* Main: Process & Roadmaps */}
-        <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-          <ProjectWorkspaceTabs
-            projectId={id}
-            clientId={project.clientId}
-            userRole={user.role}
-            userTeamRole={user.teamRole}
-            userId={user.id}
-            milestones={project.milestones}
-            projectMembers={project.members}
-            isLead={isLead}
-          />
-        </div>
-
-        {/* Right: Team + Updates */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-          <div className="card">
-            <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', marginBottom: 'var(--space-4)' }}>
-              Team ({project.members.length})
-            </h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+          <div className="pside__card">
+            <h2 className="pdetail__h" style={{ marginBottom: 12 }}>Team</h2>
+            <ul className="team-roster">
               {project.lead && (
-                <div className="flex items-center gap-2" style={{ fontSize: 'var(--text-sm)' }}>
-                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(139,92,246,0.15)', color: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 'var(--text-xs)' }}>
-                    {project.lead.name.charAt(0)}
-                  </div>
-                  <span style={{ color: 'var(--text-primary)', fontWeight: 'var(--font-medium)' }}>{project.lead.name}</span>
-                  <span className="badge" style={{ fontSize: 9, background: 'rgba(139,92,246,0.15)', color: '#8b5cf6' }}>Lead</span>
-                </div>
+                <li className="team-roster__row">
+                  <span className="team-roster__avatar">{initials(project.lead.name)}</span>
+                  <span className="team-roster__name">{project.lead.name}</span>
+                  <span className="badge">Lead</span>
+                </li>
               )}
               {project.members.filter((m) => m.profileId !== project.leadId).map((m) => (
-                <div key={m.id} className="flex items-center gap-2" style={{ fontSize: 'var(--text-sm)' }}>
-                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent-primary-muted)', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 'var(--text-xs)' }}>
-                    {m.profile.name.charAt(0)}
-                  </div>
-                  <span style={{ color: 'var(--text-primary)' }}>{m.profile.name}</span>
-                  <span className="badge" style={{ fontSize: 9, ...roleColor(m.role) }}>{m.role.replace(/_/g, ' ')}</span>
-                </div>
+                <li key={m.id} className="team-roster__row">
+                  <span className="team-roster__avatar">{initials(m.profile.name)}</span>
+                  <span className="team-roster__name">{m.profile.name}</span>
+                  <span className="badge">{m.role.replace(/_/g, ' ')}</span>
+                </li>
               ))}
-            </div>
+              {project.members.length === 0 && !project.lead && (
+                <li className="pdetail__empty">No members assigned yet.</li>
+              )}
+            </ul>
           </div>
-
-          {project.updates.length > 0 && (
-            <div className="card">
-              <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)', marginBottom: 'var(--space-4)' }}>
-                Recent Updates
-              </h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                {project.updates.map((u) => (
-                  <div key={u.id} style={{ padding: 'var(--space-3)', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>{u.title}</div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', marginTop: 4, lineHeight: 1.5 }}>{u.content}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>
-                      {new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short' }).format(new Date(u.createdAt))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        </aside>
       </div>
+
+      <section className="pdetail__proc" aria-label="Process">
+        <h2 className="pdetail__h">Process</h2>
+        <div className="pdetail__panel">
+          <ProcessTree
+            status={project.status}
+            progress={progress}
+            milestones={project.milestones}
+            updates={clientUpdates.slice(0, 3).map((u) => ({
+              id: u.id,
+              content: u.content,
+              createdAt: u.createdAt.toISOString(),
+            }))}
+          />
+        </div>
+      </section>
+
+      <div className="pdetail__bottom pdetail__bottom--single">
+        <section className="revs" aria-label="Client-visible updates">
+          <div className="pdetail__hrow">
+            <h2 className="pdetail__h">Revisions</h2>
+            {isLead && <PublishUpdateTrigger projectId={project.id} />}
+          </div>
+          {project.updates.length === 0 ? (
+            <p className="pdetail__empty">
+              {isLead ? 'No revisions published yet. Share a client-visible update here.' : 'No published revisions yet.'}
+            </p>
+          ) : (
+            <ul className="revs__list">
+              {project.updates.map((u) => (
+                <li key={u.id} className="rev">
+                  <span className={`rev__icon rev__icon--${u.clientVisible ? 'green' : 'slate'}`}>
+                    <FileText size={15} />
+                  </span>
+                  <span className="rev__body">
+                    <span className="rev__title">{u.title}</span>
+                    <span className="rev__when">{shortDate(u.createdAt)}</span>
+                    <span className="apdetail__rev-content">{u.content}</span>
+                  </span>
+                  <span className={`rev__badge rev__badge--${u.clientVisible ? 'green' : 'slate'}`}>
+                    {u.clientVisible ? 'Client visible' : 'Internal'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+
+      <ProjectWorkspaceTabs
+        projectId={id}
+        clientId={project.clientId}
+        userRole={user.role}
+        userTeamRole={isLead ? 'TEAM_LEAD' : user.teamRole}
+        userId={user.id}
+        milestones={JSON.parse(JSON.stringify(project.milestones))}
+        projectMembers={withLeadAssignee(
+          project.members.map((m) => ({
+            profileId: m.profileId,
+            role: m.role,
+            profile: { id: m.profile.id, name: m.profile.name },
+          })),
+          project.lead
+        )}
+        isLead={isLead}
+        projectLeadId={project.leadId}
+      />
     </div>
   )
 }

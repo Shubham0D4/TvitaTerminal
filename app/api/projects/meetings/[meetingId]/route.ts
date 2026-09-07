@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
 import { getServerUser } from '@/lib/auth/server'
 import { MeetingService } from '@/lib/services/meeting.service'
 
@@ -17,9 +17,6 @@ export async function DELETE(
     return apiSuccess(result)
   } catch (error: any) {
     console.error('DELETE meeting error:', error)
-    if (error.name === 'NotFoundError') {
-      return Errors.NOT_FOUND(error.message)
-    }
-    return Errors.INTERNAL(error.message || 'Failed to cancel meeting')
+    return fromUnknownError(error, 'Failed to cancel meeting')
   }
 }

@@ -10,14 +10,15 @@ export async function POST(req: Request) {
   let event: any
 
   try {
-    if (process.env.STRIPE_WEBHOOK_SECRET && sig) {
-      event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET)
-    } else {
-      event = JSON.parse(body)
+    if (!process.env.STRIPE_WEBHOOK_SECRET || !sig) {
+      console.error('Stripe webhook rejected: missing signature or STRIPE_WEBHOOK_SECRET')
+      return NextResponse.json({ error: 'Webhook signature required' }, { status: 400 })
     }
-  } catch (err: any) {
-    console.error(`Webhook signature verification failed: ${err.message}`)
-    return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 })
+    event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET)
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'invalid signature'
+    console.error(`Webhook signature verification failed: ${message}`)
+    return NextResponse.json({ error: `Webhook Error: ${message}` }, { status: 400 })
   }
 
   // Handle relevant subscription events

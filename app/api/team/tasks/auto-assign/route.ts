@@ -1,11 +1,12 @@
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
-import { getServerUser } from '@/lib/auth/server'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
+import { getServerUser, isTeamMember, isAdmin } from '@/lib/auth/server'
+import { assertProjectAccess } from '@/lib/auth/access'
 import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'
 
 export async function POST(request: NextRequest) {
   const user = await getServerUser()
-  if (!user) {
+  if (!user || (!isTeamMember(user) && !isAdmin(user))) {
     return Errors.UNAUTHORIZED()
   }
 
@@ -17,6 +18,13 @@ export async function POST(request: NextRequest) {
       return Errors.VALIDATION('projectId and role are required')
     }
 
+    await assertProjectAccess(user, projectId)
+
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { leadId: true },
+    })
+
     const projectMembers = await prisma.projectMember.findMany({
       where: { projectId },
       include: { profile: true },
@@ -24,13 +32,13 @@ export async function POST(request: NextRequest) {
 
     const eligibleProfiles = projectMembers
       .map((pm) => pm.profile)
-      .filter((p) => p.isActive && p.teamRole === role)
+      .filter((p) => p.isActive && (role === 'MEMBER' || role === 'TEAM_LEAD' ? p.teamRole === role : true))
 
-    if (eligibleProfiles.length === 0) {
-      const globalProfiles = await prisma.profile.findMany({
-        where: { isActive: true, role: 'TEAM_MEMBER', teamRole: role },
-      })
-      eligibleProfiles.push(...globalProfiles)
+    if (project?.leadId) {
+      const leadProfile = await prisma.profile.findUnique({ where: { id: project.leadId } })
+      if (leadProfile?.isActive && !eligibleProfiles.some((p) => p.id === leadProfile.id)) {
+        eligibleProfiles.push(leadProfile)
+      }
     }
 
     if (eligibleProfiles.length === 0) {
@@ -43,7 +51,7 @@ export async function POST(request: NextRequest) {
     for (const candidate of eligibleProfiles) {
       const activeTasksCount = await prisma.task.count({
         where: {
-          ...(role === 'DEVELOPER' ? { developerId: candidate.id } : { testerId: candidate.id }),
+          OR: [{ developerId: candidate.id }, { testerId: candidate.id }],
           status: { notIn: ['COMPLETED', 'CANCELLED'] },
         },
       })
@@ -57,6 +65,6 @@ export async function POST(request: NextRequest) {
     return apiSuccess({ assigneeId: leastBusyProfileId })
   } catch (error) {
     console.error('Auto assign API error:', error)
-    return Errors.INTERNAL('Failed to find least busy member')
+    return fromUnknownError(error, 'Failed to find least busy member')
   }
 }

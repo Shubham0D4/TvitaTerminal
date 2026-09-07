@@ -1,5 +1,5 @@
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
-import { getServerUser } from '@/lib/auth/server'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
+import { getServerUser, isTeamMember, isAdmin } from '@/lib/auth/server'
 import { TaskService } from '@/lib/services/task.service'
 import { NextRequest } from 'next/server'
 
@@ -8,7 +8,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const user = await getServerUser()
-  if (!user) {
+  if (!user || (!isTeamMember(user) && !isAdmin(user))) {
     return Errors.UNAUTHORIZED()
   }
 
@@ -22,12 +22,6 @@ export async function POST(
     return apiSuccess(comment, 201)
   } catch (error: any) {
     console.error('Task add comment API error:', error)
-    if (error.name === 'ValidationError') {
-      return Errors.VALIDATION(error.message)
-    }
-    if (error.name === 'NotFoundError') {
-      return Errors.NOT_FOUND(error.message)
-    }
-    return Errors.INTERNAL('Failed to add comment')
+    return fromUnknownError(error, 'Failed to add comment')
   }
 }

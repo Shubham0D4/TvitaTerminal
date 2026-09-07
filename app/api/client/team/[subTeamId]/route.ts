@@ -15,8 +15,7 @@ export async function PUT(
   const { subTeamId } = await params
 
   try {
-    const subTeamCtx = await AuthService.getSubTeamContext(user.id)
-    if (subTeamCtx) {
+    if (await AuthService.isSubTeamActor(user)) {
       return Errors.FORBIDDEN('Only primary client can modify sub-teams')
     }
 
@@ -57,15 +56,14 @@ export async function DELETE(
   const { subTeamId } = await params
 
   try {
-    const subTeamCtx = await AuthService.getSubTeamContext(user.id)
-    if (subTeamCtx) {
+    if (await AuthService.isSubTeamActor(user)) {
       return Errors.FORBIDDEN('Only primary client can delete sub-teams')
     }
 
     const client = await ClientService.getClientByUserId(user.id, user.email)
     if (!client) return Errors.NOT_FOUND('Client account')
 
-    const result = await ClientService.softDeleteSubTeam(subTeamId)
+    const result = await ClientService.softDeleteSubTeam(subTeamId, client.id)
     return apiSuccess(result)
   } catch (error) {
     console.error('Client soft delete sub-team API error:', error)

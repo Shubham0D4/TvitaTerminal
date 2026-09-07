@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 import ProcessTree, { type ProcessUpdate } from './ProcessTree'
+import type { StageMilestone } from '@/lib/process/stages'
 
 export type ProjectUpdate = ProcessUpdate & { title: string }
 
@@ -16,6 +17,7 @@ export type CarouselProject = {
   progress: number
   phase?: string
   updates: ProjectUpdate[]
+  milestones?: StageMilestone[]
 }
 
 interface ProjectCarouselProps {
@@ -157,6 +159,7 @@ export default function ProjectCarousel({
                     <ProcessTree
                       status={project.status}
                       progress={project.progress}
+                      milestones={project.milestones}
                       updates={project.updates}
                     />
                   </div>

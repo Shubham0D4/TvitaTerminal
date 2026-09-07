@@ -1,60 +1,44 @@
 import { prisma } from '@/lib/prisma'
-import { getClientSubTeamContext, AuthUser } from '@/lib/auth/server'
-import { ValidationError, NotFoundError } from '@/lib/errors'
+import { AuthUser } from '@/lib/auth/server'
+import { ValidationError, NotFoundError, AuthorizationError } from '@/lib/errors'
 import { writeAuditLog } from '@/lib/audit'
 import { scheduleGoogleMeetEvent } from '@/lib/google-calendar'
 import { google } from 'googleapis'
+import { assertProjectAccess, isProjectManager, redactAgencyPersonForClient } from '@/lib/auth/access'
 
 export class MeetingService {
   static async validateProjectAccess(projectId: string, user: AuthUser) {
-    if (user.role === 'ADMIN') return true
-
-    if (user.role === 'TEAM_MEMBER') {
-      const pm = await prisma.projectMember.findFirst({
-        where: { projectId, profileId: user.id }
-      })
-      if (!pm && user.teamRole !== 'TEAM_LEAD') {
-        throw new Error('Unauthorized project access')
-      }
-      return true
-    }
-
-    if (user.role === 'CLIENT') {
-      const project = await prisma.project.findUnique({
-        where: { id: projectId }
-      })
-      if (!project) throw new NotFoundError('Project not found')
-
-      const subteam = await getClientSubTeamContext(user.id)
-      const clientId = subteam ? subteam.clientId : (await prisma.client.findFirst({
-        where: { profileId: user.id },
-        select: { id: true }
-      }))?.id
-
-      if (!clientId || clientId !== project.clientId) {
-        throw new Error('Unauthorized project access')
-      }
-
-      if (subteam) {
-        if (subteam.allowedProjectIds.length > 0 && !subteam.allowedProjectIds.includes(projectId)) {
-          throw new Error('Unauthorized project access')
-        }
-      }
-      return true
-    }
-
-    throw new Error('Unauthorized')
+    return assertProjectAccess(user, projectId, { clientPolicy: 'projects' })
   }
 
   static async getMeetingsList(projectId: string, user: AuthUser) {
-    await this.validateProjectAccess(projectId, user)
-    return prisma.meeting.findMany({
+    const project = await this.validateProjectAccess(projectId, user)
+    const meetings = await prisma.meeting.findMany({
       where: { projectId },
       include: {
         host: { select: { id: true, name: true, role: true } }
       },
       orderBy: { scheduledAt: 'asc' }
     })
+
+    if (user.role === 'CLIENT') {
+      return meetings
+        .filter((meeting) => (
+          meeting.host.role === 'CLIENT'
+          || meeting.hostId === project.leadId
+          || meeting.host.role === 'ADMIN'
+        ))
+        .map((meeting) => ({
+          ...meeting,
+          host: redactAgencyPersonForClient(meeting.host, project.leadId),
+        }))
+    }
+
+    if (user.role === 'TEAM_MEMBER' && !isProjectManager(user, project)) {
+      return meetings.filter((meeting) => meeting.host.role !== 'CLIENT')
+    }
+
+    return meetings
   }
 
   static async createMeeting(
@@ -137,13 +121,13 @@ export class MeetingService {
     const meeting = await prisma.meeting.findUnique({ where: { id } })
     if (!meeting) throw new NotFoundError('Meeting not found')
 
-    await this.validateProjectAccess(meeting.projectId, user)
+    const project = await this.validateProjectAccess(meeting.projectId, user)
 
-    const isLeadOrAdmin = user.role === 'ADMIN' || user.teamRole === 'TEAM_LEAD'
+    const canManage = isProjectManager(user, project)
     const isHost = meeting.hostId === user.id
 
-    if (!isHost && !isLeadOrAdmin) {
-      throw new Error('Only the host or admin can cancel this meeting')
+    if (!isHost && !canManage) {
+      throw new AuthorizationError('Only the host or project lead can cancel this meeting')
     }
 
     if (meeting.eventId && !meeting.eventId.startsWith('mock_')) {

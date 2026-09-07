@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
 import { getServerUser } from '@/lib/auth/server'
 import { MeetingService } from '@/lib/services/meeting.service'
 
@@ -17,7 +17,7 @@ export async function GET(
     return apiSuccess(meetings)
   } catch (error: any) {
     console.error('GET meetings error:', error)
-    return Errors.INTERNAL(error.message || 'Failed to fetch meetings')
+    return fromUnknownError(error, 'Failed to fetch meetings')
   }
 }
 
@@ -36,9 +36,6 @@ export async function POST(
     return apiSuccess(meeting, 201)
   } catch (error: any) {
     console.error('POST meeting error:', error)
-    if (error.name === 'ValidationError') {
-      return Errors.VALIDATION(error.message)
-    }
-    return Errors.INTERNAL(error.message || 'Failed to schedule meeting')
+    return fromUnknownError(error, 'Failed to schedule meeting')
   }
 }

@@ -48,6 +48,15 @@ enum MilestoneStatus {
   BLOCKED
 }
 
+/** Fixed five-stage process shared by every project. Milestones belong to a stage. */
+enum ProcessStage {
+  DISCOVERY
+  DESIGN
+  QUOTE
+  BACKEND
+  LAUNCH
+}
+
 enum TaskStatus {
   TODO
   IN_PROGRESS
@@ -279,7 +288,7 @@ model Client {
   // ── 2. Contact Information
   contactPerson String? @map("contact_person") // Primary Contact Name (kept for compat)
   designation   String? // Designation / Role
-  email         String? // Primary email
+  email         String? @unique // Primary email — unique so OR(profileId, email) cannot bind the wrong org
   phone         String?
   whatsapp      String?
   preferredComm String? @map("preferred_comm") // email | phone | whatsapp | slack
@@ -352,9 +361,6 @@ model Client {
   subTeams       ClientSubTeam[]
   quotes         Quote[]
 
-  // Every client page resolves the account via OR(profileId, email). profileId
-  // is unique-indexed; without this the email branch forced a seq scan.
-  @@index([email])
   @@index([status])
   @@index([createdById])
   @@index([accountManagerId])
@@ -386,7 +392,7 @@ model ClientSubTeam {
   roles   ClientSubTeamRole[]
   members ClientSubTeamMember[]
 
-  @@index([clientId])
+  @@unique([clientId, name])
   @@map("client_sub_teams")
 }
 
@@ -402,7 +408,7 @@ model ClientSubTeamRole {
   subTeam ClientSubTeam         @relation(fields: [subTeamId], references: [id], onDelete: Cascade)
   members ClientSubTeamMember[]
 
-  @@index([subTeamId])
+  @@unique([subTeamId, name])
   @@map("client_sub_team_roles")
 }
 
@@ -581,6 +587,7 @@ model Milestone {
   name          String
   description   String?
   status        MilestoneStatus @default(PLANNED)
+  stage         ProcessStage    @default(DISCOVERY)
   progress      Int             @default(0)
   dueDate       DateTime?       @map("due_date") @db.Date
   completedDate DateTime?       @map("completed_date") @db.Date
@@ -600,7 +607,7 @@ model Milestone {
   assignee  Profile? @relation("MilestoneAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   createdBy Profile? @relation("MilestoneCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
-  // The process rail reads client-visible milestones in sort order.
+  @@index([projectId, stage, sortOrder])
   @@index([projectId, clientVisible, sortOrder])
   @@index([assigneeId])
   @@index([createdById])

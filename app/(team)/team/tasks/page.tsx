@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { getServerUser, redirectToLogin } from '@/lib/auth/server'
 import TaskBoardClient from '@/app/components/tasks/TaskBoardClient'
+import { staffAccessibleProjectIds } from '@/lib/auth/access'
 
 export const metadata = {
   title: 'Tasks & Workflow — Tvita Team',
@@ -14,29 +15,24 @@ export default async function TeamTasksPage() {
   const profile = await prisma.profile.findUnique({ where: { id: user.id } })
   if (!profile) redirectToLogin()
 
-  const isLeadOrAdmin = profile.role === 'ADMIN' || profile.teamRole === 'TEAM_LEAD'
+  const accessibleIds = await staffAccessibleProjectIds(user)
+  const ledCount = await prisma.project.count({ where: { leadId: user.id } })
+  const isLeadOrAdmin = profile.role === 'ADMIN' || ledCount > 0
 
-  // Query tasks based on user role:
   const tasks = await prisma.task.findMany({
-    where: isLeadOrAdmin
-      ? {}
-      : {
-          OR: [
-            { developerId: user.id },
-            { testerId: user.id },
-            { assigneeId: user.id },
-          ],
-        },
+    where: accessibleIds === null ? {} : { projectId: { in: accessibleIds } },
     include: {
       project: {
         select: {
           id: true,
           name: true,
           banner: true,
+          leadId: true,
           client: { select: { name: true } },
+          lead: { select: { id: true, name: true } },
           members: {
             include: {
-              profile: true,
+              profile: { select: { id: true, name: true } },
             },
           },
         },
@@ -62,32 +58,33 @@ export default async function TeamTasksPage() {
     ],
   })
 
-  // Query projects for task creation dropdown (Lead / Admin)
   const projects = isLeadOrAdmin
     ? await prisma.project.findMany({
         where: profile.role === 'ADMIN' ? {} : { leadId: profile.id },
-        include: { client: { select: { name: true } } },
+        select: { id: true, name: true, client: { select: { name: true } } },
       })
     : []
 
+  const serializedTasks = JSON.parse(JSON.stringify(tasks))
+
   return (
-    <div>
-      {/* Page Header */}
-      <div className="page-header flex items-center justify-between">
+    <div className="team-tasks">
+      <div className="page-header">
         <div>
           <h1 className="page-header__title">
-            {profile.teamRole === 'TEAM_LEAD'
-              ? 'Team Lead Task Board'
-              : 'My Tasks & Workflow'}
+            {isLeadOrAdmin ? 'Task board' : 'My tasks'}
           </h1>
           <p className="page-header__subtitle">
-            {tasks.length} active tasks in your queue. Click any card to inspect Activity History Trail.
+            {isLeadOrAdmin
+              ? `${tasks.length} tasks across projects you lead. Create, assign, and unblock work.`
+              : `${tasks.length} tasks on your projects. Open a card to update status or leave a comment.`}
           </p>
         </div>
       </div>
 
       <TaskBoardClient
-        tasks={tasks}
+        tasks={serializedTasks}
+        userId={profile.id}
         userRole={profile.role}
         teamRole={profile.teamRole}
         isLeadOrAdmin={isLeadOrAdmin}

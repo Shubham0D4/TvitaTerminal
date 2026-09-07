@@ -6,6 +6,8 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createSupabaseAdminClient } from '@/lib/supabase/server'
 import { recalcProgress } from '@/lib/utils/project-progress'
+import { asProcessStage, PROCESS_STAGES } from '@/lib/process/stages'
+import { canActOnAssignedWork } from '@/lib/auth/access'
 
 // Helpers
 async function uploadMilestoneImage(file: File): Promise<string | null> {
@@ -55,7 +57,7 @@ async function findLeastBusyMember(projectId: string, role?: string) {
   })
 
   const candidateIds = new Set(members.map((m) => m.profileId))
-  if (project?.leadId && (!role || role === 'TEAM_LEAD')) {
+  if (project?.leadId) {
     candidateIds.add(project.leadId)
   }
 
@@ -82,6 +84,7 @@ const MilestoneSchema = z.object({
   name:        z.string().min(1, 'Milestone name is required'),
   description: z.string().optional(),
   dueDate:     z.string().optional(),
+  stage:       z.enum(['DISCOVERY', 'DESIGN', 'QUOTE', 'BACKEND', 'LAUNCH']).optional(),
   assigneeId:  z.string().uuid().optional().or(z.literal('')),
   assigneeRole:z.string().optional(),
   autoAssign:  z.string().optional(),  // 'on'
@@ -130,6 +133,7 @@ export async function createMilestone(
       description: d.description || null,
       dueDate:     d.dueDate ? new Date(d.dueDate) : null,
       status:      'PLANNED',
+      stage:       asProcessStage(d.stage || d.name),
       assigneeId:  assigneeId || null,
       assigneeRole:d.assigneeRole || null,
       autoAssign:  isAutoAssign,
@@ -160,13 +164,18 @@ export async function updateMilestoneStatus(
   const milestone = await prisma.milestone.findUnique({ where: { id: milestoneId } })
   if (!milestone) return { success: false, message: 'Milestone not found.' }
 
-  // Lead / admin can do anything; assignee can only progress their own
-  const isLead = user.role === 'ADMIN' || (
-    await prisma.project.findUnique({ where: { id: milestone.projectId }, select: { leadId: true } })
-  )?.leadId === user.id
+  if (user.role === 'CLIENT') {
+    return { success: false, message: 'Clients cannot update milestone status.' }
+  }
 
-  if (!isLead && milestone.assigneeId !== user.id) {
-    return { success: false, message: 'You are not assigned to this milestone.' }
+  const project = await prisma.project.findUnique({
+    where: { id: milestone.projectId },
+    select: { leadId: true },
+  })
+  if (!project) return { success: false, message: 'Project not found.' }
+
+  if (!canActOnAssignedWork(user, project, [milestone.assigneeId])) {
+    return { success: false, message: 'You can only complete milestones assigned to you.' }
   }
 
   const isCompleting = status === 'COMPLETED'
@@ -219,27 +228,22 @@ export async function resetToDefaultMilestones(
 ): Promise<{ success: boolean; message: string }> {
   const user = await requireLead(projectId)
 
-  // Delete all existing milestones (Cascade will delete their tasks)
   await prisma.milestone.deleteMany({ where: { projectId } })
 
-  const PREDEFINED_PROCESS_STAGES = [
-    { name: 'Discovery & research', description: 'Initial requirements gathering, market research, and scope definition.', sortOrder: 1, clientVisible: true, status: 'IN_PROGRESS' as const },
-    { name: 'Design', description: 'UI/UX designs, wireframes, architectural blueprints, and mockups.', sortOrder: 2, clientVisible: true, status: 'PLANNED' as const },
-    { name: 'Quote & planning', description: 'Project timeline estimation, resource allocation, and budget approval.', sortOrder: 3, clientVisible: true, status: 'PLANNED' as const },
-    { name: 'Crafting the Backend', description: 'Active development, coding, build execution, and feature implementation.', sortOrder: 4, clientVisible: true, status: 'PLANNED' as const },
-    { name: 'Testing & launch', description: 'Quality assurance, UAT, bug fixes, deployment, and final release.', sortOrder: 5, clientVisible: true, status: 'PLANNED' as const },
-  ]
+  const project = await prisma.project.findUnique({ where: { id: projectId }, select: { leadId: true } })
+  const assigneeId = project?.leadId ?? user.id
 
-  // Re-create default milestones
   await prisma.milestone.createMany({
-    data: PREDEFINED_PROCESS_STAGES.map((s) => ({
+    data: PROCESS_STAGES.map((s, index) => ({
       projectId,
-      name: s.name,
-      description: s.description,
-      sortOrder: s.sortOrder,
-      clientVisible: s.clientVisible,
-      status: s.status,
+      name: `${s.name} kickoff`,
+      description: `First milestone under ${s.name}. Replace or add more as the project needs.`,
+      sortOrder: index,
+      stage: s.key,
+      clientVisible: false,
+      status: index === 0 ? 'IN_PROGRESS' as const : 'PLANNED' as const,
       createdById: user.id,
+      assigneeId,
     })),
   })
 

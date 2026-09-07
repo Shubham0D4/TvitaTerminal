@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
 import { getServerUser } from '@/lib/auth/server'
 import { TicketService } from '@/lib/services/ticket.service'
 
@@ -18,13 +18,7 @@ export async function PATCH(
     return apiSuccess(ticket)
   } catch (error: any) {
     console.error('PATCH ticket error:', error)
-    if (error.name === 'ValidationError') {
-      return Errors.VALIDATION(error.message)
-    }
-    if (error.name === 'NotFoundError') {
-      return Errors.NOT_FOUND(error.message)
-    }
-    return Errors.INTERNAL(error.message || 'Failed to update ticket')
+    return fromUnknownError(error, 'Failed to update ticket')
   }
 }
 
@@ -42,9 +36,6 @@ export async function DELETE(
     return apiSuccess(result)
   } catch (error: any) {
     console.error('DELETE ticket error:', error)
-    if (error.name === 'NotFoundError') {
-      return Errors.NOT_FOUND(error.message)
-    }
-    return Errors.INTERNAL(error.message || 'Failed to delete ticket')
+    return fromUnknownError(error, 'Failed to delete ticket')
   }
 }

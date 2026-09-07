@@ -1,5 +1,6 @@
 import { apiSuccess, Errors } from '@/lib/utils/api-response'
 import { getServerUser } from '@/lib/auth/server'
+import { canActOnAssignedWork } from '@/lib/auth/access'
 import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'
 import { recalcProgress } from '@/lib/utils/project-progress'
@@ -14,6 +15,10 @@ export async function PATCH(
     return Errors.UNAUTHORIZED()
   }
 
+  if (user.role === 'CLIENT') {
+    return Errors.FORBIDDEN('Clients cannot update milestone status')
+  }
+
   const { id: milestoneId } = await params
 
   try {
@@ -24,10 +29,10 @@ export async function PATCH(
       where: { id: milestone.projectId },
       select: { leadId: true },
     })
+    if (!project) return Errors.NOT_FOUND('Project')
 
-    const isLead = user.role === 'ADMIN' || project?.leadId === user.id
-    if (!isLead && milestone.assigneeId !== user.id) {
-      return Errors.FORBIDDEN('You are not assigned to this milestone')
+    if (!canActOnAssignedWork(user, project, [milestone.assigneeId])) {
+      return Errors.FORBIDDEN('You can only complete milestones assigned to you')
     }
 
     const body = await request.json()

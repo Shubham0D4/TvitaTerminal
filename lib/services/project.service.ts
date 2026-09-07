@@ -4,16 +4,17 @@
  */
 
 import { prisma } from '@/lib/prisma'
+import { agencyNameForClient } from '@/lib/auth/access'
 
 export class ProjectService {
   /**
    * Fetch project details for a client account with sub-team access filtering
    */
   static async getClientProjectDetail(projectId: string, clientId: string, showMilestones = true) {
-    return prisma.project.findFirst({
+    const project = await prisma.project.findFirst({
       where: { id: projectId, clientId },
       include: {
-        lead: { select: { name: true, email: true } },
+        lead: { select: { id: true, name: true, email: true } },
         milestones: showMilestones
           ? {
               orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
@@ -28,10 +29,22 @@ export class ProjectService {
         updates: {
           where: { clientVisible: true },
           orderBy: { createdAt: 'desc' },
-          include: { author: { select: { name: true } } },
+          include: { author: { select: { id: true, name: true } } },
         },
       },
     })
+
+    if (!project) return null
+
+    return {
+      ...project,
+      updates: project.updates.map((update) => ({
+        ...update,
+        author: update.author
+          ? { name: agencyNameForClient(update.author, project.leadId) }
+          : update.author,
+      })),
+    }
   }
 
   /**

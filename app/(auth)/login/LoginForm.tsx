@@ -6,6 +6,7 @@ import { Eye, EyeOff } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { signIn } from '@/lib/auth/client'
 import { validateCurrentPasswordField, validateEmailField } from '@/lib/validation'
+import { isSafeInternalPath } from '@/lib/auth/routes'
 import toast from 'react-hot-toast'
 
 const DEFAULT_REDIRECT = '/'
@@ -18,7 +19,7 @@ type Step = 'email' | 'password'
 
 export default function LoginForm() {
   const searchParams = useSearchParams()
-  const redirect = searchParams.get('redirect') || DEFAULT_REDIRECT
+  const redirect = isSafeInternalPath(searchParams.get('redirect'), DEFAULT_REDIRECT)
 
   const [step, setStep] = useState<Step>('email')
   const [email, setEmail] = useState('')

@@ -1,7 +1,14 @@
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
-import { getClientSubTeamContext, getServerUser, isClient } from '@/lib/auth/server'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
+import { getServerUser, isClient } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'
+import {
+  clientInvoiceWhere,
+  clientProjectWhere,
+  hasClientPolicy,
+  resolveClientActor,
+} from '@/lib/auth/access'
+import { agencyNameForClient } from '@/lib/auth/visibility'
 
 export async function GET(request: NextRequest) {
   const user = await getServerUser()
@@ -10,11 +17,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const subTeamCtx = await getClientSubTeamContext(user.id)
-    const client = await prisma.client.findFirst({
-      where: subTeamCtx
-        ? { id: subTeamCtx.clientId }
-        : { OR: [{ profileId: user.id }, { email: user.email }] },
+    const { client: actorClient, subTeam } = await resolveClientActor(user)
+    const client = await prisma.client.findUnique({
+      where: { id: actorClient.id },
       include: {
         subscriptions: {
           where: { status: 'ACTIVE' },
@@ -28,28 +33,14 @@ export async function GET(request: NextRequest) {
       return Errors.NOT_FOUND('Client account')
     }
 
-    const isSubTeam = Boolean(subTeamCtx)
-    const policy = subTeamCtx?.policy || {
-      projects: true,
-      milestones: true,
-      invoices: true,
-      subscriptions: true,
-      billing: true,
-      notes: true,
-    }
+    const isSubTeam = Boolean(subTeam)
+    const canSeeBilling = hasClientPolicy(subTeam, 'invoices', 'billing', 'subscriptions')
+    const canSeeProjects = hasClientPolicy(subTeam, 'projects')
+    const canSeeMilestones = hasClientPolicy(subTeam, 'milestones')
+    const canSeeNotes = hasClientPolicy(subTeam, 'notes')
+    const canSeeIssues = hasClientPolicy(subTeam, 'issues')
+    const projectFilter = clientProjectWhere(client.id, subTeam)
 
-    const canSeeBilling = !subTeamCtx || Boolean(policy.invoices || policy.billing || policy.subscriptions)
-    const canSeeProjects = !subTeamCtx || Boolean(policy.projects !== false)
-    const canSeeMilestones = !subTeamCtx || Boolean(policy.milestones !== false)
-    const canSeeNotes = !subTeamCtx || Boolean(policy.notes !== false)
-
-    // Allowed project filter for subteams
-    const allowedProjectIds = subTeamCtx?.allowedProjectIds || []
-    const projectFilter = allowedProjectIds.length > 0
-      ? { clientId: client.id, id: { in: allowedProjectIds } }
-      : { clientId: client.id }
-
-    // Fetch all dashboard data concurrently
     const [
       projects,
       pendingInvoices,
@@ -70,6 +61,7 @@ export async function GET(request: NextRequest) {
                     where: { clientVisible: true },
                     orderBy: { dueDate: 'asc' },
                     take: 2,
+                    select: { id: true, name: true, status: true, dueDate: true, stage: true },
                   }
                 : false,
             },
@@ -77,43 +69,79 @@ export async function GET(request: NextRequest) {
         : Promise.resolve([]),
       canSeeBilling
         ? prisma.invoice.findMany({
-            where: { clientId: client.id, status: { in: ['PENDING', 'OVERDUE'] } },
+            where: { ...clientInvoiceWhere(client.id, subTeam), status: { in: ['PENDING', 'OVERDUE'] } },
             orderBy: { dueDate: 'asc' },
           })
         : Promise.resolve([]),
-      prisma.quote.findMany({
-        where: { clientId: client.id, status: { in: ['PENDING', 'COUNTER_OFFERED'] } },
-        orderBy: { createdAt: 'desc' },
-      }),
-      prisma.ticket.findMany({
-        where: { project: projectFilter, status: { in: ['OPEN', 'IN_PROGRESS'] } },
-        orderBy: { createdAt: 'desc' },
-        take: 5,
-        include: { project: { select: { name: true } } },
-      }),
+      isSubTeam
+        ? Promise.resolve([])
+        : prisma.quote.findMany({
+            where: { clientId: client.id, status: { in: ['PENDING', 'COUNTER_OFFERED'] } },
+            orderBy: { createdAt: 'desc' },
+          }),
+      canSeeIssues
+        ? prisma.ticket.findMany({
+            where: { project: projectFilter, status: { in: ['OPEN', 'IN_PROGRESS'] } },
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+            include: { project: { select: { name: true } } },
+          })
+        : Promise.resolve([]),
       canSeeMilestones
         ? prisma.milestone.findMany({
             where: { project: projectFilter, clientVisible: true, status: { in: ['PLANNED', 'IN_PROGRESS'] }, dueDate: { not: null } },
             orderBy: { dueDate: 'asc' },
             take: 5,
-            include: { project: { select: { name: true } } },
+            select: {
+              id: true,
+              name: true,
+              status: true,
+              dueDate: true,
+              stage: true,
+              project: { select: { name: true } },
+            },
           })
         : Promise.resolve([]),
-      prisma.meeting.findMany({
-        where: { project: projectFilter, scheduledAt: { gte: new Date(Date.now() - 3600 * 1000) } },
-        orderBy: { scheduledAt: 'asc' },
-        take: 5,
-        include: { project: { select: { name: true } }, host: { select: { name: true } } },
-      }),
+      canSeeProjects
+        ? prisma.meeting.findMany({
+            where: { project: projectFilter, scheduledAt: { gte: new Date(Date.now() - 3600 * 1000) } },
+            orderBy: { scheduledAt: 'asc' },
+            take: 8,
+            include: {
+              project: { select: { name: true, leadId: true } },
+              host: { select: { id: true, name: true, role: true } },
+            },
+          })
+        : Promise.resolve([]),
       canSeeNotes
         ? prisma.note.findMany({
             where: { project: projectFilter, type: 'EXTERNAL_CLIENT' },
             orderBy: { updatedAt: 'desc' },
             take: 5,
-            include: { project: { select: { name: true } }, creator: { select: { name: true } } },
+            include: {
+              project: { select: { name: true, leadId: true } },
+              creator: { select: { id: true, name: true, role: true } },
+            },
           })
         : Promise.resolve([]),
     ])
+
+    const visibleMeetings = upcomingMeetings
+      .filter((meeting) => (
+        meeting.host.role === 'CLIENT'
+        || meeting.host.id === meeting.project.leadId
+        || meeting.host.role === 'ADMIN'
+      ))
+      .slice(0, 5)
+      .map((meeting) => ({
+        ...meeting,
+        host: { name: agencyNameForClient(meeting.host, meeting.project.leadId) },
+      }))
+
+    const visibleNotes = sharedNotes.map((note) => ({
+      ...note,
+      creator: { name: agencyNameForClient(note.creator, note.project.leadId) },
+    }))
 
     const activeProjectsCount = projects.filter((p) => p.status === 'IN_PROGRESS' || p.status === 'PLANNED').length
     const pendingActionsCount = pendingInvoices.length + pendingQuotes.length
@@ -137,13 +165,22 @@ export async function GET(request: NextRequest) {
       pendingQuotes,
       openTickets,
       upcomingMilestones,
-      upcomingMeetings,
-      sharedNotes,
+      upcomingMeetings: visibleMeetings,
+      sharedNotes: visibleNotes,
       isSubTeam,
-      policy,
+      policy: subTeam?.policy ?? {
+        projects: true,
+        milestones: true,
+        invoices: true,
+        subscriptions: true,
+        billing: true,
+        notes: true,
+        issues: true,
+        approvals: true,
+      },
     })
   } catch (error) {
     console.error('Client dashboard GET API error:', error)
-    return Errors.INTERNAL('Failed to fetch client dashboard metrics')
+    return fromUnknownError(error, 'Failed to fetch client dashboard metrics')
   }
 }

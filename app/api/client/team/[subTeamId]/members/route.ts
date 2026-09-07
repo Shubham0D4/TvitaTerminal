@@ -1,9 +1,10 @@
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
 import { AuthService } from '@/lib/services/auth.service'
 import { ClientService } from '@/lib/services/client.service'
-import { ClientRepository } from '@/lib/repositories/client.repository'
 import { getAppBaseUrl } from '@/lib/utils/url'
 import { NextRequest } from 'next/server'
+import { publicMemberProfile, assertSubTeamOwnedByClient } from '@/lib/auth/access'
+import { prisma } from '@/lib/prisma'
 
 export async function GET(
   request: NextRequest,
@@ -14,17 +15,34 @@ export async function GET(
 
   const { subTeamId } = await params
   try {
-    const members = await ClientRepository.findSubTeamMembers(
-      { subTeamId },
-      {
-        role: true,
-        profile: { select: { email: true, name: true, isActive: true } },
+    const subTeamCtx = await AuthService.getSubTeamContext(user.id)
+    if (subTeamCtx) {
+      if (subTeamCtx.subTeamId !== subTeamId) {
+        return Errors.FORBIDDEN('You can only view members of your own team')
       }
+      await assertSubTeamOwnedByClient(subTeamId, subTeamCtx.clientId)
+    } else {
+      const client = await ClientService.getClientByUserId(user.id, user.email)
+      if (!client) return Errors.NOT_FOUND('Client account')
+      await assertSubTeamOwnedByClient(subTeamId, client.id)
+    }
+
+    const members = await prisma.clientSubTeamMember.findMany({
+      where: { subTeamId },
+      include: {
+        role: true,
+        profile: { select: { email: true, name: true, isActive: true, passwordHash: true } },
+      },
+    })
+    return apiSuccess(
+      members.map((m) => ({
+        ...m,
+        profile: publicMemberProfile(m.profile),
+      }))
     )
-    return apiSuccess(members)
   } catch (error) {
     console.error('Fetch subteam members error:', error)
-    return Errors.INTERNAL('Failed to fetch members')
+    return fromUnknownError(error, 'Failed to fetch members')
   }
 }
 
@@ -35,14 +53,15 @@ export async function POST(
   const user = await AuthService.getCurrentUser()
   if (!user || !AuthService.checkIsClient(user)) return Errors.UNAUTHORIZED()
 
-  const subTeamCtx = await AuthService.getSubTeamContext(user.id)
-  if (subTeamCtx) return Errors.FORBIDDEN('Only primary client can manage team members')
+  if (await AuthService.isSubTeamActor(user)) return Errors.FORBIDDEN('Only primary client can manage team members')
 
   const { subTeamId } = await params
 
   try {
     const client = await ClientService.getClientByUserId(user.id, user.email)
     if (!client) return Errors.NOT_FOUND('Client account')
+
+    await assertSubTeamOwnedByClient(subTeamId, client.id)
 
     const body = await request.json()
     const { name, email, designation, roleId, customPolicy } = body
@@ -68,6 +87,6 @@ export async function POST(
     return apiSuccess(member, 201)
   } catch (error: any) {
     console.error('Create subteam member error:', error)
-    return Errors.INTERNAL(error.message || 'Failed to create team member')
+    return fromUnknownError(error, 'Failed to create team member')
   }
 }

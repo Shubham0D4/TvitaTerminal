@@ -37,6 +37,7 @@ interface Props {
   milestones: MilestoneWithAssignee[]
   projectMembers: ProjectMember[]
   isLead: boolean
+  projectLeadId?: string | null
 }
 
 export default function ProjectWorkspaceTabs({
@@ -49,6 +50,7 @@ export default function ProjectWorkspaceTabs({
   milestones,
   projectMembers,
   isLead,
+  projectLeadId = null,
 }: Props) {
   const [activeTab, setActiveTab] = useState<'milestones' | 'notes' | 'tickets' | 'meetings'>('milestones')
 
@@ -58,12 +60,11 @@ export default function ProjectWorkspaceTabs({
   const canSeeMilestones = !isClient || clientPolicy.milestones !== false
   const canSeeNotes = !isClient || clientPolicy.notes !== false
 
-  // All roles can see tickets and meetings by default
-  const canSeeTickets = true
+  const canSeeTickets = isClient || isLead || userRole === 'ADMIN'
   const canSeeMeetings = true
 
   const tabs = [
-    { id: 'milestones', label: 'Process', icon: Layers, visible: canSeeMilestones },
+    { id: 'milestones', label: 'Milestones', icon: Layers, visible: canSeeMilestones },
     { id: 'notes', label: 'Notes', icon: FileText, visible: canSeeNotes },
     { id: 'tickets', label: 'Tickets', icon: AlertCircle, visible: canSeeTickets },
     { id: 'meetings', label: 'Meetings', icon: Calendar, visible: canSeeMeetings },
@@ -113,6 +114,8 @@ export default function ProjectWorkspaceTabs({
           <MilestonesPanel
             projectId={projectId}
             isLead={isLead}
+            userId={userId}
+            userRole={userRole}
             milestones={milestones}
             projectMembers={projectMembers}
           />
@@ -123,9 +126,10 @@ export default function ProjectWorkspaceTabs({
             projectId={projectId}
             clientId={clientId}
             userRole={userRole}
-            userTeamRole={userTeamRole}
+            userTeamRole={isLead ? 'TEAM_LEAD' : null}
             userId={userId}
             hasAccess={canSeeNotes}
+            projectLeadId={projectLeadId}
           />
         )}
 
@@ -133,9 +137,10 @@ export default function ProjectWorkspaceTabs({
           <TicketsModule
             projectId={projectId}
             userRole={userRole}
-            userTeamRole={userTeamRole}
+            userTeamRole={isLead ? 'TEAM_LEAD' : null}
             userId={userId}
             hasAccess={canSeeTickets}
+            projectLeadId={projectLeadId}
           />
         )}
 
@@ -143,9 +148,10 @@ export default function ProjectWorkspaceTabs({
           <MeetingsModule
             projectId={projectId}
             userRole={userRole}
-            userTeamRole={userTeamRole}
+            userTeamRole={isLead ? 'TEAM_LEAD' : null}
             userId={userId}
             hasAccess={canSeeMeetings}
+            projectLeadId={projectLeadId}
           />
         )}
       </div>

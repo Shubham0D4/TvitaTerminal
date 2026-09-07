@@ -1,7 +1,8 @@
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
 import { getServerUser, isTeamMember, isAdmin } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'
+import { assertProjectAccess, staffAccessibleProjectIds } from '@/lib/auth/access'
 
 export async function GET(request: NextRequest) {
   const user = await getServerUser()
@@ -13,15 +14,14 @@ export async function GET(request: NextRequest) {
   const projectId = searchParams.get('projectId') || ''
 
   try {
-    const where: any = {}
-    if (projectId) where.projectId = projectId
+    const where: { projectId?: string | { in: string[] } } = {}
 
-    if (!isAdmin(user) && user.teamRole !== 'TEAM_LEAD') {
-      where.OR = [
-        { assigneeId: user.id },
-        { project: { leadId: user.id } },
-        { project: { members: { some: { profileId: user.id } } } },
-      ]
+    if (projectId) {
+      await assertProjectAccess(user, projectId)
+      where.projectId = projectId
+    } else {
+      const accessibleIds = await staffAccessibleProjectIds(user)
+      if (accessibleIds) where.projectId = { in: accessibleIds }
     }
 
     const milestones = await prisma.milestone.findMany({
@@ -36,6 +36,6 @@ export async function GET(request: NextRequest) {
     return apiSuccess(milestones)
   } catch (error) {
     console.error('Team milestones GET API error:', error)
-    return Errors.INTERNAL('Failed to fetch team milestones')
+    return fromUnknownError(error, 'Failed to fetch team milestones')
   }
 }

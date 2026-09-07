@@ -1,58 +1,36 @@
 import { prisma } from '@/lib/prisma'
-import { getClientSubTeamContext, AuthUser } from '@/lib/auth/server'
-import { ValidationError, NotFoundError } from '@/lib/errors'
+import { AuthUser } from '@/lib/auth/server'
+import { ValidationError, NotFoundError, AuthorizationError } from '@/lib/errors'
 import { writeAuditLog } from '@/lib/audit'
+import { assertProjectAccess, isProjectManager, redactAgencyPersonForClient } from '@/lib/auth/access'
 
 export class TicketService {
   static async validateProjectAccess(projectId: string, user: AuthUser) {
-    if (user.role === 'ADMIN') return true
-
-    if (user.role === 'TEAM_MEMBER') {
-      const pm = await prisma.projectMember.findFirst({
-        where: { projectId, profileId: user.id }
-      })
-      if (!pm && user.teamRole !== 'TEAM_LEAD') {
-        throw new Error('Unauthorized project access')
-      }
-      return true
-    }
-
-    if (user.role === 'CLIENT') {
-      const project = await prisma.project.findUnique({
-        where: { id: projectId }
-      })
-      if (!project) throw new NotFoundError('Project not found')
-
-      const subteam = await getClientSubTeamContext(user.id)
-      const clientId = subteam ? subteam.clientId : (await prisma.client.findFirst({
-        where: { profileId: user.id },
-        select: { id: true }
-      }))?.id
-
-      if (!clientId || clientId !== project.clientId) {
-        throw new Error('Unauthorized project access')
-      }
-
-      if (subteam) {
-        if (subteam.allowedProjectIds.length > 0 && !subteam.allowedProjectIds.includes(projectId)) {
-          throw new Error('Unauthorized project access')
-        }
-      }
-      return true
-    }
-
-    throw new Error('Unauthorized')
+    return assertProjectAccess(user, projectId, { clientPolicy: 'issues' })
   }
 
   static async getTicketsList(projectId: string, user: AuthUser) {
-    await this.validateProjectAccess(projectId, user)
-    return prisma.ticket.findMany({
+    const project = await this.validateProjectAccess(projectId, user)
+    if (user.role === 'TEAM_MEMBER' && !isProjectManager(user, project)) {
+      return []
+    }
+
+    const tickets = await prisma.ticket.findMany({
       where: { projectId },
       include: {
         creator: { select: { id: true, name: true, role: true } }
       },
       orderBy: { createdAt: 'desc' }
     })
+
+    if (user.role === 'CLIENT') {
+      return tickets.map((ticket) => ({
+        ...ticket,
+        creator: redactAgencyPersonForClient(ticket.creator, project.leadId),
+      }))
+    }
+
+    return tickets
   }
 
   static async createTicket(body: { projectId: string; title: string; description?: string; priority?: string }, user: AuthUser) {
@@ -60,7 +38,10 @@ export class TicketService {
     if (!title) {
       throw new ValidationError('Title is required')
     }
-    await this.validateProjectAccess(projectId, user)
+    const project = await this.validateProjectAccess(projectId, user)
+    if (user.role === 'TEAM_MEMBER' && !isProjectManager(user, project)) {
+      throw new AuthorizationError('Only the client, project lead, or an admin can raise tickets')
+    }
 
     const ticket = await prisma.ticket.create({
       data: {
@@ -75,12 +56,7 @@ export class TicketService {
       }
     })
 
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
-      select: { leadId: true }
-    })
-    
-    if (project?.leadId) {
+    if (project.leadId) {
       const { createNotification } = await import('@/lib/notifications')
       await createNotification({
         userId: project.leadId,
@@ -110,7 +86,10 @@ export class TicketService {
     const ticket = await prisma.ticket.findUnique({ where: { id } })
     if (!ticket) throw new NotFoundError('Ticket not found')
 
-    await this.validateProjectAccess(ticket.projectId, user)
+    const project = await this.validateProjectAccess(ticket.projectId, user)
+    if (!isProjectManager(user, project)) {
+      throw new AuthorizationError('Only the project lead or an admin can update tickets')
+    }
 
     const updateData: any = {}
     if (body.status) updateData.status = body.status
@@ -143,13 +122,13 @@ export class TicketService {
     const ticket = await prisma.ticket.findUnique({ where: { id } })
     if (!ticket) throw new NotFoundError('Ticket not found')
 
-    await this.validateProjectAccess(ticket.projectId, user)
+    const project = await this.validateProjectAccess(ticket.projectId, user)
 
-    const isLeadOrAdmin = user.role === 'ADMIN' || user.teamRole === 'TEAM_LEAD'
+    const canManage = isProjectManager(user, project)
     const isCreator = ticket.creatorId === user.id
 
-    if (!isCreator && !isLeadOrAdmin) {
-      throw new Error('Only the creator or admin can delete this ticket')
+    if (!isCreator && !canManage) {
+      throw new AuthorizationError('Only the creator or project lead can delete this ticket')
     }
 
     await prisma.ticket.delete({ where: { id } })

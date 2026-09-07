@@ -1,5 +1,6 @@
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
 import { getServerUser, isTeamMember, isAdmin } from '@/lib/auth/server'
+import { assertProjectAccess, assertProjectManage } from '@/lib/auth/access'
 import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'
 
@@ -15,6 +16,8 @@ export async function GET(
   const { id } = await params
 
   try {
+    await assertProjectAccess(user, id)
+
     const project = await prisma.project.findUnique({
       where: { id },
       include: {
@@ -47,7 +50,7 @@ export async function GET(
     return apiSuccess(project)
   } catch (error) {
     console.error('Team project GET API error:', error)
-    return Errors.INTERNAL('Failed to fetch project detail')
+    return fromUnknownError(error, 'Failed to fetch project detail')
   }
 }
 
@@ -61,12 +64,10 @@ export async function PUT(
   }
 
   const { id } = await params
-  const project = await prisma.project.findUnique({ where: { id } })
-  if (!project) {
-    return Errors.NOT_FOUND('Project')
-  }
 
   try {
+    await assertProjectManage(user, id)
+
     const body = await request.json()
     const { projectLeadId, name, description, status } = body
 
@@ -91,6 +92,6 @@ export async function PUT(
     return apiSuccess(updated)
   } catch (error) {
     console.error('Team project PUT API error:', error)
-    return Errors.INTERNAL('Failed to update project')
+    return fromUnknownError(error, 'Failed to update project')
   }
 }

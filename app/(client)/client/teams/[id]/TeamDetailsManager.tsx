@@ -58,6 +58,7 @@ type MemberItem = {
     name?: string
     isActive?: boolean
     passwordHash?: string | null
+    hasPassword?: boolean
   } | null
 }
 
@@ -397,7 +398,7 @@ export default function TeamDetailsManager({
       {/* Top Header / Breadcrumb */}
       <div>
         <Link href="/client/teams" className="btn btn--ghost btn--sm mb-3" style={{ paddingLeft: 0 }}>
-          <ArrowLeft size={16} /> Back to Teams
+          <ArrowLeft size={16} /> Back to Team
         </Link>
 
         <div className="flex items-center justify-between">
@@ -589,7 +590,8 @@ export default function TeamDetailsManager({
               <thead>
                 <tr>
                   <th>Member Name</th>
-                  <th>Login Email</th>
+                  <th>Email</th>
+                  <th>Invited</th>
                   <th>Designation</th>
                   <th>Access Scope</th>
                   <th>Status</th>
@@ -608,9 +610,14 @@ export default function TeamDetailsManager({
                       </td>
                       <td>
                         <div className="flex items-center gap-1 text-xs text-secondary">
-                          <Mail size={13} style={{ color: 'var(--text-muted)' }} />
+                          <Mail size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
                           {m.email}
                         </div>
+                      </td>
+                      <td>
+                        <span className="text-xs text-secondary" style={{ whiteSpace: 'nowrap' }}>
+                          {new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(m.createdAt))}
+                        </span>
                       </td>
                       <td>
                         <span className="text-xs text-secondary">{m.designation || '—'}</span>
@@ -685,7 +692,7 @@ export default function TeamDetailsManager({
                         </div>
                       </td>
                       <td>
-                        {!m.profile?.passwordHash ? (
+                        {!(m.profile?.hasPassword ?? m.profile?.passwordHash) ? (
                           <span className="badge badge--warning" title="Invitation sent, awaiting password setup">
                             Invited (Pending)
                           </span>
@@ -697,7 +704,7 @@ export default function TeamDetailsManager({
                       </td>
                       <td>
                         <div className="flex justify-end gap-2">
-                          {!m.profile?.passwordHash && (
+                          {!(m.profile?.hasPassword ?? m.profile?.passwordHash) && (
                             <button
                               type="button"
                               onClick={() => handleResendInvite(m)}

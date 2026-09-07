@@ -7,6 +7,8 @@ import { uploadToSupabaseStorage } from '@/lib/supabase/storage'
 import { getAppBaseUrl } from '@/lib/utils/url'
 import { ValidationError, NotFoundError, ConflictError } from '@/lib/errors'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
+import { assertProjectBelongsToClient } from '@/lib/db/integrity'
 
 const STATE_CODE_MAP: Record<string, string> = {
   'JAMMU AND KASHMIR': '01',
@@ -136,6 +138,12 @@ export class InvoiceService {
 
     const settings = await prisma.appSettings.findFirst()
     const client = await prisma.client.findUnique({ where: { id: clientId } })
+    if (!client) {
+      throw new NotFoundError('Client not found')
+    }
+    if (projectId) {
+      await assertProjectBelongsToClient(projectId, clientId)
+    }
 
     const subtotal = lineItems.reduce((acc, item) => acc + (Number(item.amount) || Number(item.quantity * item.rate) || 0), 0)
     const discountAmount = Number(body.discountAmount || 0)
@@ -452,9 +460,9 @@ export class InvoiceService {
     return { reminded: true }
   }
 
-  static async getClientInvoices(clientId: string) {
+  static async getClientInvoices(where: Prisma.InvoiceWhereInput) {
     const invoices = await InvoiceRepository.findMany({
-      where: { clientId },
+      where,
       orderBy: { createdAt: 'desc' },
       include: {
         project: { select: { id: true, name: true } },

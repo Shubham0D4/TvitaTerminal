@@ -20,6 +20,7 @@ interface TopbarProps {
     name: string
     email: string
     role: string
+    teamRole?: string | null
     avatarUrl?: string | null
   }
 }
@@ -33,10 +34,10 @@ function getInitials(name: string): string {
     .slice(0, 2)
 }
 
-function getRoleLabel(role: string): string {
+function getRoleLabel(role: string, teamRole?: string | null): string {
   switch (role) {
     case 'ADMIN': return 'Administrator'
-    case 'TEAM_MEMBER': return 'Member'
+    case 'TEAM_MEMBER': return teamRole === 'TEAM_LEAD' ? 'Team Lead' : 'Member'
     case 'CLIENT': return 'Client'
     default: return role
   }
@@ -248,7 +249,7 @@ export default function Topbar({ user }: TopbarProps) {
             )}
             <div className="topbar__user-info">
               <span className="topbar__user-name">{user.name}</span>
-              <span className="topbar__user-role">{getRoleLabel(user.role)}</span>
+              <span className="topbar__user-role">{getRoleLabel(user.role, user.teamRole)}</span>
             </div>
             <ChevronDown size={14} className={`topbar__chevron${dropdownOpen ? ' topbar__chevron--open' : ''}`} />
           </button>

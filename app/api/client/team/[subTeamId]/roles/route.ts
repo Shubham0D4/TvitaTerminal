@@ -1,8 +1,9 @@
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
 import { getClientSubTeamContext, getServerUser, isClient } from '@/lib/auth/server'
 import { ClientService } from '@/lib/services/client.service'
 import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'
+import { assertSubTeamOwnedByClient, isSubTeamActor } from '@/lib/auth/access'
 
 export async function GET(
   request: NextRequest,
@@ -13,6 +14,12 @@ export async function GET(
 
   const { subTeamId } = await params
   try {
+    const subTeamCtx = await getClientSubTeamContext(user.id)
+    const client = await ClientService.getClientByUserId(user.id, user.email)
+    if (!client && !subTeamCtx) return Errors.NOT_FOUND('Client account')
+    const clientId = subTeamCtx?.clientId ?? client!.id
+    await assertSubTeamOwnedByClient(subTeamId, clientId)
+
     const roles = await prisma.clientSubTeamRole.findMany({
       where: { subTeamId },
       orderBy: { createdAt: 'desc' },
@@ -20,7 +27,7 @@ export async function GET(
     return apiSuccess(roles)
   } catch (error) {
     console.error('Fetch subteam roles error:', error)
-    return Errors.INTERNAL('Failed to fetch roles')
+    return fromUnknownError(error, 'Failed to fetch roles')
   }
 }
 
@@ -31,8 +38,7 @@ export async function POST(
   const user = await getServerUser()
   if (!user || !isClient(user)) return Errors.UNAUTHORIZED()
 
-  const subTeamCtx = await getClientSubTeamContext(user.id)
-  if (subTeamCtx) return Errors.FORBIDDEN('Only primary client can manage team roles')
+  if (await isSubTeamActor(user)) return Errors.FORBIDDEN('Only primary client can manage team roles')
 
   const { subTeamId } = await params
 

@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
 import { getServerUser } from '@/lib/auth/server'
 import { NoteService } from '@/lib/services/note.service'
 
@@ -17,7 +17,7 @@ export async function GET(
     return apiSuccess(notes)
   } catch (error: any) {
     console.error('GET notes error:', error)
-    return Errors.INTERNAL(error.message || 'Failed to fetch notes')
+    return fromUnknownError(error, 'Failed to fetch notes')
   }
 }
 
@@ -36,9 +36,6 @@ export async function POST(
     return apiSuccess(note, 201)
   } catch (error: any) {
     console.error('POST note error:', error)
-    if (error.name === 'ValidationError') {
-      return Errors.VALIDATION(error.message)
-    }
-    return Errors.INTERNAL(error.message || 'Failed to create note')
+    return fromUnknownError(error, 'Failed to create note')
   }
 }

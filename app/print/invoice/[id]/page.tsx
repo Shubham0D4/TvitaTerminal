@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
-import { getServerUser, redirectToLogin, redirectToPortal } from '@/lib/auth/server'
+import { getServerUser, isClient, isAdmin, redirectToLogin, redirectToPortal } from '@/lib/auth/server'
 import { notFound } from 'next/navigation'
+import { getClientActor, hasClientPolicy } from '@/lib/auth/access'
 
 export const metadata = {
   title: 'Tax Invoice — Tvita Print Service',
@@ -43,13 +44,20 @@ export default async function InvoicePrintPage({ params }: PageProps) {
 
   // 2. Perform strict authorization check
   let hasAccess = false
-  if (user.role === 'ADMIN') {
+  if (isAdmin(user)) {
     hasAccess = true
-  } else if (user.role === 'CLIENT') {
-    const client = await prisma.client.findFirst({
-      where: { OR: [{ profileId: user.id }, { email: user.email }] },
-    })
-    if (client && invoice.clientId === client.id) {
+  } else if (isClient(user)) {
+    const actor = await getClientActor(user)
+    const allowed = actor?.subTeam?.allowedProjectIds ?? []
+    const projectAllowed =
+      allowed.length === 0 || !invoice.projectId || allowed.includes(invoice.projectId)
+    if (
+      actor &&
+      hasClientPolicy(actor.subTeam, 'invoices', 'billing') &&
+      actor.client.id === invoice.clientId &&
+      projectAllowed &&
+      invoice.status !== 'DRAFT'
+    ) {
       hasAccess = true
     }
   }

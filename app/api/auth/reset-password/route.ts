@@ -41,6 +41,7 @@ export async function POST(request: Request) {
           passwordHash: hashedPassword,
           magicLinkToken: null,
           magicLinkExpires: null,
+          invitedAt: null,
         },
         select: { id: true },
       })

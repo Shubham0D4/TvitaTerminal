@@ -1,18 +1,18 @@
 import { Search, Brush, FileText, Code2, Rocket } from 'lucide-react'
+import {
+  PROCESS_STAGES,
+  stageIndexFromMilestones,
+  type StageMilestone,
+} from '@/lib/process/stages'
 
 export type ProcessUpdate = { id: string; content: string; createdAt: string }
 
-/** Every project runs the same five stages, so the tracker reads the same way
- *  wherever it appears — the projects list and a single project alike. */
-export const STAGES = [
-  { name: 'Discovery & research', Icon: Search },
-  { name: 'Design', Icon: Brush },
-  { name: 'Quote & planning', Icon: FileText },
-  { name: 'Crafting the Backend', Icon: Code2 },
-  { name: 'Testing & launch', Icon: Rocket },
-] as const
+export const STAGES = PROCESS_STAGES.map((stage, index) => ({
+  ...stage,
+  Icon: [Search, Brush, FileText, Code2, Rocket][index],
+}))
 
-/** Which stage a project sits in, from its status and how far along it is. */
+/** Fallback when a page has not loaded milestones yet. Prefer `stageIndexFromMilestones`. */
 export function stageIndex(status: string, progress: number) {
   if (status === 'COMPLETED') return STAGES.length
   if (status === 'CLIENT_REVIEW') return 4
@@ -23,7 +23,6 @@ export function stageIndex(status: string, progress: number) {
   return 0
 }
 
-/** Plain words for each stage — colour alone shouldn't carry the state. */
 const STAGE_STATE = {
   done: 'Done',
   here: 'In progress',
@@ -41,6 +40,7 @@ interface ProcessTreeProps {
   status: string
   progress: number
   updates: ProcessUpdate[]
+  milestones?: StageMilestone[]
   /** Shown above the tree; hidden where the surrounding card already says it. */
   showHeading?: boolean
 }
@@ -49,9 +49,13 @@ export default function ProcessTree({
   status,
   progress,
   updates,
+  milestones,
   showHeading = true,
 }: ProcessTreeProps) {
-  const here = stageIndex(status, progress)
+  const here =
+    milestones !== undefined
+      ? stageIndexFromMilestones(milestones, status)
+      : stageIndex(status, progress)
 
   return (
     <>
@@ -67,8 +71,6 @@ export default function ProcessTree({
         <div
           className="proc__tree"
           style={{
-            // Finished stages shrink to their icon, which is what buys the
-            // live stage room for a full-size title.
             gridTemplateColumns: STAGES.map((_, position) =>
               position < here ? '62px' : 'minmax(0, 1fr)',
             ).join(' '),
@@ -80,7 +82,7 @@ export default function ProcessTree({
 
             return (
               <div
-                key={stage.name}
+                key={stage.key}
                 className={`pstep is-${key}`}
                 aria-current={key === 'here' ? 'step' : undefined}
               >
@@ -88,8 +90,6 @@ export default function ProcessTree({
                   <Icon size={18} aria-hidden="true" />
                 </span>
 
-                {/* Done stages carry no visible title, so the state has to
-                    reach a screen reader some other way. */}
                 {key === 'done' ? (
                   <span className="pstep__sr">{stage.name} · Done</span>
                 ) : (
@@ -102,7 +102,6 @@ export default function ProcessTree({
             )
           })}
 
-          {/* The stage underway carries the three most recent updates. */}
           {here < STAGES.length && updates.length > 0 && (
             <div className="proc__branch" style={{ gridColumn: `${here + 1} / -1` }}>
               <ul className="proc__feed">

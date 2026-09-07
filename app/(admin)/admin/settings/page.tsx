@@ -8,7 +8,13 @@ export const metadata = {
 
 export default async function AdminSettingsPage() {
   const rawSettings = await prisma.appSettings.findFirst()
-  const settings = rawSettings ? JSON.parse(JSON.stringify(rawSettings)) : null
+  const settings = rawSettings
+    ? JSON.parse(JSON.stringify({
+        ...rawSettings,
+        smtpPass: undefined,
+        smtpConfigured: Boolean(rawSettings.smtpPass),
+      }))
+    : null
 
   return (
     <div className="asettings-page">

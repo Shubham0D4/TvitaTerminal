@@ -1,9 +1,11 @@
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
 import { getServerUser, isClient } from '@/lib/auth/server'
+import { ClientService } from '@/lib/services/client.service'
 import { prisma } from '@/lib/prisma'
 import { uploadToSupabaseStorage } from '@/lib/supabase/storage'
 import { NextRequest } from 'next/server'
 import path from 'path'
+import { assertSubTeamOwnedByClient, isSubTeamActor } from '@/lib/auth/access'
 
 export async function POST(
   request: NextRequest,
@@ -17,6 +19,13 @@ export async function POST(
   const { subTeamId } = await params
 
   try {
+    if (await isSubTeamActor(user)) {
+      return Errors.FORBIDDEN('Only primary client can update team avatar')
+    }
+    const client = await ClientService.getClientByUserId(user.id, user.email)
+    if (!client) return Errors.NOT_FOUND('Client account')
+    await assertSubTeamOwnedByClient(subTeamId, client.id)
+
     const subTeam = await prisma.clientSubTeam.findUnique({
       where: { id: subTeamId },
       include: { client: true },
@@ -70,6 +79,6 @@ export async function POST(
     return apiSuccess({ avatarUrl, subTeam: updatedSubTeam })
   } catch (error) {
     console.error('Upload subteam avatar error:', error)
-    return Errors.INTERNAL('Failed to upload team picture')
+    return fromUnknownError(error, 'Failed to upload team picture')
   }
 }

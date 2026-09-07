@@ -14,18 +14,21 @@ export async function DELETE(
     return Errors.UNAUTHORIZED()
   }
 
-  const { subTeamId } = await params
+  const { id, subTeamId } = await params
 
   try {
-    const existing = await prisma.clientSubTeam.findUnique({ where: { id: subTeamId } })
-    if (existing) {
-      await prisma.clientSubTeam.delete({ where: { id: subTeamId } })
-      if (existing.profileId) {
-        await prisma.profile.update({
-          where: { id: existing.profileId },
-          data: { isActive: false },
-        }).catch(() => {})
-      }
+    const existing = await prisma.clientSubTeam.findFirst({
+      where: { id: subTeamId, clientId: id },
+    })
+    if (!existing) {
+      return Errors.NOT_FOUND('Sub-team')
+    }
+    await prisma.clientSubTeam.delete({ where: { id: subTeamId } })
+    if (existing.profileId) {
+      await prisma.profile.update({
+        where: { id: existing.profileId },
+        data: { isActive: false },
+      }).catch(() => {})
     }
 
     return apiSuccess({ deleted: true })
@@ -44,13 +47,15 @@ export async function PATCH(
     return Errors.UNAUTHORIZED()
   }
 
-  const { subTeamId } = await params
+  const { id, subTeamId } = await params
 
   try {
     const body = await request.json()
     const { status, revokedByAdmin, accessPolicy } = body
 
-    const existing = await prisma.clientSubTeam.findUnique({ where: { id: subTeamId } })
+    const existing = await prisma.clientSubTeam.findFirst({
+      where: { id: subTeamId, clientId: id },
+    })
     if (!existing) {
       return Errors.NOT_FOUND('Sub-team')
     }

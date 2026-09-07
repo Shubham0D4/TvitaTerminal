@@ -56,7 +56,9 @@ export async function GET(request: NextRequest) {
         },
       }),
       prisma.ticket.findMany({
-        where: { project: projectWhere },
+        where: isAdmin(user)
+          ? { project: projectWhere }
+          : { project: { leadId: user.id } },
         orderBy: { createdAt: 'desc' },
         take: 5,
         include: { project: { select: { name: true } } },

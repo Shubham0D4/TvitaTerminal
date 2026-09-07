@@ -1,5 +1,6 @@
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
-import { getServerUser } from '@/lib/auth/server'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
+import { getServerUser, isAdmin, isClient } from '@/lib/auth/server'
+import { assertProjectAccess } from '@/lib/auth/access'
 import { prisma } from '@/lib/prisma'
 import { uploadToSupabaseStorage } from '@/lib/supabase/storage'
 import { NextRequest } from 'next/server'
@@ -17,20 +18,10 @@ export async function POST(
   const { id } = await params
 
   try {
-    const project = await prisma.project.findUnique({
-      where: { id },
-    })
-
-    if (!project) {
-      return Errors.NOT_FOUND('Project')
-    }
-
-    const isProjectLead = project.leadId === user.id
-    const isAdmin = user.role === 'ADMIN'
-    const isClient = user.role === 'CLIENT'
-
-    if (!isAdmin && !isProjectLead && !isClient) {
-      return Errors.UNAUTHORIZED()
+    const project = await assertProjectAccess(user, id)
+    const canUpload = isAdmin(user) || project.leadId === user.id || isClient(user)
+    if (!canUpload) {
+      return Errors.FORBIDDEN('Only the project lead, an admin, or the client can update the banner')
     }
 
     const { base64Data, filename } = await request.json()
@@ -61,6 +52,6 @@ export async function POST(
     return apiSuccess({ bannerUrl, project: updated })
   } catch (error) {
     console.error('Upload project banner error:', error)
-    return Errors.INTERNAL('Failed to upload project banner')
+    return fromUnknownError(error, 'Failed to upload project banner')
   }
 }

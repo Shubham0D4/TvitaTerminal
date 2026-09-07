@@ -58,3 +58,17 @@ export function staleSessionLoginUrl(from?: string): string {
 export function isAuthCookie(name: string): boolean {
   return name.includes('better-auth')
 }
+
+/**
+ * Same-origin relative paths only. Used by login and magic-link `redirect`/`next`
+ * query params so an open redirect cannot send a session to another origin.
+ */
+export function isSafeInternalPath(value: string | null | undefined, fallback = '/'): string {
+  if (!value) return fallback
+  const trimmed = value.trim()
+  if (!trimmed.startsWith('/')) return fallback
+  if (trimmed.startsWith('//')) return fallback
+  if (trimmed.includes('\\')) return fallback
+  if (trimmed.includes('://')) return fallback
+  return trimmed
+}

@@ -4,8 +4,10 @@ import Image from 'next/image'
 import { FileText, Sparkles, Receipt } from 'lucide-react'
 
 import { prisma } from '@/lib/prisma'
-import { getClientSubTeamContext, getServerUser, redirectToLogin } from '@/lib/auth/server'
-import ProcessTree, { STAGES, stageIndex } from '@/app/components/client/ProcessTree'
+import { getServerUser, redirectToLogin } from '@/lib/auth/server'
+import { getClientActor, hasClientPolicy } from '@/lib/auth/access'
+import ProcessTree, { STAGES } from '@/app/components/client/ProcessTree'
+import { currentPhaseName, progressFromMilestones, stageIndexFromMilestones } from '@/lib/process/stages'
 import ProjectActions from '@/app/components/client/ProjectActions'
 import ProjectWorkspaceTabs from '@/app/components/projects/ProjectWorkspaceTabs'
 import ProjectBannerUpload from '@/app/components/projects/ProjectBannerUpload'
@@ -67,27 +69,40 @@ export default async function ClientProjectDetailPage({
   const user = await getServerUser()
   if (!user) redirectToLogin()
 
-  const subTeamCtx = await getClientSubTeamContext(user.id)
-  if (subTeamCtx) {
-    if (!subTeamCtx.policy.projects) redirect('/client/home')
-    if (subTeamCtx.allowedProjectIds.length > 0 && !subTeamCtx.allowedProjectIds.includes(id)) {
-      redirect('/client/projects')
-    }
+  const actor = await getClientActor(user)
+  if (!actor || !hasClientPolicy(actor.subTeam, 'projects')) redirect('/client/home')
+  if (
+    actor.subTeam &&
+    actor.subTeam.allowedProjectIds.length > 0 &&
+    !actor.subTeam.allowedProjectIds.includes(id)
+  ) {
+    redirect('/client/projects')
   }
 
-  const client = await prisma.client.findFirst({
-    where: subTeamCtx
-      ? { id: subTeamCtx.clientId }
-      : { OR: [{ profileId: user.id }, { email: user.email }] },
-  })
-  if (!client) redirect('/client/home')
+  const client = actor.client
+  const canSeeBilling = hasClientPolicy(actor.subTeam, 'invoices', 'billing')
+  const canSeeIssues = hasClientPolicy(actor.subTeam, 'issues')
+  const canSeeMilestones = hasClientPolicy(actor.subTeam, 'milestones')
+  const canUseNotes = hasClientPolicy(actor.subTeam, 'notes')
 
   const project = await prisma.project.findFirst({
     where: { id, clientId: client.id },
     include: {
-      lead: { select: { name: true, email: true, avatarUrl: true } },
+      lead: { select: { id: true, name: true, email: true, avatarUrl: true } },
       milestones: {
         orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          status: true,
+          stage: true,
+          sortOrder: true,
+          dueDate: true,
+          clientVisible: true,
+          progress: true,
+          completedDate: true,
+        },
       },
       updates: {
         where: { clientVisible: true },
@@ -95,40 +110,47 @@ export default async function ClientProjectDetailPage({
         take: 3,
         select: { id: true, content: true, createdAt: true },
       },
-      // Client requests double as the revision list.
-      tickets: {
-        orderBy: { createdAt: 'desc' },
-        select: { id: true, title: true, status: true, createdAt: true },
-      },
-      invoices: {
-        orderBy: { issuedDate: 'desc' },
-        select: {
-          id: true,
-          invoiceNo: true,
-          amount: true,
-          currency: true,
-          status: true,
-          issuedDate: true,
-          pdfUrl: true,
-        },
-      },
+      tickets: canSeeIssues
+        ? {
+            orderBy: { createdAt: 'desc' },
+            select: { id: true, title: true, status: true, createdAt: true },
+          }
+        : false,
+      invoices: canSeeBilling
+        ? {
+            where: { status: { not: 'DRAFT' } },
+            orderBy: { issuedDate: 'desc' },
+            select: {
+              id: true,
+              invoiceNo: true,
+              amount: true,
+              currency: true,
+              status: true,
+              issuedDate: true,
+              pdfUrl: true,
+            },
+          }
+        : false,
     },
   })
   if (!project) redirect('/client/projects')
 
-  const status = STATUS_STYLES[project.status] ?? { label: project.status, tone: 'slate' }
-  const stage = stageIndex(project.status, project.progress)
-  const phase = project.milestones.find((m) => m.status !== 'COMPLETED')?.name
+  const tickets = project.tickets ?? []
+  const invoices = project.invoices ?? []
+  const milestones = project.milestones ?? []
 
-  const revisionsDone = project.tickets.filter((t) =>
+  const status = STATUS_STYLES[project.status] ?? { label: project.status, tone: 'slate' }
+  const progress = progressFromMilestones(milestones)
+  const stage = stageIndexFromMilestones(milestones, project.status)
+  const phase = currentPhaseName(milestones, project.status)
+
+  const revisionsDone = tickets.filter((t) =>
     ['RESOLVED', 'CLOSED'].includes(t.status),
   ).length
 
-  const currency = project.invoices[0]?.currency ?? 'INR'
-  const invoiceTotal = project.invoices.reduce((sum, inv) => sum + Number(inv.amount), 0)
-  const latestInvoice = project.invoices[0]
-
-  const canUseNotes = subTeamCtx ? subTeamCtx.policy.notes !== false : true
+  const currency = invoices[0]?.currency ?? 'INR'
+  const invoiceTotal = invoices.reduce((sum, inv) => sum + Number(inv.amount), 0)
+  const latestInvoice = invoices[0]
 
   return (
     <div className="pdetail">
@@ -164,9 +186,9 @@ export default async function ClientProjectDetailPage({
 
             <div className="phero__meter">
               <span className="phero__bar" aria-hidden="true">
-                <span className="phero__fill" style={{ width: `${project.progress}%` }} />
+                <span className="phero__fill" style={{ width: `${progress}%` }} />
               </span>
-              <span className="phero__pct">{project.progress}%</span>
+              <span className="phero__pct">{progress}%</span>
             </div>
 
             <p className="phero__phases">
@@ -225,7 +247,8 @@ export default async function ClientProjectDetailPage({
         <div className="pdetail__panel">
           <ProcessTree
             status={project.status}
-            progress={project.progress}
+            progress={progress}
+            milestones={milestones}
             updates={project.updates.map((u) => ({
               id: u.id,
               content: u.content,
@@ -240,18 +263,20 @@ export default async function ClientProjectDetailPage({
         <section className="revs" aria-label="Revisions">
           <div className="pdetail__hrow">
             <h2 className="pdetail__h">Revisions</h2>
-            {project.tickets.length > 0 && (
+            {tickets.length > 0 && (
               <span className="revs__count">
-                {revisionsDone} of {project.tickets.length} done
+                {revisionsDone} of {tickets.length} done
               </span>
             )}
           </div>
 
-          {project.tickets.length === 0 ? (
+          {!canSeeIssues ? (
+            <p className="pdetail__empty">Revisions are restricted for this account.</p>
+          ) : tickets.length === 0 ? (
             <p className="pdetail__empty">No revisions requested yet.</p>
           ) : (
             <ul className="revs__list">
-              {project.tickets.map((ticket) => {
+              {tickets.map((ticket) => {
                 const tone = REVISION_STYLES[ticket.status] ?? {
                   label: ticket.status,
                   tone: 'slate',
@@ -280,12 +305,14 @@ export default async function ClientProjectDetailPage({
           <h2 className="pdetail__h">Payment</h2>
 
           <div className="pdetail__panel">
-            {project.invoices.length === 0 ? (
-              <p className="pdetail__empty">No invoices raised for this project yet.</p>
+            {invoices.length === 0 ? (
+              <p className="pdetail__empty">
+                {canSeeBilling ? 'No invoices raised for this project yet.' : 'Billing is restricted for this account.'}
+              </p>
             ) : (
               <>
                 <ul className="pay__list">
-                  {project.invoices.map((invoice) => (
+                  {invoices.map((invoice) => (
                     <li key={invoice.id} className="payrow">
                       <span className="payrow__icon">
                         <Receipt size={16} />
@@ -331,17 +358,14 @@ export default async function ClientProjectDetailPage({
         userRole={user.role}
         userTeamRole={null}
         userId={user.id}
-        clientPolicy={
-          subTeamCtx
-            ? {
-                milestones: subTeamCtx.policy.milestones !== false,
-                notes: subTeamCtx.policy.notes !== false,
-              }
-            : { milestones: true, notes: true }
-        }
-        milestones={project.milestones}
+        clientPolicy={{
+          milestones: canSeeMilestones,
+          notes: canUseNotes,
+        }}
+        milestones={JSON.parse(JSON.stringify(milestones))}
         projectMembers={[]}
         isLead={false}
+        projectLeadId={project.leadId}
       />
     </div>
   )

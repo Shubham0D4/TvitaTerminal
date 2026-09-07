@@ -1,8 +1,8 @@
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
-import { getClientSubTeamContext, getServerUser, isClient } from '@/lib/auth/server'
-import { ClientRepository } from '@/lib/repositories/client.repository'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
+import { getServerUser, isClient } from '@/lib/auth/server'
 import { InvoiceService } from '@/lib/services/invoice.service'
 import { NextRequest } from 'next/server'
+import { assertClientPolicy, resolveClientActor } from '@/lib/auth/access'
 
 export async function GET(
   request: NextRequest,
@@ -16,35 +16,29 @@ export async function GET(
   const { id } = await params
 
   try {
-    const subTeamCtx = await getClientSubTeamContext(user.id)
-    if (subTeamCtx && !subTeamCtx.policy.invoices) {
-      return Errors.FORBIDDEN('Financial data is restricted for sub-teams')
-    }
-
-    const client = await ClientRepository.findClientForActor({
-      userId: user.id,
-      email: user.email,
-      subTeamClientId: subTeamCtx?.clientId,
-    })
-
-    if (!client) {
-      return Errors.NOT_FOUND('Client')
-    }
+    const { client, subTeam } = await resolveClientActor(user)
+    assertClientPolicy(subTeam, 'invoices', 'billing')
 
     const result = await InvoiceService.getInvoiceDetails(id)
     if (!result.invoice) {
       return Errors.NOT_FOUND('Invoice')
     }
     if (result.invoice.clientId !== client.id) {
-      return Errors.UNAUTHORIZED()
+      return Errors.FORBIDDEN()
+    }
+    if (result.invoice.status === 'DRAFT') {
+      return Errors.NOT_FOUND('Invoice')
+    }
+
+    const allowed = subTeam?.allowedProjectIds ?? []
+    const projectId = result.invoice.projectId as string | null | undefined
+    if (allowed.length > 0 && projectId && !allowed.includes(projectId)) {
+      return Errors.FORBIDDEN()
     }
 
     return apiSuccess(result)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Client invoice GET API error:', error)
-    if (error.name === 'NotFoundError') {
-      return Errors.NOT_FOUND(error.message)
-    }
-    return Errors.INTERNAL('Failed to fetch invoice details')
+    return fromUnknownError(error, 'Failed to fetch invoice details')
   }
 }

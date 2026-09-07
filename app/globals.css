@@ -6219,6 +6219,10 @@ button.qaction {
   gap: var(--space-8);
 }
 
+.pdetail__bottom--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 /* ── Hero ─────────────────────────────────────────────────── */
 
 .phero {
@@ -9505,9 +9509,7 @@ a.member-card__name:hover {
   margin-bottom: 0;
 }
 
-.quotes-module,
-.aquotes .quotes-module,
-.admin-dash__quotes .quotes-module {
+.aquotes .quotes-module {
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
@@ -9581,4 +9583,458 @@ a.member-card__name:hover {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+/* ─────────────────────────────────────────────
+   TEAM PORTAL — execution / coordination surfaces
+   Reuses admin-dash mosaic + pdetail language.
+   ───────────────────────────────────────────── */
+
+.team-dash__pipeline {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.team-dash__pipe {
+  padding: var(--space-3) var(--space-2);
+  border-radius: var(--radius-md);
+  text-align: center;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+}
+
+.team-dash__pipe strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+
+.team-dash__pipe span {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.team-dash__pipe--blue { background: rgba(37, 99, 235, 0.08); border-color: rgba(37, 99, 235, 0.14); }
+.team-dash__pipe--blue strong, .team-dash__pipe--blue span { color: #2563eb; }
+.team-dash__pipe--purple { background: rgba(124, 58, 237, 0.08); border-color: rgba(124, 58, 237, 0.14); }
+.team-dash__pipe--purple strong, .team-dash__pipe--purple span { color: #7c3aed; }
+.team-dash__pipe--green { background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.14); }
+.team-dash__pipe--green strong, .team-dash__pipe--green span { color: #059669; }
+.team-dash__pipe--red { background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.14); }
+.team-dash__pipe--red strong, .team-dash__pipe--red span { color: #dc2626; }
+
+.team-dash__row-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 4px;
+}
+
+.team-dash__row-sub {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.team-dash__projects {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: var(--space-3);
+}
+
+.team-dash__project {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) auto minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--transition-fast);
+}
+
+.team-dash__project:hover {
+  border-color: var(--border-default);
+}
+
+.team-dash__project-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.team-dash__project-meta,
+.team-dash__project-ms,
+.team-dash__project-due {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.team-dash__project-pct {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.team-dash__workload {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.team-dash__wl-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--text-xs);
+  margin-bottom: 6px;
+}
+
+.team-dash__wl-head span:first-child {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.team-roster {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.team-roster__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
+}
+
+.team-roster__avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent-primary-muted);
+  color: var(--accent-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.team-roster__name {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.kanban {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(200px, 1fr));
+  gap: var(--space-4);
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.kanban__col {
+  min-width: 200px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: var(--space-3);
+  box-shadow: var(--shadow-sm);
+}
+
+.kanban__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: var(--space-3);
+  margin-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.kanban__col--blue .kanban__head { color: #2563eb; }
+.kanban__col--amber .kanban__head { color: #d97706; }
+.kanban__col--red .kanban__head { color: #dc2626; }
+.kanban__col--green .kanban__head { color: #059669; }
+
+.kanban__count {
+  background: var(--bg-muted);
+  color: inherit;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+}
+
+.kanban__stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 80px;
+}
+
+.kanban__empty {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-align: center;
+  padding: var(--space-6) var(--space-2);
+  margin: 0;
+}
+
+.task-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.task-card:hover {
+  border-color: var(--border-default);
+  box-shadow: var(--shadow-sm);
+}
+
+.ms-section__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: var(--space-4);
+}
+
+.ms-section__head h2 {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.ms-section__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.ms-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-left-width: 4px;
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+}
+
+.ms-card__title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ms-card__desc {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.ms-card__thumbs {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.ms-card__thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  display: block;
+}
+
+.ms-card__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ms-card__meta {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: 6px;
+  flex-wrap: wrap;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.ms-card__meta a {
+  color: var(--accent-primary);
+  text-decoration: none;
+}
+
+.team-profile {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.team-profile__main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.team-profile__identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.team-profile__name {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.team-profile__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.team-profile__facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.team-profile__facts dt {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.team-profile__facts dd {
+  margin: 2px 0 0;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.team-profile__h {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-4);
+}
+
+.team-profile__aside-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: var(--space-4);
+  color: var(--accent-primary);
+}
+
+.team-profile__aside-h h3 {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.team-profile__empty {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.team-profile__projects {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.team-profile__project {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 8px;
+  padding: var(--space-3);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+}
+
+.team-profile__project:hover {
+  border-color: var(--border-default);
+}
+
+.team-profile__project-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.team-profile__project-client {
+  grid-column: 1;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.team-profile__project-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.team-profile__project-bar .progress-bar-container {
+  flex: 1;
+}
+
+@media (max-width: 1100px) {
+  .team-dash__pipeline { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .team-dash__project {
+    grid-template-columns: 1fr auto;
+  }
+  .team-dash__project-ms,
+  .team-dash__project-due { display: none; }
+  .kanban { grid-template-columns: repeat(2, minmax(220px, 1fr)); }
+}
+
+@media (max-width: 720px) {
+  .team-dash__pipeline { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .team-profile { grid-template-columns: 1fr; }
+  .team-profile__facts { grid-template-columns: 1fr; }
+  .kanban { grid-template-columns: 1fr; }
 }

@@ -5,17 +5,26 @@ import TaskStatusButton from '@/app/(team)/team/tasks/TaskStatusButton'
 import TaskDetailsModal from './TaskDetailsModal'
 import { History, Plus } from 'lucide-react'
 import CreateTaskModal from './CreateTaskModal'
+import { withLeadAssignee } from '@/lib/process/stages'
 
 interface TaskBoardClientProps {
   tasks: any[]
+  userId: string
   userRole: string
   teamRole: string | null
   isLeadOrAdmin: boolean
   projects?: any[]
 }
 
+function canUpdateTask(task: any, userId: string, userRole: string) {
+  if (userRole === 'ADMIN') return true
+  if (task.project?.leadId === userId) return true
+  return [task.assigneeId, task.developerId, task.testerId].includes(userId)
+}
+
 export default function TaskBoardClient({
   tasks,
+  userId,
   userRole,
   teamRole,
   isLeadOrAdmin,
@@ -30,9 +39,16 @@ export default function TaskBoardClient({
   const changesTasks = tasks.filter((t) => t.status === 'CHANGES_REQUIRED')
   const completedTasks = tasks.filter((t) => t.status === 'COMPLETED')
 
+  const columns = [
+    { key: 'todo', label: 'To do', tone: 'slate', items: todoTasks },
+    { key: 'progress', label: 'In progress', tone: 'blue', items: inProgressTasks },
+    { key: 'qa', label: 'QA queue', tone: 'amber', items: testingTasks },
+    { key: 'changes', label: 'Changes', tone: 'red', items: changesTasks },
+    { key: 'done', label: 'Done', tone: 'green', items: completedTasks },
+  ]
+
   return (
     <div>
-      {/* Header action button for Lead / Admin */}
       {isLeadOrAdmin && (
         <div className="flex justify-end mb-4">
           <button
@@ -46,77 +62,31 @@ export default function TaskBoardClient({
         </div>
       )}
 
-      {/* Task Kanban Grid */}
-      <div className="grid grid-cols-5 gap-4">
-        {/* Col 1: To Do */}
-        <div className="card" style={{ background: 'var(--bg-surface)' }}>
-          <div className="flex items-center justify-between mb-4 pb-2" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-              To Do ({todoTasks.length})
-            </span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-            {todoTasks.map((t) => (
-              <TaskCard key={t.id} task={t} userRole={userRole} teamRole={teamRole} onOpen={() => setSelectedTask(t)} />
-            ))}
-          </div>
-        </div>
-
-        {/* Col 2: In Progress */}
-        <div className="card" style={{ background: 'var(--bg-surface)' }}>
-          <div className="flex items-center justify-between mb-4 pb-2" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)', color: 'var(--accent-primary)', textTransform: 'uppercase' }}>
-              In Progress ({inProgressTasks.length})
-            </span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-            {inProgressTasks.map((t) => (
-              <TaskCard key={t.id} task={t} userRole={userRole} teamRole={teamRole} onOpen={() => setSelectedTask(t)} />
-            ))}
-          </div>
-        </div>
-
-        {/* Col 3: Ready for QA / Testing */}
-        <div className="card" style={{ background: 'var(--bg-surface)' }}>
-          <div className="flex items-center justify-between mb-4 pb-2" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)', color: 'var(--color-warning)', textTransform: 'uppercase' }}>
-              QA Queue ({testingTasks.length})
-            </span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-            {testingTasks.map((t) => (
-              <TaskCard key={t.id} task={t} userRole={userRole} teamRole={teamRole} onOpen={() => setSelectedTask(t)} />
-            ))}
-          </div>
-        </div>
-
-        {/* Col 4: Changes Required */}
-        <div className="card" style={{ background: 'var(--bg-surface)' }}>
-          <div className="flex items-center justify-between mb-4 pb-2" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)', color: 'var(--color-danger)', textTransform: 'uppercase' }}>
-              Changes Req. ({changesTasks.length})
-            </span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-            {changesTasks.map((t) => (
-              <TaskCard key={t.id} task={t} userRole={userRole} teamRole={teamRole} onOpen={() => setSelectedTask(t)} />
-            ))}
-          </div>
-        </div>
-
-        {/* Col 5: Completed */}
-        <div className="card" style={{ background: 'var(--bg-surface)' }}>
-          <div className="flex items-center justify-between mb-4 pb-2" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)', color: 'var(--color-success)', textTransform: 'uppercase' }}>
-              Completed ({completedTasks.length})
-            </span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-            {completedTasks.map((t) => (
-              <TaskCard key={t.id} task={t} userRole={userRole} teamRole={teamRole} onOpen={() => setSelectedTask(t)} />
-            ))}
-          </div>
-        </div>
+      <div className="kanban">
+        {columns.map((col) => (
+          <section key={col.key} className={`kanban__col kanban__col--${col.tone}`}>
+            <header className="kanban__head">
+              <span>{col.label}</span>
+              <span className="kanban__count">{col.items.length}</span>
+            </header>
+            <div className="kanban__stack">
+              {col.items.length === 0 ? (
+                <p className="kanban__empty">Nothing here</p>
+              ) : (
+                col.items.map((t) => (
+                  <TaskCard
+                    key={t.id}
+                    task={t}
+                    userId={userId}
+                    userRole={userRole}
+                    teamRole={teamRole}
+                    onOpen={() => setSelectedTask(t)}
+                  />
+                ))
+              )}
+            </div>
+          </section>
+        ))}
       </div>
 
       {/* Task Details & Activity Trail Modal */}
@@ -126,7 +96,14 @@ export default function TaskBoardClient({
           isOpen={!!selectedTask}
           onClose={() => setSelectedTask(null)}
           isLeadOrAdmin={isLeadOrAdmin}
-          projectMembers={selectedTask.project?.members || []}
+          projectMembers={withLeadAssignee(
+            (selectedTask.project?.members || []).map((m: any) => ({
+              profileId: m.profileId ?? m.profile?.id,
+              role: m.role,
+              profile: { id: m.profile.id, name: m.profile.name },
+            })),
+            selectedTask.project?.lead
+          )}
         />
       )}
 
@@ -144,27 +121,21 @@ export default function TaskBoardClient({
 
 function TaskCard({
   task,
+  userId,
   userRole,
   teamRole,
   onOpen,
 }: {
   task: any
+  userId: string
   userRole: string
   teamRole: string | null
   onOpen: () => void
 }) {
+  const canUpdate = canUpdateTask(task, userId, userRole)
   return (
-    <div
-      style={{
-        background: 'var(--bg-elevated)',
-        border: '1px solid var(--border-subtle)',
-        borderRadius: 'var(--radius-md)',
-        overflow: 'hidden',
-        cursor: 'pointer',
-      }}
-      onClick={onOpen}
-    >
-      <div style={{ height: 70, backgroundImage: `url(${task.project?.banner || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800'})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+    <div className="task-card" onClick={onOpen}>
+      <div style={{ height: 70, backgroundImage: `url(${task.project?.banner || '/banner.webp'})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
       <div style={{ padding: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
         <div className="flex items-center justify-between" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
           <span>{task.project?.client?.name} / {task.project?.name}</span>
@@ -213,12 +184,18 @@ function TaskCard({
           {task.priority}
         </span>
 
-        <TaskStatusButton
-          taskId={task.id}
-          currentStatus={task.status}
-          userRole={userRole}
-          teamRole={teamRole}
-        />
+        {canUpdate ? (
+          <TaskStatusButton
+            taskId={task.id}
+            currentStatus={task.status}
+            userRole={userRole}
+            teamRole={teamRole}
+          />
+        ) : (
+          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+            {String(task.status).replace(/_/g, ' ')}
+          </span>
+        )}
       </div>
       </div>
     </div>

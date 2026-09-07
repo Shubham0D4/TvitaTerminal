@@ -37,43 +37,25 @@ interface MilestoneItem {
 function MilestoneCard({ m }: { m: MilestoneItem }) {
   const color = STATUS_COLORS[m.status] ?? '#64748b'
   return (
-    <div style={{ background: 'var(--bg-elevated)', border: `1px solid var(--border-subtle)`, borderLeft: `4px solid ${color}`, borderRadius: 'var(--radius-lg)', padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+    <div className="ms-card" style={{ borderLeftColor: color }}>
       <div className="flex items-start justify-between gap-3">
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
-            {m.name}
-          </div>
-          {m.description && (
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 2 }}>{m.description}</div>
-          )}
+          <div className="ms-card__title">{m.name}</div>
+          {m.description && <div className="ms-card__desc">{m.description}</div>}
           {m.imageUrls && m.imageUrls.length > 0 && (
-            <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)', flexWrap: 'wrap' }}>
+            <div className="ms-card__thumbs">
               {m.imageUrls.map((url, idx) => (
-                <a
-                  key={idx}
-                  href={url}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    width: 48, height: 48, borderRadius: 'var(--radius-md)', overflow: 'hidden',
-                    border: '1px solid var(--border-subtle)', display: 'block',
-                  }}
-                  title="View internal attached image"
-                >
-                  {/* eslint-disable-next-img-element */}
-                  <img src={url} alt={`Internal attachment ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <a key={idx} href={url} target="_blank" rel="noreferrer" className="ms-card__thumb" title="View attachment">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt={`Attachment ${idx + 1}`} />
                 </a>
               ))}
             </div>
           )}
-          <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 6, flexWrap: 'wrap' }}>
-            <Link href={`/team/projects/${m.project.id}`} style={{ fontSize: 'var(--text-xs)', color: 'var(--accent-primary)', textDecoration: 'none' }}>
-              {m.project.name}
-            </Link>
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>· {m.project.client.name}</span>
-            {m.dueDate && (
-              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>· Due {formatDate(m.dueDate)}</span>
-            )}
+          <div className="ms-card__meta">
+            <Link href={`/team/projects/${m.project.id}`}>{m.project.name}</Link>
+            <span>· {m.project.client.name}</span>
+            {m.dueDate && <span>· Due {formatDate(m.dueDate)}</span>}
           </div>
         </div>
         <MilestoneStatusButton milestoneId={m.id} currentStatus={m.status as 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'BLOCKED'} />
@@ -85,16 +67,16 @@ function MilestoneCard({ m }: { m: MilestoneItem }) {
 function Section({ title, items, icon }: { title: string; items: MilestoneItem[]; icon: React.ReactNode }) {
   if (items.length === 0) return null
   return (
-    <div>
-      <div className="flex items-center gap-2 mb-3">
+    <section className="card ms-section">
+      <div className="ms-section__head">
         {icon}
-        <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>{title}</h2>
-        <span style={{ fontSize: 11, background: 'var(--bg-overlay)', color: 'var(--text-muted)', padding: '1px 8px', borderRadius: 10 }}>{items.length}</span>
+        <h2>{title}</h2>
+        <span className="badge">{items.length}</span>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+      <div className="ms-section__list">
         {items.map((m) => <MilestoneCard key={m.id} m={m} />)}
       </div>
-    </div>
+    </section>
   )
 }
 

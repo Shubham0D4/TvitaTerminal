@@ -1,7 +1,6 @@
 import { getServerUser, isAdmin, redirectToLogin, redirectToPortal } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
 import { cleanupExpiredInvitations } from '@/lib/invitation-cleanup'
-import QuotesModule from '@/app/components/projects/QuotesModule'
 import BentoClamp from '@/app/components/ui/BentoClamp'
 import {
   Building2,
@@ -150,6 +149,9 @@ export default async function AdminDashboardPage() {
     allTasks,
     recentClients,
     teamRolesGroup,
+    openQuotes,
+    pendingQuotesCount,
+    negotiatingQuotesCount,
   ] = await Promise.all([
     prisma.client.count(),
     prisma.client.count({ where: { status: 'ACTIVE' } }),
@@ -205,6 +207,23 @@ export default async function AdminDashboardPage() {
       where: { role: 'TEAM_MEMBER', isActive: true },
       _count: { _all: true },
     }),
+    prisma.quote.findMany({
+      where: { status: { in: ['PENDING', 'COUNTER_OFFERED'] } },
+      orderBy: { updatedAt: 'desc' },
+      take: 6,
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        budget: true,
+        counterBudget: true,
+        currency: true,
+        updatedAt: true,
+        client: { select: { name: true } },
+      },
+    }),
+    prisma.quote.count({ where: { status: 'PENDING' } }),
+    prisma.quote.count({ where: { status: 'COUNTER_OFFERED' } }),
   ])
 
   const paidInvoices = allInvoices.filter((inv) => inv.status === 'PAID')
@@ -843,9 +862,86 @@ export default async function AdminDashboardPage() {
       {/* ── 5. Quotes + Client Accounts ── */}
       <section className="admin-dash__grid" aria-label="Quotes and clients">
         <div className="admin-dash__cell admin-dash__cell--7">
-          <div className="admin-dash__quotes">
-            <BentoClamp maxHeight={320} moreLabel="Show more">
-              <QuotesModule userRole={user.role} userId={user.id} compact />
+          <div className="admin-dash__panel">
+            <div className="admin-dash__panel-head">
+              <div>
+                <h2 className="admin-dash__panel-title">Project Quotes &amp; Negotiations</h2>
+                <p className="admin-dash__panel-sub">Open requests — open a quote to negotiate</p>
+              </div>
+              <a href="/admin/quotes" className="btn btn--ghost btn--xs">
+                View <ChevronRight size={12} />
+              </a>
+            </div>
+
+            <div className="admin-dash__mini-stats admin-dash__mini-stats--2">
+              <div
+                className="admin-dash__mini-stat"
+                style={{ background: 'rgba(245,158,11,0.08)', border: 'none' }}
+              >
+                <div className="admin-dash__mini-stat-value" style={{ color: '#f59e0b' }}>
+                  {pendingQuotesCount}
+                </div>
+                <div className="admin-dash__mini-stat-label" style={{ color: '#f59e0b' }}>
+                  Pending
+                </div>
+              </div>
+              <div
+                className="admin-dash__mini-stat"
+                style={{ background: 'rgba(139,92,246,0.08)', border: 'none' }}
+              >
+                <div className="admin-dash__mini-stat-value" style={{ color: '#8b5cf6' }}>
+                  {negotiatingQuotesCount}
+                </div>
+                <div className="admin-dash__mini-stat-label" style={{ color: '#8b5cf6' }}>
+                  Negotiating
+                </div>
+              </div>
+            </div>
+
+            <BentoClamp maxHeight={180} moreHref="/admin/quotes" moreLabel="Show more">
+              <div className="admin-dash__list">
+                {openQuotes.length === 0 ? (
+                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', padding: '8px 0' }}>
+                    No open quotes right now.
+                  </div>
+                ) : (
+                  openQuotes.map((quote) => {
+                    const amount = Number(quote.counterBudget ?? quote.budget)
+                    const statusTone = quote.status === 'COUNTER_OFFERED'
+                      ? { bg: 'rgba(139,92,246,0.12)', color: '#8b5cf6', label: 'Negotiating' }
+                      : { bg: 'rgba(245,158,11,0.12)', color: '#f59e0b', label: 'Pending' }
+                    return (
+                      <a key={quote.id} href={`/admin/quotes/${quote.id}`} className="admin-dash__list-row">
+                        <div>
+                          <div
+                            style={{
+                              fontSize: 'var(--text-xs)',
+                              fontWeight: 'var(--font-semibold)',
+                              color: 'var(--text-primary)',
+                            }}
+                          >
+                            {quote.title}
+                          </div>
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                            {quote.client.name} · {formatCurrency(amount, quote.currency)}
+                          </div>
+                        </div>
+                        <span
+                          className="badge"
+                          style={{
+                            fontSize: 9,
+                            padding: '1px 6px',
+                            background: statusTone.bg,
+                            color: statusTone.color,
+                          }}
+                        >
+                          {statusTone.label}
+                        </span>
+                      </a>
+                    )
+                  })
+                )}
+              </div>
             </BentoClamp>
           </div>
         </div>

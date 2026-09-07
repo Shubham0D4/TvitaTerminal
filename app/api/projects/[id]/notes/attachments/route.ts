@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
-import { apiSuccess, Errors } from '@/lib/utils/api-response'
+import { apiSuccess, Errors, fromUnknownError } from '@/lib/utils/api-response'
 import { getServerUser } from '@/lib/auth/server'
+import { assertProjectAccess } from '@/lib/auth/access'
 import { uploadToSupabaseStorage } from '@/lib/supabase/storage'
 import path from 'path'
 
@@ -35,6 +36,7 @@ export async function POST(
   const { id: projectId } = await params
 
   try {
+    await assertProjectAccess(user, projectId, { clientPolicy: 'notes' })
     const formData = await request.formData()
     const file = formData.get('file') as File | null
 
@@ -72,6 +74,6 @@ export async function POST(
     })
   } catch (error) {
     console.error('Note attachment upload error:', error)
-    return Errors.INTERNAL('Failed to upload attachment')
+    return fromUnknownError(error, 'Failed to upload attachment')
   }
 }

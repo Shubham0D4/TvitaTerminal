@@ -1,13 +1,11 @@
 /**
  * scripts/seed-agency-data.ts
- * Idempotent demo seed for Admin UI: people, clients, projects, invoices,
- * payments, subscriptions, and quotes.
+ * Wipes the database and seeds demo data for Admin, Team, and Client portals.
  *
  * Run with:
  *   npm run seed:agency
  *
- * Demo passwords (where accounts are created): Pass1234
- * Existing admin / Northwind client accounts are left as-is.
+ * Every login uses password: Pass1234
  */
 
 import { PrismaClient, type Prisma } from '@prisma/client'
@@ -15,6 +13,19 @@ import { PrismaPg } from '@prisma/adapter-pg'
 import pg from 'pg'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
+import { inferStageFromName, type ProcessStageKey } from '../lib/process/stages'
+
+const DEFAULT_CLIENT_TEAM_NAME = '__default__'
+const DEFAULT_SUBTEAM_POLICY = {
+  projects: true,
+  milestones: true,
+  approvals: true,
+  invoices: false,
+  subscriptions: false,
+  billing: false,
+  issues: true,
+  notes: true,
+}
 
 const BCRYPT_ROUNDS = 10
 const CREDENTIAL_PROVIDER_ID = 'credential'
@@ -238,22 +249,33 @@ type ProjectSeed = {
   status: 'PLANNED' | 'IN_PROGRESS' | 'ON_HOLD' | 'CLIENT_REVIEW' | 'COMPLETED' | 'CANCELLED'
   progress: number
   leadEmail?: string
-  milestones: { name: string; status: 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CLIENT_REVIEW'; progress: number }[]
+  milestones: {
+    name: string
+    status: 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CLIENT_REVIEW'
+    progress: number
+    stage?: ProcessStageKey
+    dueOffset?: number
+    assigneeEmail?: string
+  }[]
 }
 
 const PROJECTS: ProjectSeed[] = [
   {
     clientSlug: 'northwind',
     name: 'Elita EV Storefront',
-    description: 'Storefront and configurator for the Elita electric range.',
+    description: 'Storefront and configurator for the Elita electric range — the main project for walking the client portal.',
     status: 'IN_PROGRESS',
-    progress: 64,
+    progress: 50,
     leadEmail: 'arjun.rao@tvita.in',
     milestones: [
-      { name: 'Discovery', status: 'COMPLETED', progress: 100 },
-      { name: 'Design System', status: 'COMPLETED', progress: 100 },
-      { name: 'Backend', status: 'IN_PROGRESS', progress: 55 },
-      { name: 'Launch', status: 'PLANNED', progress: 0 },
+      { name: 'Brand workshop', status: 'COMPLETED', progress: 100, stage: 'DISCOVERY', dueOffset: -40, assigneeEmail: 'arjun.rao@tvita.in' },
+      { name: 'Competitor audit', status: 'COMPLETED', progress: 100, stage: 'DISCOVERY', dueOffset: -32, assigneeEmail: 'sara.khan@tvita.in' },
+      { name: 'Design system', status: 'COMPLETED', progress: 100, stage: 'DESIGN', dueOffset: -20, assigneeEmail: 'sara.khan@tvita.in' },
+      { name: 'PDP mockups', status: 'IN_PROGRESS', progress: 60, stage: 'DESIGN', dueOffset: 8, assigneeEmail: 'arjun.rao@tvita.in' },
+      { name: 'Scope sign-off', status: 'COMPLETED', progress: 100, stage: 'QUOTE', dueOffset: -12, assigneeEmail: 'arjun.rao@tvita.in' },
+      { name: 'Cart & checkout API', status: 'IN_PROGRESS', progress: 40, stage: 'BACKEND', dueOffset: 14, assigneeEmail: 'dev.patel@tvita.in' },
+      { name: 'Inventory sync', status: 'PLANNED', progress: 0, stage: 'BACKEND', dueOffset: 28, assigneeEmail: 'arjun.rao@tvita.in' },
+      { name: 'UAT & launch checklist', status: 'PLANNED', progress: 0, stage: 'LAUNCH', dueOffset: 45, assigneeEmail: 'sara.khan@tvita.in' },
     ],
   },
   {
@@ -261,11 +283,29 @@ const PROJECTS: ProjectSeed[] = [
     name: 'Loyalty App',
     description: 'Cross-platform rewards for in-store and online.',
     status: 'CLIENT_REVIEW',
-    progress: 82,
+    progress: 80,
     leadEmail: 'meera.nair@tvita.in',
     milestones: [
-      { name: 'Prototype', status: 'COMPLETED', progress: 100 },
-      { name: 'Beta', status: 'IN_PROGRESS', progress: 70 },
+      { name: 'Rewards research', status: 'COMPLETED', progress: 100, stage: 'DISCOVERY', dueOffset: -50, assigneeEmail: 'meera.nair@tvita.in' },
+      { name: 'App prototype', status: 'COMPLETED', progress: 100, stage: 'DESIGN', dueOffset: -25, assigneeEmail: 'sara.khan@tvita.in' },
+      { name: 'Sprint plan', status: 'COMPLETED', progress: 100, stage: 'QUOTE', dueOffset: -18, assigneeEmail: 'meera.nair@tvita.in' },
+      { name: 'Points engine', status: 'COMPLETED', progress: 100, stage: 'BACKEND', dueOffset: -5, assigneeEmail: 'dev.patel@tvita.in' },
+      { name: 'Beta review', status: 'IN_PROGRESS', progress: 70, stage: 'LAUNCH', dueOffset: 6, assigneeEmail: 'meera.nair@tvita.in' },
+    ],
+  },
+  {
+    clientSlug: 'northwind',
+    name: 'POS Upgrade',
+    description: 'In-store POS refresh — completed and in project history.',
+    status: 'COMPLETED',
+    progress: 100,
+    leadEmail: 'arjun.rao@tvita.in',
+    milestones: [
+      { name: 'Store discovery', status: 'COMPLETED', progress: 100, stage: 'DISCOVERY', dueOffset: -80, assigneeEmail: 'arjun.rao@tvita.in' },
+      { name: 'Terminal UI', status: 'COMPLETED', progress: 100, stage: 'DESIGN', dueOffset: -60, assigneeEmail: 'sara.khan@tvita.in' },
+      { name: 'Rollout plan', status: 'COMPLETED', progress: 100, stage: 'QUOTE', dueOffset: -50, assigneeEmail: 'arjun.rao@tvita.in' },
+      { name: 'Hardware integration', status: 'COMPLETED', progress: 100, stage: 'BACKEND', dueOffset: -30, assigneeEmail: 'dev.patel@tvita.in' },
+      { name: 'Go-live', status: 'COMPLETED', progress: 100, stage: 'LAUNCH', dueOffset: -10, assigneeEmail: 'arjun.rao@tvita.in' },
     ],
   },
   {
@@ -689,7 +729,7 @@ async function ensureProject(
       status: seed.status,
       progress: seed.progress,
       startDate: daysAgo(90),
-      endDate: daysFromNow(60),
+      endDate: seed.status === 'COMPLETED' ? daysAgo(8) : daysFromNow(60),
       leadId,
       createdById: adminId,
       milestones: {
@@ -698,17 +738,31 @@ async function ensureProject(
           status: m.status,
           progress: m.progress,
           sortOrder: i,
-          clientVisible: m.status === 'COMPLETED',
+          stage: m.stage ?? inferStageFromName(m.name),
+          dueDate: m.dueOffset !== undefined ? (m.dueOffset < 0 ? daysAgo(-m.dueOffset) : daysFromNow(m.dueOffset)) : null,
+          completedDate: m.status === 'COMPLETED' ? daysAgo(Math.max(-(m.dueOffset ?? -7), 1)) : null,
+          clientVisible: m.status === 'COMPLETED' || m.status === 'IN_PROGRESS' || m.status === 'CLIENT_REVIEW',
+          assigneeId: m.assigneeEmail ? peopleByEmail.get(m.assigneeEmail) ?? null : leadId,
           createdById: adminId,
         })),
       },
       updates: {
-        create: {
-          title: 'Progress update',
-          content: `Seeded status: ${seed.status.replace(/_/g, ' ').toLowerCase()} at ${seed.progress}%.`,
-          authorId: leadId ?? adminId,
-          clientVisible: true,
-        },
+        create: [
+          {
+            title: 'Progress update',
+            content: `Work on ${seed.name} is currently ${seed.status.replace(/_/g, ' ').toLowerCase()}.`,
+            authorId: leadId ?? adminId,
+            clientVisible: true,
+            createdAt: daysAgo(4),
+          },
+          {
+            title: 'Latest note from the team',
+            content: 'Design and engineering are coordinated against the five process stages. Completed milestones are visible here.',
+            authorId: leadId ?? adminId,
+            clientVisible: true,
+            createdAt: daysAgo(1),
+          },
+        ],
       },
     },
     select: { id: true },
@@ -720,9 +774,17 @@ async function ensureProject(
     await prisma.projectMember.upsert({
       where: { projectId_profileId: { projectId: project.id, profileId } },
       update: {},
-      create: { projectId: project.id, profileId, role: 'MEMBER' },
+      create: {
+        projectId: project.id,
+        profileId,
+        role: profileId === leadId ? 'LEAD' : 'MEMBER',
+      },
     })
   }
+
+  const all = await prisma.milestone.findMany({ where: { projectId: project.id }, select: { status: true } })
+  const pct = all.length === 0 ? 0 : Math.round((all.filter((m) => m.status === 'COMPLETED').length / all.length) * 100)
+  await prisma.project.update({ where: { id: project.id }, data: { progress: pct } })
 
   return project.id
 }
@@ -817,6 +879,8 @@ async function seedBilling(
 
 async function seedQuotes(prisma: PrismaClient, clients: { id: string; slug: string }[]) {
   const quotes = [
+    { slug: 'northwind', title: 'In-store kiosk experience', budget: 240000, status: 'PENDING' },
+    { slug: 'northwind', title: 'Loyalty phase 2', budget: 180000, status: 'COUNTER_OFFERED', counter: 210000 },
     { slug: 'lumen', title: 'Telehealth Module', budget: 320000, status: 'PENDING' },
     { slug: 'haven', title: 'CRM Integration', budget: 150000, status: 'COUNTER_OFFERED', counter: 175000 },
     { slug: 'bloom', title: 'Launch Campaign Site', budget: 90000, status: 'ACCEPTED' },
@@ -866,6 +930,313 @@ async function seedQuotes(prisma: PrismaClient, clients: { id: string; slug: str
   }
 }
 
+async function wipeDatabase(prisma: PrismaClient) {
+  await prisma.$executeRawUnsafe(`
+    TRUNCATE TABLE
+      task_comments,
+      task_activities,
+      tasks,
+      project_notes,
+      project_tickets,
+      project_meetings,
+      project_updates,
+      payments,
+      invoices,
+      client_quotes,
+      milestones,
+      project_members,
+      projects,
+      client_sub_team_members,
+      client_sub_team_roles,
+      client_sub_teams,
+      client_contacts,
+      subscriptions,
+      notifications,
+      audit_logs,
+      plan_features,
+      plans,
+      verifications,
+      sessions,
+      accounts,
+      clients,
+      profiles,
+      app_settings
+    RESTART IDENTITY CASCADE
+  `)
+}
+
+async function seedNorthwindPortal(
+  prisma: PrismaClient,
+  opts: {
+    clientId: string
+    projectIds: string[]
+    peopleByEmail: Map<string, string>
+    adminId: string
+    clientProfileId: string
+    passwordHash: string
+  }
+) {
+  const { clientId, projectIds, peopleByEmail, adminId, clientProfileId, passwordHash } = opts
+  const storefrontId = projectIds[0]
+  const loyaltyId = projectIds[1]
+  const arjun = peopleByEmail.get('arjun.rao@tvita.in')!
+  const sara = peopleByEmail.get('sara.khan@tvita.in')!
+  const dev = peopleByEmail.get('dev.patel@tvita.in')!
+
+  const defaultTeam = await prisma.clientSubTeam.create({
+    data: {
+      clientId,
+      name: DEFAULT_CLIENT_TEAM_NAME,
+      description: 'Organisation team on the client portal',
+      email: `default-${clientId.slice(0, 8)}@team.tvita`,
+      allowedProjects: [],
+      accessPolicy: DEFAULT_SUBTEAM_POLICY,
+      status: 'ACTIVE',
+    },
+  })
+
+  await prisma.clientSubTeam.create({
+    data: {
+      clientId,
+      name: 'Store Ops',
+      description: 'In-store operations reviewers',
+      email: 'store-ops@northwind.example',
+      allowedProjects: [storefrontId, loyaltyId].filter(Boolean),
+      accessPolicy: DEFAULT_SUBTEAM_POLICY,
+      status: 'ACTIVE',
+    },
+  })
+
+  const teammateId = crypto.randomUUID()
+  await prisma.profile.create({
+    data: {
+      id: teammateId,
+      email: 'teammate@tvita.in',
+      name: 'Riya Sharma',
+      role: 'CLIENT',
+      phone: '+91 98200 41123',
+      isActive: true,
+      emailVerified: true,
+      passwordHash,
+    },
+  })
+  await prisma.account.create({
+    data: {
+      accountId: teammateId,
+      providerId: CREDENTIAL_PROVIDER_ID,
+      issuer: CREDENTIAL_ISSUER,
+      userId: teammateId,
+      password: passwordHash,
+    },
+  })
+  await prisma.clientSubTeamMember.create({
+    data: {
+      subTeamId: defaultTeam.id,
+      profileId: teammateId,
+      name: 'Riya Sharma',
+      email: 'teammate@tvita.in',
+      designation: 'Brand Manager',
+      status: 'ACTIVE',
+      customPolicy: DEFAULT_SUBTEAM_POLICY,
+    },
+  })
+
+  if (storefrontId) {
+    const milestones = await prisma.milestone.findMany({
+      where: { projectId: storefrontId },
+      orderBy: { sortOrder: 'asc' },
+    })
+    const designMs = milestones.find((m) => m.name === 'PDP mockups')
+    const backendMs = milestones.find((m) => m.name === 'Cart & checkout API')
+
+    await prisma.note.createMany({
+      data: [
+        {
+          projectId: storefrontId,
+          title: 'Homepage hero copy',
+          content: 'Please keep the hero line about range anxiety short. We liked the last round.',
+          type: 'EXTERNAL_CLIENT',
+          creatorId: clientProfileId,
+        },
+        {
+          projectId: storefrontId,
+          title: 'Configurators — colour names',
+          content: 'Use the official Elita colour names (Nimbus, Graphite, Sage) rather than generic greys.',
+          type: 'EXTERNAL_CLIENT',
+          creatorId: arjun,
+        },
+        {
+          projectId: storefrontId,
+          title: 'Internal: performance budget',
+          content: 'Keep LCP under 2.5s on 4G. Not shared with the client.',
+          type: 'INTERNAL_TEAM',
+          creatorId: arjun,
+        },
+      ],
+    })
+
+    await prisma.ticket.createMany({
+      data: [
+        {
+          projectId: storefrontId,
+          title: 'Wrong range shown on Nimbus variant',
+          description: 'The configurator shows 312 km for Nimbus; spec sheet says 348 km.',
+          status: 'OPEN',
+          priority: 'HIGH',
+          creatorId: clientProfileId,
+        },
+        {
+          projectId: storefrontId,
+          title: 'Checkout GST split on invoice preview',
+          description: 'CGST/SGST should split equally for Maharashtra billing.',
+          status: 'IN_PROGRESS',
+          priority: 'MEDIUM',
+          creatorId: clientProfileId,
+        },
+        {
+          projectId: storefrontId,
+          title: 'Footer still has last year’s legal entity',
+          description: 'Should read Northwind Retail Private Limited.',
+          status: 'RESOLVED',
+          priority: 'LOW',
+          creatorId: clientProfileId,
+        },
+        {
+          projectId: storefrontId,
+          title: 'Mobile nav overlaps the banner',
+          description: 'Seen on iPhone 14 Safari. Closed after the last design pass.',
+          status: 'CLOSED',
+          priority: 'MEDIUM',
+          creatorId: clientProfileId,
+        },
+      ],
+    })
+
+    await prisma.meeting.createMany({
+      data: [
+        {
+          projectId: storefrontId,
+          title: 'Weekly storefront review',
+          description: 'Walk through PDP mockups and open revisions.',
+          meetLink: 'https://meet.google.com/seed-storefront',
+          scheduledAt: daysFromNow(2),
+          duration: 45,
+          hostId: arjun,
+        },
+        {
+          projectId: storefrontId,
+          title: 'Kickoff recap',
+          description: 'Recorded kickoff — scope and five-stage process.',
+          scheduledAt: daysAgo(21),
+          duration: 60,
+          hostId: arjun,
+        },
+      ],
+    })
+
+    await prisma.task.createMany({
+      data: [
+        {
+          projectId: storefrontId,
+          milestoneId: designMs?.id ?? null,
+          title: 'Finish PDP desktop mockups',
+          description: 'Hero, gallery, and spec table for Nimbus.',
+          status: 'IN_PROGRESS',
+          priority: 'HIGH',
+          assigneeId: arjun,
+          developerId: arjun,
+          dueDate: daysFromNow(5),
+          createdById: arjun,
+          clientVisible: false,
+        },
+        {
+          projectId: storefrontId,
+          milestoneId: backendMs?.id ?? null,
+          title: 'Wire Razorpay checkout',
+          description: 'Sandbox first; GST line items from invoice seed.',
+          status: 'TODO',
+          priority: 'HIGH',
+          assigneeId: dev,
+          developerId: dev,
+          testerId: sara,
+          dueDate: daysFromNow(10),
+          createdById: arjun,
+        },
+        {
+          projectId: storefrontId,
+          milestoneId: designMs?.id ?? null,
+          title: 'QA the mobile nav overlay',
+          description: 'Confirm the closed ticket stays closed on iPhone.',
+          status: 'IN_TESTING',
+          priority: 'MEDIUM',
+          assigneeId: sara,
+          testerId: sara,
+          dueDate: daysFromNow(3),
+          createdById: arjun,
+        },
+      ],
+    })
+  }
+
+  if (loyaltyId) {
+    await prisma.note.create({
+      data: {
+        projectId: loyaltyId,
+        title: 'Beta testers',
+        content: 'We can invite 20 staff from the Colaba and Bandra stores next week.',
+        type: 'EXTERNAL_CLIENT',
+        creatorId: clientProfileId,
+      },
+    })
+    await prisma.ticket.create({
+      data: {
+        projectId: loyaltyId,
+        title: 'Points expiry copy is unclear',
+        description: 'Need a plain-language line on the wallet screen.',
+        status: 'OPEN',
+        priority: 'MEDIUM',
+        creatorId: clientProfileId,
+      },
+    })
+    await prisma.meeting.create({
+      data: {
+        projectId: loyaltyId,
+        title: 'Loyalty UAT',
+        description: 'Client review of the beta build.',
+        scheduledAt: daysFromNow(5),
+        duration: 30,
+        hostId: peopleByEmail.get('meera.nair@tvita.in') ?? arjun,
+      },
+    })
+  }
+
+  await prisma.notification.createMany({
+    data: [
+      {
+        userId: clientProfileId,
+        title: 'Invoice due',
+        message: 'A Northwind invoice is pending payment.',
+        type: 'BILLING',
+        isRead: false,
+      },
+      {
+        userId: clientProfileId,
+        title: 'Milestone ready for review',
+        message: 'PDP mockups on Elita EV Storefront are in progress.',
+        type: 'PROJECT',
+        isRead: false,
+      },
+      {
+        userId: arjun,
+        title: 'Assigned to you',
+        message: 'PDP mockups is assigned to you as project lead.',
+        type: 'TASK',
+        isRead: false,
+      },
+    ],
+  })
+}
+
 async function main() {
   const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL
   if (!connectionString) {
@@ -878,23 +1249,20 @@ async function main() {
   const passwordHash = bcrypt.hashSync(DEMO_PASSWORD, BCRYPT_ROUNDS)
 
   try {
+    console.log('🧹 Wiping database…')
+    await wipeDatabase(prisma)
+    console.log('  ✓ Tables truncated\n')
     console.log('🌱 Seeding agency demo data…\n')
 
     await ensurePlans(prisma)
     console.log('  ✓ Plans ready')
 
-    let admin = await prisma.profile.findFirst({
-      where: { role: 'ADMIN' },
-      select: { id: true, email: true },
-    })
-    if (!admin) {
-      admin = await upsertPerson(
-        prisma,
-        { email: 'admin@tvita.in', name: 'Test Admin', role: 'ADMIN', salary: 180000 },
-        passwordHash
-      )
-      console.log('  ✓ Created default admin@tvita.in')
-    }
+    const admin = await upsertPerson(
+      prisma,
+      { email: 'admin@tvita.in', name: 'Test Admin', role: 'ADMIN', salary: 180000 },
+      passwordHash
+    )
+    console.log('  ✓ Admin admin@tvita.in')
 
     const peopleByEmail = new Map<string, string>()
     peopleByEmail.set(admin.email, admin.id)
@@ -905,13 +1273,14 @@ async function main() {
     }
     console.log(`  ✓ People upserted (${PEOPLE.length})`)
 
-    const clientRecords: { id: string; slug: string; currency: string }[] = []
+    const clientRecords: { id: string; slug: string; currency: string; profileId: string | null }[] = []
     for (const seed of CLIENTS) {
       const client = await upsertClientOrg(prisma, seed, admin.id, passwordHash)
       clientRecords.push({
         id: client.id,
         slug: seed.slug,
         currency: seed.country === 'US' ? 'USD' : 'INR',
+        profileId: client.profileId,
       })
     }
     console.log(`  ✓ Clients upserted (${CLIENTS.length})`)
@@ -933,8 +1302,26 @@ async function main() {
     await seedQuotes(prisma, clientRecords)
     console.log('  ✓ Quotes seeded')
 
-    console.log('\n✅ Agency seed complete.')
-    console.log(`   Demo password for seeded logins: ${DEMO_PASSWORD}`)
+    const northwind = clientRecords.find((c) => c.slug === 'northwind')
+    if (northwind?.profileId) {
+      await seedNorthwindPortal(prisma, {
+        clientId: northwind.id,
+        projectIds: projectsByClient.get('northwind') ?? [],
+        peopleByEmail,
+        adminId: admin.id,
+        clientProfileId: northwind.profileId,
+        passwordHash,
+      })
+      console.log('  ✓ Northwind client portal (notes, tickets, meetings, team)')
+    }
+
+    console.log('\n✅ Database reset and seed complete.')
+    console.log(`   Password for every login: ${DEMO_PASSWORD}`)
+    console.log('   Admin     admin@tvita.in')
+    console.log('   Lead      arjun.rao@tvita.in')
+    console.log('   Member    sara.khan@tvita.in')
+    console.log('   Client    client@tvita.in')
+    console.log('   Teammate  teammate@tvita.in  (client team, no billing)')
   } finally {
     await prisma.$disconnect()
     await pool.end()

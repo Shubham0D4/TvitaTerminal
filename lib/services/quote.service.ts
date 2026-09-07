@@ -1,17 +1,15 @@
 import { prisma } from '@/lib/prisma'
-import { getClientSubTeamContext, AuthUser } from '@/lib/auth/server'
-import { ValidationError, NotFoundError } from '@/lib/errors'
+import { AuthUser, isAdmin, isClient } from '@/lib/auth/server'
+import { ValidationError, NotFoundError, AuthorizationError } from '@/lib/errors'
 import { writeAuditLog } from '@/lib/audit'
+import { assertPrimaryClient } from '@/lib/auth/access'
 
 export class QuoteService {
   static async validateClientAccess(clientId: string, user: AuthUser) {
-    if (user.role === 'ADMIN') return true
+    if (isAdmin(user)) return true
 
-    if (user.role === 'CLIENT') {
-      const subteam = await getClientSubTeamContext(user.id)
-      if (subteam) {
-        throw new Error('Client sub-teams are not authorized to view or manage quotes')
-      }
+    if (isClient(user)) {
+      await assertPrimaryClient(user, 'Client sub-teams are not authorized to view or manage quotes')
 
       const primaryClient = await prisma.client.findFirst({
         where: { OR: [{ profileId: user.id }, { email: user.email }] },
@@ -19,16 +17,16 @@ export class QuoteService {
       })
 
       if (!primaryClient || primaryClient.id !== clientId) {
-        throw new Error('Unauthorized client access')
+        throw new AuthorizationError('Unauthorized client access')
       }
       return true
     }
 
-    throw new Error('Unauthorized access')
+    throw new AuthorizationError('Unauthorized access')
   }
 
   static async getQuotesList(clientId: string | null | undefined, user: AuthUser) {
-    if (user.role === 'ADMIN') {
+    if (isAdmin(user)) {
       const where = clientId ? { clientId } : {}
       return prisma.quote.findMany({
         where,
@@ -39,10 +37,11 @@ export class QuoteService {
       })
     }
 
-    if (user.role === 'CLIENT') {
-      const subteam = await getClientSubTeamContext(user.id)
-      if (subteam) {
-        return [] // Sub-teams are completely restricted from quotes
+    if (isClient(user)) {
+      try {
+        await assertPrimaryClient(user, 'Client sub-teams are not authorized to view or manage quotes')
+      } catch {
+        return []
       }
 
       const userClient = await prisma.client.findFirst({
@@ -60,7 +59,6 @@ export class QuoteService {
       })
     }
 
-    // Team members (role === TEAM_MEMBER) cannot see quotes at all
     return []
   }
 
@@ -70,11 +68,8 @@ export class QuoteService {
   ) {
     let targetClientId = body.clientId
 
-    if (user.role === 'CLIENT') {
-      const subteam = await getClientSubTeamContext(user.id)
-      if (subteam) {
-        throw new ValidationError('Sub-teams are not authorized to create quotes')
-      }
+    if (isClient(user)) {
+      await assertPrimaryClient(user, 'Sub-teams are not authorized to create quotes')
 
       const userClient = await prisma.client.findFirst({
         where: { OR: [{ profileId: user.id }, { email: user.email }] },
@@ -82,8 +77,8 @@ export class QuoteService {
       })
       if (!userClient) throw new ValidationError('Client account not found')
       targetClientId = userClient.id
-    } else if (user.role !== 'ADMIN') {
-      throw new ValidationError('Team members are not authorized to create quotes')
+    } else if (!isAdmin(user)) {
+      throw new AuthorizationError('Team members are not authorized to create quotes')
     }
 
     const { title, description, budget, currency = 'INR', message } = body
@@ -137,13 +132,25 @@ export class QuoteService {
     return quote
   }
 
+  static async getQuoteById(id: string, user: AuthUser) {
+    const quote = await prisma.quote.findUnique({
+      where: { id },
+      include: {
+        client: { select: { id: true, name: true, email: true } },
+      },
+    })
+    if (!quote) throw new NotFoundError('Quote not found')
+    await this.validateClientAccess(quote.clientId, user)
+    return quote
+  }
+
   static async updateQuote(
     id: string,
     body: { status?: string; counterBudget?: number; message?: string; adminNotes?: string },
     user: AuthUser
   ) {
     if (user.role === 'TEAM_MEMBER') {
-      throw new Error('Team members are not authorized to update quotes')
+      throw new AuthorizationError('Team members are not authorized to update quotes')
     }
 
     const quote = await prisma.quote.findUnique({ where: { id } })
@@ -208,7 +215,7 @@ export class QuoteService {
   }
 
   static async deleteQuote(id: string, user: AuthUser) {
-    if (user.role !== 'ADMIN') throw new Error('Only administrators can delete quotes')
+    if (user.role !== 'ADMIN') throw new AuthorizationError('Only administrators can delete quotes')
 
     const quote = await prisma.quote.findUnique({ where: { id } })
     if (!quote) throw new NotFoundError('Quote not found')

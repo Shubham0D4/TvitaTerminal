@@ -4,8 +4,10 @@ import { FolderKanban } from 'lucide-react'
 import Image from 'next/image'
 
 import { prisma } from '@/lib/prisma'
-import { getServerUser, getClientSubTeamContext, redirectToLogin } from '@/lib/auth/server'
+import { getServerUser, redirectToLogin } from '@/lib/auth/server'
 import ProjectCarousel from '@/app/components/client/ProjectCarousel'
+import { clientProjectWhere, getClientActor, hasClientPolicy } from '@/lib/auth/access'
+import { currentPhaseName, progressFromMilestones } from '@/lib/process/stages'
 
 export const metadata = {
   title: 'Projects — Tvita Client Portal',
@@ -37,17 +39,8 @@ export default async function ClientProjectsPage({ searchParams }: ClientProject
   const user = await getServerUser()
   if (!user) redirectToLogin()
 
-  // Sub-team users resolve their client via the sub-team relation.
-  const subTeamCtx = await getClientSubTeamContext(user.id)
-  if (subTeamCtx && !subTeamCtx.policy.projects) redirect('/client/home')
-
-  const client = await prisma.client.findFirst({
-    where: subTeamCtx
-      ? { id: subTeamCtx.clientId }
-      : { OR: [{ profileId: user.id }, { email: user.email }] },
-  })
-
-  if (!client) {
+  const actor = await getClientActor(user)
+  if (!actor) {
     return (
       <div className="card">
         <div className="empty-state">
@@ -61,12 +54,13 @@ export default async function ClientProjectsPage({ searchParams }: ClientProject
     )
   }
 
+  if (!hasClientPolicy(actor.subTeam, 'projects')) redirect('/client/home')
+
+  const { client } = actor
+
   const projects = await prisma.project.findMany({
     where: {
-      clientId: client.id,
-      ...(subTeamCtx && subTeamCtx.allowedProjectIds.length > 0
-        ? { id: { in: subTeamCtx.allowedProjectIds } }
-        : {}),
+      ...clientProjectWhere(client.id, actor.subTeam),
       ...(query
         ? {
             OR: [
@@ -88,9 +82,8 @@ export default async function ClientProjectsPage({ searchParams }: ClientProject
       // Names the phase on the ticket stub. The process tree itself is a
       // fixed pipeline, so it needs nothing from here.
       milestones: {
-        where: { clientVisible: true },
         orderBy: { sortOrder: 'asc' },
-        select: { name: true, status: true },
+        select: { name: true, status: true, stage: true },
       },
       // Latest notes from the team, shown against the milestone underway.
       updates: {
@@ -140,8 +133,9 @@ export default async function ClientProjectsPage({ searchParams }: ClientProject
               name: project.name,
               banner: project.banner,
               status: project.status,
-              progress: project.progress,
-              phase: project.milestones.find((m) => m.status !== 'COMPLETED')?.name,
+              progress: progressFromMilestones(project.milestones),
+              phase: currentPhaseName(project.milestones, project.status),
+              milestones: project.milestones,
               updates: project.updates.map((update) => ({
                 id: update.id,
                 title: update.title,

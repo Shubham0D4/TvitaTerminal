@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { FolderKanban, Plus, Search, ArrowUpRight } from 'lucide-react'
 import AdminViewToggle, { type AdminViewMode } from '@/app/components/admin/AdminViewToggle'
+import { currentPhaseName, progressFromMilestones } from '@/lib/process/stages'
 
 export const metadata = {
   title: 'Projects — Tvita Admin',
@@ -43,10 +44,8 @@ async function getProjects(search?: string, status?: string) {
       client: { select: { id: true, name: true } },
       lead: { select: { id: true, name: true } },
       milestones: {
-        where: { status: { not: 'COMPLETED' } },
         orderBy: { sortOrder: 'asc' },
-        take: 1,
-        select: { name: true },
+        select: { name: true, status: true, stage: true },
       },
     },
     orderBy: { updatedAt: 'desc' },
@@ -173,7 +172,8 @@ export default async function AdminProjectsPage({
                     label: project.status,
                     tone: 'slate',
                   }
-                  const phase = project.milestones[0]?.name
+                  const phase = currentPhaseName(project.milestones, project.status)
+                  const progress = progressFromMilestones(project.milestones)
                   return (
                     <tr key={project.id}>
                       <td>
@@ -194,9 +194,9 @@ export default async function AdminProjectsPage({
                       <td>
                         <div className="flex items-center gap-2">
                           <div className="progress-bar-container" style={{ width: 72 }}>
-                            <div className="progress-bar-fill" style={{ width: `${project.progress}%` }} />
+                            <div className="progress-bar-fill" style={{ width: `${progress}%` }} />
                           </div>
-                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{project.progress}%</span>
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{progress}%</span>
                         </div>
                       </td>
                       <td style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>
@@ -224,7 +224,8 @@ export default async function AdminProjectsPage({
                   tone: 'slate',
                 }
                 const banner = project.banner || FALLBACK_BANNER
-                const phase = project.milestones[0]?.name
+                const phase = currentPhaseName(project.milestones, project.status)
+                const progress = progressFromMilestones(project.milestones)
 
                 return (
                   <article key={project.id} className={`ticket ticket--${status.tone} aticket`}>
@@ -258,9 +259,9 @@ export default async function AdminProjectsPage({
 
                         <div className="ticket__meter">
                           <span className="ticket__bar" aria-hidden="true">
-                            <span className="ticket__fill" style={{ width: `${project.progress}%` }} />
+                            <span className="ticket__fill" style={{ width: `${progress}%` }} />
                           </span>
-                          <span className="ticket__pct">{project.progress}%</span>
+                          <span className="ticket__pct">{progress}%</span>
                         </div>
 
                         <Link href={`/admin/projects/${project.id}`} className="ticket__open">

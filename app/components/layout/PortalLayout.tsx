@@ -89,6 +89,7 @@ export default async function PortalLayout({ children, allowedRoles }: PortalLay
             name: user.name,
             email: user.email,
             role: user.role,
+            teamRole: user.teamRole,
           }}
         />
         <main className="portal-content">

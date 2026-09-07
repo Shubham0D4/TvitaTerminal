@@ -36,7 +36,8 @@ export async function GET(
       return Errors.NOT_FOUND('Team member')
     }
 
-    return apiSuccess(member)
+    const { passwordHash, magicLinkToken, magicLinkExpires, ...safe } = member
+    return apiSuccess({ ...safe, hasPassword: Boolean(passwordHash) })
   } catch (error) {
     console.error('Admin team GET member API error:', error)
     return Errors.INTERNAL('Failed to fetch team member')

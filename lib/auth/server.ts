@@ -66,7 +66,10 @@ export function redirectToPortal(user: AuthUser): never {
 export function verifyThirdPartyAuth(request: Request): boolean {
   const apiKeyHeader = request.headers.get('x-api-key') || request.headers.get('authorization')
   const validApiKey = env.THIRD_PARTY_API_KEY || env.GMAIL_WEBHOOK_SECRET
-  if (!validApiKey) return true // Allow in dev if not explicitly set
+  if (!validApiKey) {
+    // Fail closed outside local development — a missing secret must not open the webhook.
+    return env.NODE_ENV !== 'production'
+  }
   if (!apiKeyHeader) return false
   return apiKeyHeader.includes(validApiKey)
 }
@@ -90,6 +93,7 @@ export function isClient(user: AuthUser | null): boolean {
   return user?.role === Role.CLIENT
 }
 
+/** Agency title only. Do not use for project authorization — use isProjectManager / assertProjectManage. */
 export function isTeamLead(user: AuthUser | null): boolean {
   return user?.teamRole === 'TEAM_LEAD'
 }
@@ -103,7 +107,7 @@ export function isTester(user: AuthUser | null): boolean {
 }
 
 export function canManageDocuments(user: AuthUser | null): boolean {
-  return user?.role === 'ADMIN' || user?.teamRole === 'TEAM_LEAD'
+  return user?.role === 'ADMIN'
 }
 
 // ─── Client Sub-Team Access Policy ───────────────────────────────────────────
@@ -130,6 +134,16 @@ export const DEFAULT_SUBTEAM_POLICY: AccessPolicy = {
   notes: true,
 }
 
+/** Internal name for the organisation team on the client portal. */
+export const DEFAULT_CLIENT_TEAM_NAME = '__default__'
+
+export function clientTeamDisplayName(teamName: string, clientName?: string | null) {
+  if (teamName === DEFAULT_CLIENT_TEAM_NAME) {
+    return clientName?.trim() || 'Team'
+  }
+  return teamName
+}
+
 export type SubTeamContext = {
   subTeamId: string
   clientId: string
@@ -147,27 +161,8 @@ export type SubTeamContext = {
  */
 export const getClientSubTeamContext = cache(async (userId: string): Promise<SubTeamContext | null> => {
   try {
-    // 0. Primary client organization owner has full unrestricted access
-    const profile = await prisma.profile.findUnique({
-      where: { id: userId },
-      select: { email: true },
-    })
-
-    if (profile) {
-      const primaryClient = await prisma.client.findFirst({
-        where: {
-          OR: [
-            { profileId: userId },
-            { email: profile.email },
-          ],
-        },
-      })
-      if (primaryClient) {
-        return null
-      }
-    }
-
-    // 1. Check if user is an individual member of a sub-team
+    // Sub-team membership wins over a coincidental Client.email match so a
+    // collaborator is never promoted to unrestricted primary-owner access.
     const member = await prisma.clientSubTeamMember.findUnique({
       where: { profileId: userId },
       include: {
